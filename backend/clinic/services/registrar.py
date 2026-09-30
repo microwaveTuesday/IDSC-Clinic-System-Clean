@@ -46,23 +46,52 @@ class MockRegistrarService:
         },
     ]
 
-    def list_students(self, search=None):
+    def list_students(
+        self,
+        search=None,
+        status=None,
+        course=None,
+        section=None,
+    ):
         students = [student.copy() for student in self._students]
 
-        if not search:
-            return students
+        if search:
+            term = str(search).strip().lower()
+            students = [
+                student
+                for student in students
+                if term in student["student_id"].lower()
+                or term in student["first_name"].lower()
+                or term in student["last_name"].lower()
+                or term in student["course"].lower()
+                or term in student["section"].lower()
+            ]
 
-        term = str(search).strip().lower()
+        if status:
+            status_value = str(status).strip().upper()
+            students = [
+                student
+                for student in students
+                if student["status"] == status_value
+            ]
 
-        return [
-            student
-            for student in students
-            if term in student["student_id"].lower()
-            or term in student["first_name"].lower()
-            or term in student["last_name"].lower()
-            or term in student["course"].lower()
-            or term in student["section"].lower()
-        ]
+        if course:
+            course_value = str(course).strip().lower()
+            students = [
+                student
+                for student in students
+                if student["course"].lower() == course_value
+            ]
+
+        if section:
+            section_value = str(section).strip().lower()
+            students = [
+                student
+                for student in students
+                if student["section"].lower() == section_value
+            ]
+
+        return students
 
     def get_student(self, student_id):
         student_id = str(student_id).strip()

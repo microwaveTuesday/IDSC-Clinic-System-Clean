@@ -10,7 +10,12 @@ from django.urls import path
 from rest_framework.routers import DefaultRouter
 
 from .views import (
+    MedicineDispensationReportView,
+    MedicineInventoryReportView,
+    HealthRecordsReportView,
+    ClinicVisitsReportView,
     ConsultationViewSet,
+    DashboardView,
     HealthRecordViewSet,
     HealthStatusIntegrationView,
     HealthStatusViewSet,
@@ -55,6 +60,35 @@ urlpatterns = [
         "health/",
         HealthView.as_view(),
         name="health",
+    ),
+
+    # Read-only integration projections.
+    path(
+        "dashboard/",
+        DashboardView.as_view(),
+        name="dashboard",
+    ),
+
+    # Read-only report endpoints.
+    path(
+        "reports/clinic-visits/",
+        ClinicVisitsReportView.as_view(),
+        name="clinic-visits-report",
+    ),
+    path(
+        "reports/health-records/",
+        HealthRecordsReportView.as_view(),
+        name="health-records-report",
+    ),
+    path(
+        "reports/medicine-inventory/",
+        MedicineInventoryReportView.as_view(),
+        name="medicine-inventory-report",
+    ),
+        path(
+        "reports/medicine-dispensations/",
+        MedicineDispensationReportView.as_view(),
+        name="medicine-dispensations-report",
     ),
 
     # Registrar-backed read-only student projection.

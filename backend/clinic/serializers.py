@@ -129,6 +129,13 @@ class ConsultationSerializer(serializers.ModelSerializer):
             )
         return value
 
+    def validate(self, attrs):
+        if self.partial and not attrs:
+            raise serializers.ValidationError(
+                "At least one field must be provided."
+            )
+        return attrs
+
 
 class HealthStatusSerializer(serializers.ModelSerializer):
     """Serializer for Clinic-owned student health status."""
@@ -164,6 +171,13 @@ class HealthStatusSerializer(serializers.ModelSerializer):
                 f"Invalid health status. Valid options are: {valid}"
             )
         return value
+
+    def validate(self, attrs):
+        if self.partial and not attrs:
+            raise serializers.ValidationError(
+                "At least one field must be provided."
+            )
+        return attrs
 
 
 class MedicineDispensationSerializer(serializers.ModelSerializer):

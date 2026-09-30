@@ -312,13 +312,13 @@ components:
           type:
             - number
             - "null"
-          minimum: 0
+          exclusiveMinimum: 0
           example: 170.5
         weight_kg:
           type:
             - number
             - "null"
-          minimum: 0
+          exclusiveMinimum: 0
           example: 65.2
 
     HealthRecordUpdate:
@@ -348,13 +348,13 @@ components:
           type:
             - number
             - "null"
-          minimum: 0
+          exclusiveMinimum: 0
           example: 170.5
         weight_kg:
           type:
             - number
             - "null"
-          minimum: 0
+          exclusiveMinimum: 0
           example: 65.2
 
     HealthRecordPatch:
@@ -383,13 +383,13 @@ components:
           type:
             - number
             - "null"
-          minimum: 0
+          exclusiveMinimum: 0
           example: 170.5
         weight_kg:
           type:
             - number
             - "null"
-          minimum: 0
+          exclusiveMinimum: 0
           example: 65.2
 
     HealthRecord:
@@ -430,13 +430,13 @@ components:
           type:
             - number
             - "null"
-          minimum: 0
+          exclusiveMinimum: 0
           example: 170.5
         weight_kg:
           type:
             - number
             - "null"
-          minimum: 0
+          exclusiveMinimum: 0
           example: 65.2
         created_at:
           type: string
@@ -734,7 +734,9 @@ components:
           type: string
           example: "Headache"
         status:
-          $ref: "#/components/schemas/MedicineDispensationStatus"
+          allOf:
+            - $ref: "#/components/schemas/MedicineDispensationStatus"
+          readOnly: true
         inventory_transaction_id:
           type: string
           readOnly: true

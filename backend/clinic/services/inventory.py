@@ -70,8 +70,17 @@ class MockInventoryService:
         )
         return result
 
-    def list_medicines(self, search=None):
-        medicines = self._medicines
+    def list_medicines(
+        self,
+        search=None,
+        low_stock=None,
+        status=None,
+        ordering=None,
+    ):
+        medicines = [
+            self._serialize_medicine(medicine)
+            for medicine in self._medicines
+        ]
 
         if search:
             term = str(search).strip().lower()
@@ -83,10 +92,44 @@ class MockInventoryService:
                 or term in medicine["generic_name"].lower()
             ]
 
-        return [
-            self._serialize_medicine(medicine)
-            for medicine in medicines
-        ]
+        if low_stock is not None:
+            medicines = [
+                medicine
+                for medicine in medicines
+                if medicine["is_low_stock"] == low_stock
+            ]
+
+        if status:
+            normalized_status = str(status).strip().upper()
+            medicines = [
+                medicine
+                for medicine in medicines
+                if medicine["status"] == normalized_status
+            ]
+
+        if ordering:
+            descending = ordering.startswith("-")
+            field = ordering[1:] if descending else ordering
+
+            ordering_fields = {
+                "medicine_id",
+                "name",
+                "generic_name",
+                "unit",
+                "quantity_in_stock",
+                "reorder_level",
+                "is_low_stock",
+                "status",
+            }
+
+            if field in ordering_fields:
+                medicines = sorted(
+                    medicines,
+                    key=lambda medicine: medicine[field],
+                    reverse=descending,
+                )
+
+        return medicines
 
     def get_medicine(self, medicine_id):
         medicine_id = str(medicine_id).strip()
