@@ -1,143 +1,298 @@
 """
-Django REST Framework serializers for Student and HealthRecord models.
-Provides full input validation, relationship handling, and serialization.
+Serializers for the Clinic System API.
+
+Clinic owns:
+- HealthRecord
+- Consultation
+- HealthStatus
+- MedicineDispensation
+
+Student identity/profile data is owned by Registrar.
+Medicine catalog/stock data is owned by Inventory.
+
+StudentSerializer and MedicineSerializer below are projection serializers for
+external service data. They are deliberately not ModelSerializers.
 """
 
-from datetime import date
 from rest_framework import serializers
-from .models import Student, HealthRecord, SexChoices, BloodTypeChoices
+
+from .models import (
+    BloodTypeChoices,
+    Consultation,
+    DispensationStatusChoices,
+    HealthRecord,
+    HealthStatus,
+    HealthStatusChoices,
+    MedicineDispensation,
+)
+
+
+# ---------------------------------------------------------------------------
+# Clinic-owned resources
+# ---------------------------------------------------------------------------
 
 
 class HealthRecordSerializer(serializers.ModelSerializer):
-    """
-    Serializer for the HealthRecord model.
-    Handles foreign-key relationship with Student via student_id.
-    """
-    # Accept and display student_id as the primary key of the related Student
-    student_id = serializers.PrimaryKeyRelatedField(
-        queryset=Student.objects.all(),
-        source='student',
-        help_text="The ID of the student associated with this health record"
-    )
-    # Read-only student summary for convenience
-    student_name = serializers.CharField(
-        source='student.full_name',
-        read_only=True
-    )
+    """Serializer for Clinic-owned persistent student health information."""
 
     class Meta:
         model = HealthRecord
         fields = [
-            'health_id',
-            'student_id',
-            'student_name',
-            'allergies',
-            'blood_type',
-            'medical_history',
-            'medication',
-            'weight',
-            'height',
-            'visit',
-            'consultation',
-            'created_at',
-            'updated_at',
+            "health_record_id",
+            "student_id",
+            "blood_type",
+            "allergies",
+            "medical_history",
+            "current_medications",
+            "height_cm",
+            "weight_kg",
+            "created_at",
+            "updated_at",
         ]
-        read_only_fields = ['health_id', 'created_at', 'updated_at']
+        read_only_fields = [
+            "health_record_id",
+            "created_at",
+            "updated_at",
+        ]
 
-    def validate_weight(self, value):
-        """Validate weight value."""
-        if value is not None and value <= 0:
-            raise serializers.ValidationError("Weight must be greater than 0 kg.")
-        if value is not None and value > 500:
-            raise serializers.ValidationError("Weight cannot exceed 500 kg.")
-        return value
-
-    def validate_height(self, value):
-        """Validate height value."""
-        if value is not None and value <= 0:
-            raise serializers.ValidationError("Height must be greater than 0 cm.")
-        if value is not None and value > 300:
-            raise serializers.ValidationError("Height cannot exceed 300 cm.")
+    def validate_student_id(self, value):
+        value = value.strip()
+        if not value:
+            raise serializers.ValidationError("student_id cannot be blank.")
         return value
 
     def validate_blood_type(self, value):
-        """Validate blood type choice if provided."""
-        if value and value not in BloodTypeChoices.values:
-            valid_choices = ", ".join(BloodTypeChoices.values)
-            raise serializers.ValidationError(f"Invalid blood type. Valid options are: {valid_choices}")
+        if value not in BloodTypeChoices.values:
+            valid = ", ".join(BloodTypeChoices.values)
+            raise serializers.ValidationError(
+                f"Invalid blood type. Valid options are: {valid}"
+            )
+        return value
+
+    def validate_height_cm(self, value):
+        if value is not None and value <= 0:
+            raise serializers.ValidationError(
+                "height_cm must be greater than 0."
+            )
+        if value is not None and value > 300:
+            raise serializers.ValidationError(
+                "height_cm cannot exceed 300 cm."
+            )
+        return value
+
+    def validate_weight_kg(self, value):
+        if value is not None and value <= 0:
+            raise serializers.ValidationError(
+                "weight_kg must be greater than 0."
+            )
+        if value is not None and value > 500:
+            raise serializers.ValidationError(
+                "weight_kg cannot exceed 500 kg."
+            )
         return value
 
 
-class StudentSerializer(serializers.ModelSerializer):
-    """
-    Serializer for the Student model.
-    Handles student CRUD with validation on unique student_id and fields.
-    """
-    health_records_count = serializers.IntegerField(
-        source='health_records.count',
-        read_only=True
-    )
+class ConsultationSerializer(serializers.ModelSerializer):
+    """Serializer for Clinic consultation / visit records."""
 
     class Meta:
-        model = Student
+        model = Consultation
         fields = [
-            'student_id',
-            'first_name',
-            'last_name',
-            'birth_date',
-            'sex',
-            'course',
-            'section',
-            'contact_no',
-            'health_records_count',
-            'created_at',
-            'updated_at',
+            "consultation_id",
+            "student_id",
+            "chief_complaint",
+            "assessment",
+            "treatment",
+            "notes",
+            "consulted_at",
+            "created_at",
+            "updated_at",
         ]
-        read_only_fields = ['student_id', 'created_at', 'updated_at']
+        read_only_fields = [
+            "consultation_id",
+            "consulted_at",
+            "created_at",
+            "updated_at",
+        ]
 
-    def validate_first_name(self, value):
-        cleaned = value.strip()
-        if not cleaned:
-            raise serializers.ValidationError("First name cannot be blank.")
-        return cleaned
-
-    def validate_last_name(self, value):
-        cleaned = value.strip()
-        if not cleaned:
-            raise serializers.ValidationError("Last name cannot be blank.")
-        return cleaned
-
-    def validate_course(self, value):
-        cleaned = value.strip()
-        if not cleaned:
-            raise serializers.ValidationError("Course cannot be blank.")
-        return cleaned
-
-    def validate_section(self, value):
-        cleaned = value.strip()
-        if not cleaned:
-            raise serializers.ValidationError("Section cannot be blank.")
-        return cleaned
-
-    def validate_birth_date(self, value):
-        """Validate birth date is not in the future."""
-        if value and value > date.today():
-            raise serializers.ValidationError("Birth date cannot be in the future.")
+    def validate_student_id(self, value):
+        value = value.strip()
+        if not value:
+            raise serializers.ValidationError("student_id cannot be blank.")
         return value
 
-    def validate_sex(self, value):
-        """Validate sex choice if provided."""
-        if value and value not in SexChoices.values:
-            valid_choices = ", ".join(SexChoices.values)
-            raise serializers.ValidationError(f"Invalid sex value. Valid options are: {valid_choices}")
+    def validate_chief_complaint(self, value):
+        value = value.strip()
+        if not value:
+            raise serializers.ValidationError(
+                "chief_complaint cannot be blank."
+            )
         return value
 
 
-class StudentDetailSerializer(StudentSerializer):
-    """
-    Detailed Student Serializer including nested health records history.
-    """
-    health_records = HealthRecordSerializer(many=True, read_only=True)
+class HealthStatusSerializer(serializers.ModelSerializer):
+    """Serializer for Clinic-owned student health status."""
 
-    class Meta(StudentSerializer.Meta):
-        fields = StudentSerializer.Meta.fields + ['health_records']
+    class Meta:
+        model = HealthStatus
+        fields = [
+            "status_id",
+            "student_id",
+            "status",
+            "remarks",
+            "effective_at",
+            "created_at",
+            "updated_at",
+        ]
+        read_only_fields = [
+            "status_id",
+            "effective_at",
+            "created_at",
+            "updated_at",
+        ]
+
+    def validate_student_id(self, value):
+        value = value.strip()
+        if not value:
+            raise serializers.ValidationError("student_id cannot be blank.")
+        return value
+
+    def validate_status(self, value):
+        if value not in HealthStatusChoices.values:
+            valid = ", ".join(HealthStatusChoices.values)
+            raise serializers.ValidationError(
+                f"Invalid health status. Valid options are: {valid}"
+            )
+        return value
+
+
+class MedicineDispensationSerializer(serializers.ModelSerializer):
+    """
+    Serializer for Clinic-owned medicine dispensation records.
+
+    Inventory owns medicine stock. inventory_transaction_id is populated by
+    the dispensing orchestration/service after Inventory accepts the stock
+    deduction.
+    """
+
+    class Meta:
+        model = MedicineDispensation
+        fields = [
+            "dispensation_id",
+            "student_id",
+            "medicine_id",
+            "quantity",
+            "reason",
+            "status",
+            "inventory_transaction_id",
+            "rollback_transaction_id",
+            "dispensed_at",
+            "rolled_back_at",
+            "created_at",
+        ]
+        read_only_fields = [
+            "dispensation_id",
+            "status",
+            "inventory_transaction_id",
+            "rollback_transaction_id",
+            "dispensed_at",
+            "rolled_back_at",
+            "created_at",
+        ]
+
+    def validate_student_id(self, value):
+        value = value.strip()
+        if not value:
+            raise serializers.ValidationError("student_id cannot be blank.")
+        return value
+
+    def validate_medicine_id(self, value):
+        value = value.strip()
+        if not value:
+            raise serializers.ValidationError("medicine_id cannot be blank.")
+        return value
+
+    def validate_quantity(self, value):
+        if value < 1:
+            raise serializers.ValidationError(
+                "quantity must be greater than or equal to 1."
+            )
+        return value
+
+
+# ---------------------------------------------------------------------------
+# External service projections
+# ---------------------------------------------------------------------------
+
+
+class StudentSerializer(serializers.Serializer):
+    """
+    Read-only projection of student data owned by Registrar.
+
+    This serializer has no Clinic ORM model and must never create, update,
+    or delete students.
+    """
+
+    student_id = serializers.CharField(read_only=True)
+    first_name = serializers.CharField(read_only=True)
+    last_name = serializers.CharField(read_only=True)
+    course = serializers.CharField(read_only=True)
+    section = serializers.CharField(read_only=True)
+    status = serializers.CharField(read_only=True)
+
+
+class MedicineSerializer(serializers.Serializer):
+    """
+    Read-only projection of medicine/stock data owned by Inventory.
+
+    This serializer has no Clinic ORM model and must never mutate Inventory
+    master data.
+    """
+
+    medicine_id = serializers.CharField(read_only=True)
+    name = serializers.CharField(read_only=True)
+    generic_name = serializers.CharField(read_only=True)
+    unit = serializers.CharField(read_only=True)
+    quantity_in_stock = serializers.IntegerField(read_only=True)
+    reorder_level = serializers.IntegerField(read_only=True)
+    is_low_stock = serializers.BooleanField(read_only=True)
+    status = serializers.CharField(read_only=True)
+
+
+# ---------------------------------------------------------------------------
+# Integration / aggregate response schemas
+# ---------------------------------------------------------------------------
+
+
+class HealthStatusProjectionSerializer(serializers.Serializer):
+    """Restricted health-status response for Faculty and Student Portal."""
+
+    student_id = serializers.CharField(read_only=True)
+    status = serializers.CharField(read_only=True)
+    remarks = serializers.CharField(read_only=True)
+    effective_at = serializers.DateTimeField(
+        read_only=True,
+        allow_null=True,
+    )
+
+
+class DashboardSummarySerializer(serializers.Serializer):
+    total_students = serializers.IntegerField(read_only=True)
+    total_health_records = serializers.IntegerField(read_only=True)
+    total_medicine_stock = serializers.IntegerField(read_only=True)
+    low_stock_medicines = serializers.IntegerField(read_only=True)
+
+
+class RecentActivitySerializer(serializers.Serializer):
+    activity_type = serializers.CharField(read_only=True)
+    reference_id = serializers.IntegerField(read_only=True)
+    student_id = serializers.CharField(read_only=True)
+    occurred_at = serializers.DateTimeField(read_only=True)
+
+
+class DashboardSerializer(serializers.Serializer):
+    summary = DashboardSummarySerializer(read_only=True)
+    recent_activity = RecentActivitySerializer(
+        many=True,
+        read_only=True,
+    )

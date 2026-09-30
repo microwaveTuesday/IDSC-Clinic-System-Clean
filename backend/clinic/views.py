@@ -1,285 +1,289 @@
 """
-API views for IDSC Clinic System.
-Implements complete CRUD endpoints for Students and Health Records,
-including relationship endpoints and search/filtering capabilities.
+Canonical API controllers for the IDSC Clinic System.
+
+Clinic owns:
+- HealthRecord
+- Consultation
+- HealthStatus
+- MedicineDispensation
+
+Registrar owns student identity/profile data.
+Inventory owns medicine catalog and stock data.
+
+External data is accessed through service boundaries rather than local
+Clinic ORM models.
 """
 
-from django.db.models import Q
-from django.shortcuts import get_object_or_404
-from rest_framework import viewsets, status
-from rest_framework.decorators import action
+from django.db import models
+from rest_framework import status, viewsets
 from rest_framework.response import Response
-from drf_spectacular.utils import extend_schema, extend_schema_view, OpenApiParameter
-from drf_spectacular.types import OpenApiTypes
+from rest_framework.views import APIView
 
-from .models import Student, HealthRecord
+from .models import (
+    Consultation,
+    HealthRecord,
+    HealthStatus,
+    MedicineDispensation,
+)
 from .serializers import (
-    StudentSerializer,
-    StudentDetailSerializer,
+    ConsultationSerializer,
     HealthRecordSerializer,
+    HealthStatusProjectionSerializer,
+    HealthStatusSerializer,
+    MedicineDispensationSerializer,
+    MedicineSerializer,
+    StudentSerializer,
+)
+from .services.inventory import (
+    MedicineNotFoundError,
+    inventory_service,
+)
+from .services.registrar import (
+    StudentNotFoundError,
+    registrar_service,
 )
 
 
-@extend_schema_view(
-    list=extend_schema(
-        tags=['Students'],
-        summary="List all students",
-        description="Retrieve a list of all students with optional search and filtering by course, section, or sex.",
-        parameters=[
-            OpenApiParameter(
-                name='search',
-                type=OpenApiTypes.STR,
-                location=OpenApiParameter.QUERY,
-                description='Search keyword matching first name, last name, course, section, or student ID'
-            ),
-            OpenApiParameter(
-                name='course',
-                type=OpenApiTypes.STR,
-                location=OpenApiParameter.QUERY,
-                description='Filter by degree program / course (case-insensitive exact match)'
-            ),
-            OpenApiParameter(
-                name='section',
-                type=OpenApiTypes.STR,
-                location=OpenApiParameter.QUERY,
-                description='Filter by section (case-insensitive exact match)'
-            ),
-            OpenApiParameter(
-                name='sex',
-                type=OpenApiTypes.STR,
-                location=OpenApiParameter.QUERY,
-                enum=['Male', 'Female', 'Other'],
-                description="Filter by sex (Male, Female, Other)"
-            ),
-        ],
-    ),
-    retrieve=extend_schema(
-        tags=['Students'],
-        summary="Retrieve student details",
-        description="Retrieve complete details for a specific student by student_id, including full nested health records history.",
-        responses={200: StudentDetailSerializer},
-    ),
-    create=extend_schema(
-        tags=['Students'],
-        summary="Create a new student",
-        description="Register a new student record in the IDSC Clinic System.",
-        request=StudentSerializer,
-        responses={201: StudentSerializer},
-    ),
-    update=extend_schema(
-        tags=['Students'],
-        summary="Update a student",
-        description="Update all fields of an existing student record.",
-        request=StudentSerializer,
-        responses={200: StudentSerializer},
-    ),
-    partial_update=extend_schema(
-        tags=['Students'],
-        summary="Partially update a student",
-        description="Partially update one or more fields of an existing student record.",
-        request=StudentSerializer,
-        responses={200: StudentSerializer},
-    ),
-    destroy=extend_schema(
-        tags=['Students'],
-        summary="Delete a student",
-        description="Delete an existing student and all associated health records.",
-        responses={204: None},
-    ),
-)
-class StudentViewSet(viewsets.ModelViewSet):
+# ---------------------------------------------------------------------------
+# System
+# ---------------------------------------------------------------------------
+
+
+class HealthView(APIView):
+    """Basic Clinic API health endpoint."""
+
+    authentication_classes = []
+    permission_classes = []
+
+    def get(self, request):
+        return Response(
+            {
+                "status": "healthy",
+                "service": "clinic",
+                "version": "1.0.0",
+            }
+        )
+
+
+# ---------------------------------------------------------------------------
+# Registrar projections
+# ---------------------------------------------------------------------------
+
+
+class StudentListView(APIView):
     """
-    ViewSet for managing Students.
-    Supports complete CRUD operations:
-    - GET /api/students/ : List all students (with optional filtering)
-    - POST /api/students/ : Create a new student
-    - GET /api/students/<student_id>/ : Retrieve student by ID
-    - PUT /api/students/<student_id>/ : Fully update student
-    - PATCH /api/students/<student_id>/ : Partially update student
-    - DELETE /api/students/<student_id>/ : Delete student
-    - GET /api/students/<student_id>/health-records/ : Get all health records for student
-    - POST /api/students/<student_id>/health-records/ : Create health record for student
+    Read-only student projection backed by Registrar.
+
+    Clinic does not create, update, or delete students.
     """
-    queryset = Student.objects.all()
-    serializer_class = StudentSerializer
-    lookup_field = 'student_id'
-    lookup_value_regex = r'[^/]+'
 
-    def get_serializer_class(self):
-        if self.action == 'retrieve':
-            return StudentDetailSerializer
-        return StudentSerializer
+    def get(self, request):
+        search = request.query_params.get("search")
+        students = registrar_service.list_students(search=search)
+        serializer = StudentSerializer(students, many=True)
+        return Response(serializer.data)
 
-    def get_queryset(self):
-        queryset = Student.objects.prefetch_related('health_records').all()
-        
-        # Query parameter filters
-        search = self.request.query_params.get('search', '').strip()
-        course = self.request.query_params.get('course', '').strip()
-        section = self.request.query_params.get('section', '').strip()
-        sex = self.request.query_params.get('sex', '').strip()
 
-        if search:
-            filters = (
-                Q(first_name__icontains=search) |
-                Q(last_name__icontains=search) |
-                Q(course__icontains=search) |
-                Q(section__icontains=search)
+class StudentDetailView(APIView):
+    """Retrieve one student from the Registrar boundary."""
+
+    def get(self, request, student_id):
+        try:
+            student = registrar_service.get_student(student_id)
+        except StudentNotFoundError as exc:
+            return Response(
+                {"detail": str(exc)},
+                status=status.HTTP_404_NOT_FOUND,
             )
-            if search.isdigit():
-                filters |= Q(student_id=int(search))
-            queryset = queryset.filter(filters)
-        if course:
-            queryset = queryset.filter(course__iexact=course)
-        if section:
-            queryset = queryset.filter(section__iexact=section)
-        if sex:
-            queryset = queryset.filter(sex__iexact=sex)
 
-        return queryset
-
-    @extend_schema(
-        methods=['GET'],
-        tags=['Students'],
-        summary="List health records for a student",
-        description="Retrieve all health records and clinic consultations for a specific student, ordered by visit date descending.",
-        responses={200: HealthRecordSerializer(many=True)},
-    )
-    @extend_schema(
-        methods=['POST'],
-        tags=['Students'],
-        summary="Create health record for a student",
-        description="Create a new clinic consultation / health record for the specified student.",
-        request=HealthRecordSerializer,
-        responses={201: HealthRecordSerializer},
-    )
-    @action(detail=True, methods=['get', 'post'], url_path='health-records')
-    def health_records(self, request, student_id=None):
-        """
-        Endpoint: /api/students/<student_id>/health-records/
-        - GET: Retrieve all health records for this student.
-        - POST: Create a new health record for this student.
-        """
-        student = self.get_object()
-
-        if request.method == 'GET':
-            records = student.health_records.all().order_by('-visit', '-health_id')
-            serializer = HealthRecordSerializer(records, many=True)
-            return Response(serializer.data, status=status.HTTP_200_OK)
-
-        elif request.method == 'POST':
-            # Inject student_id into request data if not present
-            data = request.data.copy() if hasattr(request.data, 'copy') else dict(request.data)
-            data['student_id'] = student.student_id
-
-            serializer = HealthRecordSerializer(data=data)
-            if serializer.is_valid():
-                serializer.save(student=student)
-                return Response(serializer.data, status=status.HTTP_201_CREATED)
-            return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+        return Response(StudentSerializer(student).data)
 
 
-@extend_schema_view(
-    list=extend_schema(
-        tags=['Health Records'],
-        summary="List all health records",
-        description="Retrieve a list of all health records with optional filtering by student ID, blood type, or search keyword.",
-        parameters=[
-            OpenApiParameter(
-                name='student_id',
-                type=OpenApiTypes.STR,
-                location=OpenApiParameter.QUERY,
-                description='Filter health records for a specific student by student ID'
-            ),
-            OpenApiParameter(
-                name='blood_type',
-                type=OpenApiTypes.STR,
-                location=OpenApiParameter.QUERY,
-                enum=['A+', 'A-', 'B+', 'B-', 'AB+', 'AB-', 'O+', 'O-', 'Unknown'],
-                description='Filter health records by blood type'
-            ),
-            OpenApiParameter(
-                name='search',
-                type=OpenApiTypes.STR,
-                location=OpenApiParameter.QUERY,
-                description='Search keyword matching student name, allergies, consultation notes, medical history, or student ID'
-            ),
-        ],
-    ),
-    retrieve=extend_schema(
-        tags=['Health Records'],
-        summary="Retrieve a health record",
-        description="Retrieve details of a specific health record by health_id.",
-        responses={200: HealthRecordSerializer},
-    ),
-    create=extend_schema(
-        tags=['Health Records'],
-        summary="Create a health record",
-        description="Create a new clinic consultation / health record associated with a student.",
-        request=HealthRecordSerializer,
-        responses={201: HealthRecordSerializer},
-    ),
-    update=extend_schema(
-        tags=['Health Records'],
-        summary="Update a health record",
-        description="Update all fields of an existing health record.",
-        request=HealthRecordSerializer,
-        responses={200: HealthRecordSerializer},
-    ),
-    partial_update=extend_schema(
-        tags=['Health Records'],
-        summary="Partially update a health record",
-        description="Partially update one or more fields of an existing health record.",
-        request=HealthRecordSerializer,
-        responses={200: HealthRecordSerializer},
-    ),
-    destroy=extend_schema(
-        tags=['Health Records'],
-        summary="Delete a health record",
-        description="Delete an existing health record by health_id.",
-        responses={204: None},
-    ),
-)
+# ---------------------------------------------------------------------------
+# Clinic-owned resources
+# ---------------------------------------------------------------------------
+
+
 class HealthRecordViewSet(viewsets.ModelViewSet):
-    """
-    ViewSet for managing Health Records.
-    Supports complete CRUD operations:
-    - GET /api/health-records/ : List all health records (with optional filtering)
-    - POST /api/health-records/ : Create a health record
-    - GET /api/health-records/<health_id>/ : Retrieve a single record
-    - PUT /api/health-records/<health_id>/ : Fully update a record
-    - PATCH /api/health-records/<health_id>/ : Partially update a record
-    - DELETE /api/health-records/<health_id>/ : Delete a record
-    """
-    queryset = HealthRecord.objects.select_related('student').all()
+    """CRUD controller for Clinic-owned HealthRecord resources."""
+
     serializer_class = HealthRecordSerializer
-    lookup_field = 'health_id'
+    lookup_field = "health_record_id"
 
     def get_queryset(self):
-        queryset = HealthRecord.objects.select_related('student').all()
+        queryset = HealthRecord.objects.all().order_by(
+            "-created_at",
+            "-health_record_id",
+        )
 
-        # Query parameter filters
-        student_id = self.request.query_params.get('student_id', '').strip()
-        blood_type = self.request.query_params.get('blood_type', '').strip()
-        search = self.request.query_params.get('search', '').strip()
+        student_id = self.request.query_params.get("student_id", "").strip()
+        blood_type = self.request.query_params.get("blood_type", "").strip()
+        search = self.request.query_params.get("search", "").strip()
 
         if student_id:
-            if student_id.isdigit():
-                queryset = queryset.filter(student__student_id=int(student_id))
-            else:
-                queryset = queryset.filter(student__student_id__exact=student_id)
+            queryset = queryset.filter(student_id=student_id)
+
         if blood_type:
             queryset = queryset.filter(blood_type__iexact=blood_type)
+
         if search:
-            filters = (
-                Q(student__first_name__icontains=search) |
-                Q(student__last_name__icontains=search) |
-                Q(allergies__icontains=search) |
-                Q(consultation__icontains=search) |
-                Q(medical_history__icontains=search)
+            queryset = queryset.filter(
+                models.Q(student_id__icontains=search)
+                | models.Q(allergies__icontains=search)
+                | models.Q(medical_history__icontains=search)
+                | models.Q(current_medications__icontains=search)
             )
-            if search.isdigit():
-                filters |= Q(student__student_id=int(search))
-            queryset = queryset.filter(filters)
 
         return queryset
+
+
+class ConsultationViewSet(viewsets.ModelViewSet):
+    """CRUD controller for Clinic consultation records."""
+
+    serializer_class = ConsultationSerializer
+    lookup_field = "consultation_id"
+
+    def get_queryset(self):
+        queryset = Consultation.objects.all().order_by(
+            "-consulted_at",
+            "-consultation_id",
+        )
+
+        student_id = self.request.query_params.get("student_id", "").strip()
+
+        if student_id:
+            queryset = queryset.filter(student_id=student_id)
+
+        return queryset
+
+
+class HealthStatusViewSet(viewsets.ModelViewSet):
+    """CRUD controller for Clinic-owned HealthStatus resources."""
+
+    serializer_class = HealthStatusSerializer
+    lookup_field = "status_id"
+
+    def get_queryset(self):
+        queryset = HealthStatus.objects.all().order_by(
+            "-effective_at",
+            "-status_id",
+        )
+
+        student_id = self.request.query_params.get("student_id", "").strip()
+        health_status = self.request.query_params.get("status", "").strip()
+
+        if student_id:
+            queryset = queryset.filter(student_id=student_id)
+
+        if health_status:
+            queryset = queryset.filter(status=health_status)
+
+        return queryset
+
+
+# ---------------------------------------------------------------------------
+# Inventory projections
+# ---------------------------------------------------------------------------
+
+
+class MedicineListView(APIView):
+    """Read-only medicine/stock projection backed by Inventory."""
+
+    def get(self, request):
+        search = request.query_params.get("search")
+        medicines = inventory_service.list_medicines(search=search)
+        serializer = MedicineSerializer(medicines, many=True)
+        return Response(serializer.data)
+
+
+class MedicineDetailView(APIView):
+    """Retrieve one medicine from the Inventory boundary."""
+
+    def get(self, request, medicine_id):
+        try:
+            medicine = inventory_service.get_medicine(medicine_id)
+        except MedicineNotFoundError as exc:
+            return Response(
+                {"detail": str(exc)},
+                status=status.HTTP_404_NOT_FOUND,
+            )
+
+        return Response(MedicineSerializer(medicine).data)
+
+
+# ---------------------------------------------------------------------------
+# Medicine dispensing
+# ---------------------------------------------------------------------------
+
+
+class MedicineDispensationViewSet(viewsets.ReadOnlyModelViewSet):
+    """
+    Structural controller for medicine dispensation records.
+
+    Creation and rollback require Registrar + Inventory orchestration and are
+    completed in Phase 5 rather than embedding external ownership logic here.
+    """
+
+    serializer_class = MedicineDispensationSerializer
+    lookup_field = "dispensation_id"
+
+    def get_queryset(self):
+        queryset = MedicineDispensation.objects.all().order_by(
+            "-dispensed_at",
+            "-dispensation_id",
+        )
+
+        student_id = self.request.query_params.get("student_id", "").strip()
+        medicine_id = self.request.query_params.get("medicine_id", "").strip()
+
+        if student_id:
+            queryset = queryset.filter(student_id=student_id)
+
+        if medicine_id:
+            queryset = queryset.filter(medicine_id=medicine_id)
+
+        return queryset
+
+
+# ---------------------------------------------------------------------------
+# Integration projections
+# ---------------------------------------------------------------------------
+
+
+class HealthStatusIntegrationView(APIView):
+    """
+    Restricted read-only health-status projection.
+
+    Faculty and Student Portal use separate URLs pointing to this controller.
+    Authorization differences are added during the authentication/permission
+    phase.
+    """
+
+    def get(self, request, student_id):
+        try:
+            registrar_service.get_student(student_id)
+        except StudentNotFoundError as exc:
+            return Response(
+                {"detail": str(exc)},
+                status=status.HTTP_404_NOT_FOUND,
+            )
+
+        health_status = (
+            HealthStatus.objects
+            .filter(student_id=student_id)
+            .order_by("-effective_at", "-status_id")
+            .first()
+        )
+
+        if health_status is None:
+            return Response(
+                {
+                    "student_id": student_id,
+                    "status": "NOT_AVAILABLE",
+                    "remarks": "",
+                    "effective_at": None,
+                }
+            )
+
+        serializer = HealthStatusProjectionSerializer(health_status)
+        return Response(serializer.data)
