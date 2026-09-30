@@ -1,0 +1,7 @@
+extends:
+  - recommended
+
+rules:
+  no-path-trailing-slash: off
+  info-license: off
+  operation-4xx-response: off

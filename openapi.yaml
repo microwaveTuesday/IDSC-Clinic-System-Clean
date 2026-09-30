@@ -1,922 +1,3001 @@
-openapi: 3.0.3
+openapi: 3.1.0
+
 info:
   title: IDSC Clinic System API
   version: 1.0.0
-  description: OpenAPI documentation for the IDSC Clinic System backend. Provides
-    endpoints for managing student records, health records, clinical consultations,
-    vital signs, medical histories, and allergies.
-paths:
-  /api/health-records/:
-    get:
-      operationId: health_records_list
-      description: Retrieve a list of all health records with optional filtering by
-        student ID, blood type, or search keyword.
-      summary: List all health records
-      parameters:
-      - in: query
-        name: blood_type
-        schema:
-          type: string
-          enum:
-          - A+
-          - A-
-          - AB+
-          - AB-
-          - B+
-          - B-
-          - O+
-          - O-
-          - Unknown
-        description: Filter health records by blood type
-      - in: query
-        name: search
-        schema:
-          type: string
-        description: Search keyword matching student name, allergies, consultation
-          notes, medical history, or student ID
-      - in: query
-        name: student_id
-        schema:
-          type: string
-        description: Filter health records for a specific student by student ID
-      tags:
-      - Health Records
-      security:
-      - cookieAuth: []
-      - basicAuth: []
-      - {}
-      responses:
-        '200':
-          content:
-            application/json:
-              schema:
-                type: array
-                items:
-                  $ref: '#/components/schemas/HealthRecord'
-          description: ''
-    post:
-      operationId: health_records_create
-      description: Create a new clinic consultation / health record associated with
-        a student.
-      summary: Create a health record
-      tags:
-      - Health Records
-      requestBody:
-        content:
-          application/json:
-            schema:
-              $ref: '#/components/schemas/HealthRecordRequest'
-          application/x-www-form-urlencoded:
-            schema:
-              $ref: '#/components/schemas/HealthRecordRequest'
-          multipart/form-data:
-            schema:
-              $ref: '#/components/schemas/HealthRecordRequest'
-        required: true
-      security:
-      - cookieAuth: []
-      - basicAuth: []
-      - {}
-      responses:
-        '201':
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/HealthRecord'
-          description: ''
-  /api/health-records/{health_id}/:
-    get:
-      operationId: health_records_retrieve
-      description: Retrieve details of a specific health record by health_id.
-      summary: Retrieve a health record
-      parameters:
-      - in: path
-        name: health_id
-        schema:
-          type: integer
-          description: Unique health record identifier
-        required: true
-      tags:
-      - Health Records
-      security:
-      - cookieAuth: []
-      - basicAuth: []
-      - {}
-      responses:
-        '200':
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/HealthRecord'
-          description: ''
-    put:
-      operationId: health_records_update
-      description: Update all fields of an existing health record.
-      summary: Update a health record
-      parameters:
-      - in: path
-        name: health_id
-        schema:
-          type: integer
-          description: Unique health record identifier
-        required: true
-      tags:
-      - Health Records
-      requestBody:
-        content:
-          application/json:
-            schema:
-              $ref: '#/components/schemas/HealthRecordRequest'
-          application/x-www-form-urlencoded:
-            schema:
-              $ref: '#/components/schemas/HealthRecordRequest'
-          multipart/form-data:
-            schema:
-              $ref: '#/components/schemas/HealthRecordRequest'
-        required: true
-      security:
-      - cookieAuth: []
-      - basicAuth: []
-      - {}
-      responses:
-        '200':
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/HealthRecord'
-          description: ''
-    patch:
-      operationId: health_records_partial_update
-      description: Partially update one or more fields of an existing health record.
-      summary: Partially update a health record
-      parameters:
-      - in: path
-        name: health_id
-        schema:
-          type: integer
-          description: Unique health record identifier
-        required: true
-      tags:
-      - Health Records
-      requestBody:
-        content:
-          application/json:
-            schema:
-              $ref: '#/components/schemas/PatchedHealthRecordRequest'
-          application/x-www-form-urlencoded:
-            schema:
-              $ref: '#/components/schemas/PatchedHealthRecordRequest'
-          multipart/form-data:
-            schema:
-              $ref: '#/components/schemas/PatchedHealthRecordRequest'
-      security:
-      - cookieAuth: []
-      - basicAuth: []
-      - {}
-      responses:
-        '200':
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/HealthRecord'
-          description: ''
-    delete:
-      operationId: health_records_destroy
-      description: Delete an existing health record by health_id.
-      summary: Delete a health record
-      parameters:
-      - in: path
-        name: health_id
-        schema:
-          type: integer
-          description: Unique health record identifier
-        required: true
-      tags:
-      - Health Records
-      security:
-      - cookieAuth: []
-      - basicAuth: []
-      - {}
-      responses:
-        '204':
-          description: No response body
-  /api/students/:
-    get:
-      operationId: students_list
-      description: Retrieve a list of all students with optional search and filtering
-        by course, section, or sex.
-      summary: List all students
-      parameters:
-      - in: query
-        name: course
-        schema:
-          type: string
-        description: Filter by degree program / course (case-insensitive exact match)
-      - in: query
-        name: search
-        schema:
-          type: string
-        description: Search keyword matching first name, last name, course, section,
-          or student ID
-      - in: query
-        name: section
-        schema:
-          type: string
-        description: Filter by section (case-insensitive exact match)
-      - in: query
-        name: sex
-        schema:
-          type: string
-          enum:
-          - Female
-          - Male
-          - Other
-        description: Filter by sex (Male, Female, Other)
-      tags:
-      - Students
-      security:
-      - cookieAuth: []
-      - basicAuth: []
-      - {}
-      responses:
-        '200':
-          content:
-            application/json:
-              schema:
-                type: array
-                items:
-                  $ref: '#/components/schemas/Student'
-          description: ''
-    post:
-      operationId: students_create
-      description: Register a new student record in the IDSC Clinic System.
-      summary: Create a new student
-      tags:
-      - Students
-      requestBody:
-        content:
-          application/json:
-            schema:
-              $ref: '#/components/schemas/StudentRequest'
-          application/x-www-form-urlencoded:
-            schema:
-              $ref: '#/components/schemas/StudentRequest'
-          multipart/form-data:
-            schema:
-              $ref: '#/components/schemas/StudentRequest'
-        required: true
-      security:
-      - cookieAuth: []
-      - basicAuth: []
-      - {}
-      responses:
-        '201':
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/Student'
-          description: ''
-  /api/students/{student_id}/:
-    get:
-      operationId: students_retrieve
-      description: Retrieve complete details for a specific student by student_id,
-        including full nested health records history.
-      summary: Retrieve student details
-      parameters:
-      - in: path
-        name: student_id
-        schema:
-          type: string
-          pattern: ^[^/]+$
-        required: true
-      tags:
-      - Students
-      security:
-      - cookieAuth: []
-      - basicAuth: []
-      - {}
-      responses:
-        '200':
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/StudentDetail'
-          description: ''
-    put:
-      operationId: students_update
-      description: Update all fields of an existing student record.
-      summary: Update a student
-      parameters:
-      - in: path
-        name: student_id
-        schema:
-          type: string
-          pattern: ^[^/]+$
-        required: true
-      tags:
-      - Students
-      requestBody:
-        content:
-          application/json:
-            schema:
-              $ref: '#/components/schemas/StudentRequest'
-          application/x-www-form-urlencoded:
-            schema:
-              $ref: '#/components/schemas/StudentRequest'
-          multipart/form-data:
-            schema:
-              $ref: '#/components/schemas/StudentRequest'
-        required: true
-      security:
-      - cookieAuth: []
-      - basicAuth: []
-      - {}
-      responses:
-        '200':
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/Student'
-          description: ''
-    patch:
-      operationId: students_partial_update
-      description: Partially update one or more fields of an existing student record.
-      summary: Partially update a student
-      parameters:
-      - in: path
-        name: student_id
-        schema:
-          type: string
-          pattern: ^[^/]+$
-        required: true
-      tags:
-      - Students
-      requestBody:
-        content:
-          application/json:
-            schema:
-              $ref: '#/components/schemas/PatchedStudentRequest'
-          application/x-www-form-urlencoded:
-            schema:
-              $ref: '#/components/schemas/PatchedStudentRequest'
-          multipart/form-data:
-            schema:
-              $ref: '#/components/schemas/PatchedStudentRequest'
-      security:
-      - cookieAuth: []
-      - basicAuth: []
-      - {}
-      responses:
-        '200':
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/Student'
-          description: ''
-    delete:
-      operationId: students_destroy
-      description: Delete an existing student and all associated health records.
-      summary: Delete a student
-      parameters:
-      - in: path
-        name: student_id
-        schema:
-          type: string
-          pattern: ^[^/]+$
-        required: true
-      tags:
-      - Students
-      security:
-      - cookieAuth: []
-      - basicAuth: []
-      - {}
-      responses:
-        '204':
-          description: No response body
-  /api/students/{student_id}/health-records/:
-    get:
-      operationId: students_health_records_list
-      description: Retrieve all health records and clinic consultations for a specific
-        student, ordered by visit date descending.
-      summary: List health records for a student
-      parameters:
-      - in: path
-        name: student_id
-        schema:
-          type: string
-          pattern: ^[^/]+$
-        required: true
-      tags:
-      - Students
-      security:
-      - cookieAuth: []
-      - basicAuth: []
-      - {}
-      responses:
-        '200':
-          content:
-            application/json:
-              schema:
-                type: array
-                items:
-                  $ref: '#/components/schemas/HealthRecord'
-          description: ''
-    post:
-      operationId: students_health_records_create
-      description: Create a new clinic consultation / health record for the specified
-        student.
-      summary: Create health record for a student
-      parameters:
-      - in: path
-        name: student_id
-        schema:
-          type: string
-          pattern: ^[^/]+$
-        required: true
-      tags:
-      - Students
-      requestBody:
-        content:
-          application/json:
-            schema:
-              $ref: '#/components/schemas/HealthRecordRequest'
-          application/x-www-form-urlencoded:
-            schema:
-              $ref: '#/components/schemas/HealthRecordRequest'
-          multipart/form-data:
-            schema:
-              $ref: '#/components/schemas/HealthRecordRequest'
-        required: true
-      security:
-      - cookieAuth: []
-      - basicAuth: []
-      - {}
-      responses:
-        '201':
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/HealthRecord'
-          description: ''
+  description: |
+    Canonical API specification for the IDSC Clinic System.
+
+    The Clinic System manages clinic-owned health records,
+    consultations, health statuses, and medicine dispensations.
+
+    Student identity and profile data are owned by the Registrar
+    System and consumed by Clinic through an integration service.
+
+    Medicine catalog, medicine stock, and stock transactions are
+    owned by the Inventory System and consumed by Clinic through
+    an integration service.
+
+    For the midterm implementation, external Registrar and Inventory
+    integrations may be represented by mock services while preserving
+    the same ownership and API boundaries intended for final integration.
+
+  contact:
+    name: IDSC Clinic System Team
+
+servers:
+  - url: http://127.0.0.1:8000
+    description: Local Django development server
+
+tags:
+  - name: System
+    description: API health and service-status operations.
+
+  - name: Dashboard
+    description: Aggregated Clinic dashboard information.
+
+  - name: Students
+    description: >
+      Read-only student projections obtained from the Registrar
+      integration. The Clinic System does not own student identity
+      or profile data.
+
+  - name: Health Records
+    description: >
+      Management of persistent student health information owned
+      by the Clinic System.
+
+  - name: Consultations
+    description: >
+      Management of Clinic visits and consultation records.
+
+  - name: Health Statuses
+    description: >
+      Management of Clinic-issued student health statuses.
+
+  - name: Medicines
+    description: >
+      Read-only medicine and stock projections obtained from the
+      Inventory integration. The Clinic System does not own the
+      medicine catalog or stock.
+
+  - name: Medicine Dispensations
+    description: >
+      Clinic-owned medicine dispensing history and rollback
+      operations.
+
+  - name: Reports
+    description: >
+      Clinic reporting operations for visits, health records,
+      medicine inventory, and medicine dispensations.
+
+  - name: Integrations
+    description: >
+      Restricted read-only Clinic integration operations exposed
+      to other College Management System modules.
+
+
 components:
-  schemas:
-    BlankEnum:
-      enum:
-      - ''
-    BloodTypeEnum:
-      enum:
-      - A+
-      - A-
-      - B+
-      - B-
-      - AB+
-      - AB-
-      - O+
-      - O-
-      - Unknown
-      type: string
-      description: |-
-        * `A+` - A+
-        * `A-` - A-
-        * `B+` - B+
-        * `B-` - B-
-        * `AB+` - AB+
-        * `AB-` - AB-
-        * `O+` - O+
-        * `O-` - O-
-        * `Unknown` - Unknown
-    HealthRecord:
-      type: object
-      description: |-
-        Serializer for the HealthRecord model.
-        Handles foreign-key relationship with Student via student_id.
-      properties:
-        health_id:
-          type: integer
-          readOnly: true
-          description: Unique health record identifier
-        student_id:
-          type: integer
-          description: The ID of the student associated with this health record
-        student_name:
-          type: string
-          readOnly: true
-        allergies:
-          type: string
-          description: Known allergies (e.g. penicillin, peanuts, pollen)
-        blood_type:
-          description: |-
-            Blood type (e.g. A+, O+, etc.)
-
-            * `A+` - A+
-            * `A-` - A-
-            * `B+` - B+
-            * `B-` - B-
-            * `AB+` - AB+
-            * `AB-` - AB-
-            * `O+` - O+
-            * `O-` - O-
-            * `Unknown` - Unknown
-          oneOf:
-          - $ref: '#/components/schemas/BloodTypeEnum'
-          - $ref: '#/components/schemas/BlankEnum'
-        medical_history:
-          type: string
-          description: Past medical history and chronic conditions (e.g. Asthma, Hypertension)
-        medication:
-          type: string
-          description: Current medications and prescriptions
-        weight:
-          type: string
-          format: decimal
-          pattern: ^-?\d{0,3}(?:\.\d{0,2})?$
-          nullable: true
-          description: Weight in kilograms (kg)
-        height:
-          type: string
-          format: decimal
-          pattern: ^-?\d{0,3}(?:\.\d{0,2})?$
-          nullable: true
-          description: Height in centimeters (cm)
-        visit:
-          type: string
-          format: date-time
-          description: Date and time of clinic visit
-        consultation:
-          type: string
-          description: Clinic consultation notes, diagnosis, and treatment provided
-        created_at:
-          type: string
-          format: date-time
-          readOnly: true
-          description: Timestamp when health record was created
-        updated_at:
-          type: string
-          format: date-time
-          readOnly: true
-          description: Timestamp when health record was last updated
-      required:
-      - created_at
-      - health_id
-      - student_id
-      - student_name
-      - updated_at
-    HealthRecordRequest:
-      type: object
-      description: |-
-        Serializer for the HealthRecord model.
-        Handles foreign-key relationship with Student via student_id.
-      properties:
-        student_id:
-          type: integer
-          description: The ID of the student associated with this health record
-        allergies:
-          type: string
-          description: Known allergies (e.g. penicillin, peanuts, pollen)
-        blood_type:
-          description: |-
-            Blood type (e.g. A+, O+, etc.)
-
-            * `A+` - A+
-            * `A-` - A-
-            * `B+` - B+
-            * `B-` - B-
-            * `AB+` - AB+
-            * `AB-` - AB-
-            * `O+` - O+
-            * `O-` - O-
-            * `Unknown` - Unknown
-          oneOf:
-          - $ref: '#/components/schemas/BloodTypeEnum'
-          - $ref: '#/components/schemas/BlankEnum'
-        medical_history:
-          type: string
-          description: Past medical history and chronic conditions (e.g. Asthma, Hypertension)
-        medication:
-          type: string
-          description: Current medications and prescriptions
-        weight:
-          type: string
-          format: decimal
-          pattern: ^-?\d{0,3}(?:\.\d{0,2})?$
-          nullable: true
-          description: Weight in kilograms (kg)
-        height:
-          type: string
-          format: decimal
-          pattern: ^-?\d{0,3}(?:\.\d{0,2})?$
-          nullable: true
-          description: Height in centimeters (cm)
-        visit:
-          type: string
-          format: date-time
-          description: Date and time of clinic visit
-        consultation:
-          type: string
-          description: Clinic consultation notes, diagnosis, and treatment provided
-      required:
-      - student_id
-    PatchedHealthRecordRequest:
-      type: object
-      description: |-
-        Serializer for the HealthRecord model.
-        Handles foreign-key relationship with Student via student_id.
-      properties:
-        student_id:
-          type: integer
-          description: The ID of the student associated with this health record
-        allergies:
-          type: string
-          description: Known allergies (e.g. penicillin, peanuts, pollen)
-        blood_type:
-          description: |-
-            Blood type (e.g. A+, O+, etc.)
-
-            * `A+` - A+
-            * `A-` - A-
-            * `B+` - B+
-            * `B-` - B-
-            * `AB+` - AB+
-            * `AB-` - AB-
-            * `O+` - O+
-            * `O-` - O-
-            * `Unknown` - Unknown
-          oneOf:
-          - $ref: '#/components/schemas/BloodTypeEnum'
-          - $ref: '#/components/schemas/BlankEnum'
-        medical_history:
-          type: string
-          description: Past medical history and chronic conditions (e.g. Asthma, Hypertension)
-        medication:
-          type: string
-          description: Current medications and prescriptions
-        weight:
-          type: string
-          format: decimal
-          pattern: ^-?\d{0,3}(?:\.\d{0,2})?$
-          nullable: true
-          description: Weight in kilograms (kg)
-        height:
-          type: string
-          format: decimal
-          pattern: ^-?\d{0,3}(?:\.\d{0,2})?$
-          nullable: true
-          description: Height in centimeters (cm)
-        visit:
-          type: string
-          format: date-time
-          description: Date and time of clinic visit
-        consultation:
-          type: string
-          description: Clinic consultation notes, diagnosis, and treatment provided
-    PatchedStudentRequest:
-      type: object
-      description: |-
-        Serializer for the Student model.
-        Handles student CRUD with validation on unique student_id and fields.
-      properties:
-        first_name:
-          type: string
-          minLength: 1
-          description: Student's first name
-          maxLength: 100
-        last_name:
-          type: string
-          minLength: 1
-          description: Student's last name
-          maxLength: 100
-        birth_date:
-          type: string
-          format: date
-          nullable: true
-          description: Date of birth (YYYY-MM-DD)
-        sex:
-          description: |-
-            Student's sex/gender
-
-            * `Male` - Male
-            * `Female` - Female
-            * `Other` - Other
-          oneOf:
-          - $ref: '#/components/schemas/SexEnum'
-          - $ref: '#/components/schemas/BlankEnum'
-        course:
-          type: string
-          minLength: 1
-          description: Degree program or course (e.g. BSIT, BSCS, BSN)
-          maxLength: 100
-        section:
-          type: string
-          minLength: 1
-          description: Class section (e.g. 3A, 1-1, CS401)
-          maxLength: 50
-        contact_no:
-          type: string
-          description: Contact number or mobile phone
-          maxLength: 30
-    SexEnum:
-      enum:
-      - Male
-      - Female
-      - Other
-      type: string
-      description: |-
-        * `Male` - Male
-        * `Female` - Female
-        * `Other` - Other
-    Student:
-      type: object
-      description: |-
-        Serializer for the Student model.
-        Handles student CRUD with validation on unique student_id and fields.
-      properties:
-        student_id:
-          type: integer
-          readOnly: true
-          description: Auto-incrementing unique student identifier
-        first_name:
-          type: string
-          description: Student's first name
-          maxLength: 100
-        last_name:
-          type: string
-          description: Student's last name
-          maxLength: 100
-        birth_date:
-          type: string
-          format: date
-          nullable: true
-          description: Date of birth (YYYY-MM-DD)
-        sex:
-          description: |-
-            Student's sex/gender
-
-            * `Male` - Male
-            * `Female` - Female
-            * `Other` - Other
-          oneOf:
-          - $ref: '#/components/schemas/SexEnum'
-          - $ref: '#/components/schemas/BlankEnum'
-        course:
-          type: string
-          description: Degree program or course (e.g. BSIT, BSCS, BSN)
-          maxLength: 100
-        section:
-          type: string
-          description: Class section (e.g. 3A, 1-1, CS401)
-          maxLength: 50
-        contact_no:
-          type: string
-          description: Contact number or mobile phone
-          maxLength: 30
-        health_records_count:
-          type: integer
-          readOnly: true
-        created_at:
-          type: string
-          format: date-time
-          readOnly: true
-          description: Timestamp when student record was created
-        updated_at:
-          type: string
-          format: date-time
-          readOnly: true
-          description: Timestamp when student record was last updated
-      required:
-      - course
-      - created_at
-      - first_name
-      - health_records_count
-      - last_name
-      - section
-      - student_id
-      - updated_at
-    StudentDetail:
-      type: object
-      description: Detailed Student Serializer including nested health records history.
-      properties:
-        student_id:
-          type: integer
-          readOnly: true
-          description: Auto-incrementing unique student identifier
-        first_name:
-          type: string
-          description: Student's first name
-          maxLength: 100
-        last_name:
-          type: string
-          description: Student's last name
-          maxLength: 100
-        birth_date:
-          type: string
-          format: date
-          nullable: true
-          description: Date of birth (YYYY-MM-DD)
-        sex:
-          description: |-
-            Student's sex/gender
-
-            * `Male` - Male
-            * `Female` - Female
-            * `Other` - Other
-          oneOf:
-          - $ref: '#/components/schemas/SexEnum'
-          - $ref: '#/components/schemas/BlankEnum'
-        course:
-          type: string
-          description: Degree program or course (e.g. BSIT, BSCS, BSN)
-          maxLength: 100
-        section:
-          type: string
-          description: Class section (e.g. 3A, 1-1, CS401)
-          maxLength: 50
-        contact_no:
-          type: string
-          description: Contact number or mobile phone
-          maxLength: 30
-        health_records_count:
-          type: integer
-          readOnly: true
-        created_at:
-          type: string
-          format: date-time
-          readOnly: true
-          description: Timestamp when student record was created
-        updated_at:
-          type: string
-          format: date-time
-          readOnly: true
-          description: Timestamp when student record was last updated
-        health_records:
-          type: array
-          items:
-            $ref: '#/components/schemas/HealthRecord'
-          readOnly: true
-      required:
-      - course
-      - created_at
-      - first_name
-      - health_records
-      - health_records_count
-      - last_name
-      - section
-      - student_id
-      - updated_at
-    StudentRequest:
-      type: object
-      description: |-
-        Serializer for the Student model.
-        Handles student CRUD with validation on unique student_id and fields.
-      properties:
-        first_name:
-          type: string
-          minLength: 1
-          description: Student's first name
-          maxLength: 100
-        last_name:
-          type: string
-          minLength: 1
-          description: Student's last name
-          maxLength: 100
-        birth_date:
-          type: string
-          format: date
-          nullable: true
-          description: Date of birth (YYYY-MM-DD)
-        sex:
-          description: |-
-            Student's sex/gender
-
-            * `Male` - Male
-            * `Female` - Female
-            * `Other` - Other
-          oneOf:
-          - $ref: '#/components/schemas/SexEnum'
-          - $ref: '#/components/schemas/BlankEnum'
-        course:
-          type: string
-          minLength: 1
-          description: Degree program or course (e.g. BSIT, BSCS, BSN)
-          maxLength: 100
-        section:
-          type: string
-          minLength: 1
-          description: Class section (e.g. 3A, 1-1, CS401)
-          maxLength: 50
-        contact_no:
-          type: string
-          description: Contact number or mobile phone
-          maxLength: 30
-      required:
-      - course
-      - first_name
-      - last_name
-      - section
   securitySchemes:
-    basicAuth:
-      type: http
-      scheme: basic
-    cookieAuth:
+    sessionAuth:
       type: apiKey
       in: cookie
       name: sessionid
+      description: >
+        Django session cookie used to authenticate Clinic API requests.
+        The cookie is issued after successful login through the Clinic
+        authentication endpoints.
+
+  parameters:
+
+    StudentIdPath:
+      name: student_id
+      in: path
+      required: true
+      description: >
+        Opaque student identifier owned by the Registrar System.
+      schema:
+        type: string
+      example: "2026-0001"
+
+    MedicineIdPath:
+      name: medicine_id
+      in: path
+      required: true
+      description: >
+        Opaque medicine identifier owned by the Inventory System.
+      schema:
+        type: string
+      example: "MED-0001"
+
+    HealthRecordIdPath:
+      name: health_record_id
+      in: path
+      required: true
+      description: Clinic-owned health record identifier.
+      schema:
+        type: integer
+        minimum: 1
+      example: 1
+
+    ConsultationIdPath:
+      name: consultation_id
+      in: path
+      required: true
+      description: Clinic-owned consultation identifier.
+      schema:
+        type: integer
+        minimum: 1
+      example: 1
+
+    StatusIdPath:
+      name: status_id
+      in: path
+      required: true
+      description: Clinic-owned health status identifier.
+      schema:
+        type: integer
+        minimum: 1
+      example: 1
+
+    DispensationIdPath:
+      name: dispensation_id
+      in: path
+      required: true
+      description: Clinic-owned medicine dispensation identifier.
+      schema:
+        type: integer
+        minimum: 1
+      example: 1
+
+    StudentIdQuery:
+      name: student_id
+      in: query
+      required: false
+      description: Filter results by Registrar-owned student identifier.
+      schema:
+        type: string
+      example: "2026-0001"
+
+    MedicineIdQuery:
+      name: medicine_id
+      in: query
+      required: false
+      description: Filter results by Inventory-owned medicine identifier.
+      schema:
+        type: string
+      example: "MED-0001"
+
+    SearchQuery:
+      name: search
+      in: query
+      required: false
+      description: Free-text search value for fields supported by the operation.
+      schema:
+        type: string
+        minLength: 1
+      example: headache
+
+    StatusQuery:
+      name: status
+      in: query
+      required: false
+      description: Filter by the status supported by the requested resource.
+      schema:
+        type: string
+
+    BloodTypeQuery:
+      name: blood_type
+      in: query
+      required: false
+      description: Filter health records by blood type.
+      schema:
+        type: string
+      example: "O+"
+
+    LowStockQuery:
+      name: low_stock
+      in: query
+      required: false
+      description: >
+        When true, return medicines whose quantity in stock is less
+        than or equal to their reorder level.
+      schema:
+        type: boolean
+      example: true
+
+    CourseQuery:
+      name: course
+      in: query
+      required: false
+      description: Filter Registrar student projections by course.
+      schema:
+        type: string
+      example: BSIT
+
+    SectionQuery:
+      name: section
+      in: query
+      required: false
+      description: Filter Registrar student projections by section.
+      schema:
+        type: string
+      example: 3A
+
+    DateFromQuery:
+      name: date_from
+      in: query
+      required: false
+      description: >
+        Inclusive beginning of a date range in YYYY-MM-DD format.
+      schema:
+        type: string
+        format: date
+      example: "2026-09-01"
+
+    DateToQuery:
+      name: date_to
+      in: query
+      required: false
+      description: >
+        Inclusive end of a date range in YYYY-MM-DD format.
+      schema:
+        type: string
+        format: date
+      example: "2026-09-30"
+
+    OrderingQuery:
+      name: ordering
+      in: query
+      required: false
+      description: >
+        Sort field. Prefix the field with "-" for descending order.
+        Each operation restricts ordering to its documented fields.
+      schema:
+        type: string
+      example: "-created_at"
+
+    PageQuery:
+      name: page
+      in: query
+      required: false
+      description: Page number. Defaults to 1.
+      schema:
+        type: integer
+        minimum: 1
+        default: 1
+      example: 1
+
+    PageSizeQuery:
+      name: page_size
+      in: query
+      required: false
+      description: >
+        Number of results per page. Defaults to 20 and cannot exceed 100.
+      schema:
+        type: integer
+        minimum: 1
+        maximum: 100
+        default: 20
+      example: 20
+
+
+  schemas:
+    HealthRecordCreate:
+      type: object
+      additionalProperties: false
+      required:
+        - student_id
+      properties:
+        student_id:
+          type: string
+          description: Registrar-owned student identifier.
+          example: "2026-0001"
+        blood_type:
+          type:
+            - string
+            - "null"
+          example: "O+"
+        allergies:
+          type: string
+          default: ""
+          example: "Penicillin"
+        medical_history:
+          type: string
+          default: ""
+          example: "History of asthma"
+        current_medications:
+          type: string
+          default: ""
+          example: "None"
+        height_cm:
+          type:
+            - number
+            - "null"
+          minimum: 0
+          example: 170.5
+        weight_kg:
+          type:
+            - number
+            - "null"
+          minimum: 0
+          example: 65.2
+
+    HealthRecordUpdate:
+      type: object
+      additionalProperties: false
+      required:
+        - student_id
+      properties:
+        student_id:
+          type: string
+          example: "2026-0001"
+        blood_type:
+          type:
+            - string
+            - "null"
+          example: "O+"
+        allergies:
+          type: string
+          example: "Penicillin"
+        medical_history:
+          type: string
+          example: "History of asthma"
+        current_medications:
+          type: string
+          example: "None"
+        height_cm:
+          type:
+            - number
+            - "null"
+          minimum: 0
+          example: 170.5
+        weight_kg:
+          type:
+            - number
+            - "null"
+          minimum: 0
+          example: 65.2
+
+    HealthRecordPatch:
+      type: object
+      additionalProperties: false
+      minProperties: 1
+      properties:
+        student_id:
+          type: string
+          example: "2026-0001"
+        blood_type:
+          type:
+            - string
+            - "null"
+          example: "O+"
+        allergies:
+          type: string
+          example: "Penicillin"
+        medical_history:
+          type: string
+          example: "History of asthma"
+        current_medications:
+          type: string
+          example: "None"
+        height_cm:
+          type:
+            - number
+            - "null"
+          minimum: 0
+          example: 170.5
+        weight_kg:
+          type:
+            - number
+            - "null"
+          minimum: 0
+          example: 65.2
+
+    HealthRecord:
+      type: object
+      additionalProperties: false
+      required:
+        - health_record_id
+        - student_id
+        - allergies
+        - medical_history
+        - current_medications
+        - created_at
+        - updated_at
+      properties:
+        health_record_id:
+          type: integer
+          minimum: 1
+          readOnly: true
+          example: 1
+        student_id:
+          type: string
+          example: "2026-0001"
+        blood_type:
+          type:
+            - string
+            - "null"
+          example: "O+"
+        allergies:
+          type: string
+          example: "Penicillin"
+        medical_history:
+          type: string
+          example: "History of asthma"
+        current_medications:
+          type: string
+          example: "None"
+        height_cm:
+          type:
+            - number
+            - "null"
+          minimum: 0
+          example: 170.5
+        weight_kg:
+          type:
+            - number
+            - "null"
+          minimum: 0
+          example: 65.2
+        created_at:
+          type: string
+          format: date-time
+          readOnly: true
+          example: "2026-09-29T14:00:00+08:00"
+        updated_at:
+          type: string
+          format: date-time
+          readOnly: true
+          example: "2026-09-29T14:00:00+08:00"
+
+
+    ConsultationCreate:
+      type: object
+      additionalProperties: false
+      required:
+        - student_id
+        - chief_complaint
+      properties:
+        student_id:
+          type: string
+          example: "2026-0001"
+        chief_complaint:
+          type: string
+          minLength: 1
+          example: "Headache and dizziness"
+        assessment:
+          type: string
+          default: ""
+          example: "Possible tension headache"
+        treatment:
+          type: string
+          default: ""
+          example: "Rest and hydration advised"
+        notes:
+          type: string
+          default: ""
+          example: "Return if symptoms persist"
+
+    ConsultationUpdate:
+      type: object
+      additionalProperties: false
+      required:
+        - student_id
+        - chief_complaint
+      properties:
+        student_id:
+          type: string
+          example: "2026-0001"
+        chief_complaint:
+          type: string
+          minLength: 1
+          example: "Headache and dizziness"
+        assessment:
+          type: string
+          example: "Possible tension headache"
+        treatment:
+          type: string
+          example: "Rest and hydration advised"
+        notes:
+          type: string
+          example: "Return if symptoms persist"
+
+    ConsultationPatch:
+      type: object
+      additionalProperties: false
+      minProperties: 1
+      properties:
+        student_id:
+          type: string
+          example: "2026-0001"
+        chief_complaint:
+          type: string
+          minLength: 1
+          example: "Headache and dizziness"
+        assessment:
+          type: string
+          example: "Possible tension headache"
+        treatment:
+          type: string
+          example: "Rest and hydration advised"
+        notes:
+          type: string
+          example: "Return if symptoms persist"
+
+    Consultation:
+      type: object
+      additionalProperties: false
+      required:
+        - consultation_id
+        - student_id
+        - chief_complaint
+        - assessment
+        - treatment
+        - notes
+        - consulted_at
+        - created_at
+        - updated_at
+      properties:
+        consultation_id:
+          type: integer
+          minimum: 1
+          readOnly: true
+          example: 1
+        student_id:
+          type: string
+          example: "2026-0001"
+        chief_complaint:
+          type: string
+          example: "Headache and dizziness"
+        assessment:
+          type: string
+          example: "Possible tension headache"
+        treatment:
+          type: string
+          example: "Rest and hydration advised"
+        notes:
+          type: string
+          example: "Return if symptoms persist"
+        consulted_at:
+          type: string
+          format: date-time
+          readOnly: true
+          example: "2026-09-29T14:05:00+08:00"
+        created_at:
+          type: string
+          format: date-time
+          readOnly: true
+          example: "2026-09-29T14:05:00+08:00"
+        updated_at:
+          type: string
+          format: date-time
+          readOnly: true
+          example: "2026-09-29T14:05:00+08:00"
+
+
+    HealthStatusValue:
+      type: string
+      enum:
+        - CLEARED
+        - RESTRICTED
+        - UNDER_OBSERVATION
+      example: CLEARED
+
+    HealthStatusCreate:
+      type: object
+      additionalProperties: false
+      required:
+        - student_id
+        - status
+      properties:
+        student_id:
+          type: string
+          example: "2026-0001"
+        status:
+          $ref: "#/components/schemas/HealthStatusValue"
+        remarks:
+          type: string
+          default: ""
+          example: "Cleared for regular school activities"
+
+    HealthStatusUpdate:
+      type: object
+      additionalProperties: false
+      required:
+        - student_id
+        - status
+      properties:
+        student_id:
+          type: string
+          example: "2026-0001"
+        status:
+          $ref: "#/components/schemas/HealthStatusValue"
+        remarks:
+          type: string
+          example: "Cleared for regular school activities"
+
+    HealthStatusPatch:
+      type: object
+      additionalProperties: false
+      minProperties: 1
+      properties:
+        student_id:
+          type: string
+          example: "2026-0001"
+        status:
+          $ref: "#/components/schemas/HealthStatusValue"
+        remarks:
+          type: string
+          example: "Cleared for regular school activities"
+
+    HealthStatus:
+      type: object
+      additionalProperties: false
+      required:
+        - status_id
+        - student_id
+        - status
+        - remarks
+        - effective_at
+        - created_at
+        - updated_at
+      properties:
+        status_id:
+          type: integer
+          minimum: 1
+          readOnly: true
+          example: 1
+        student_id:
+          type: string
+          example: "2026-0001"
+        status:
+          $ref: "#/components/schemas/HealthStatusValue"
+        remarks:
+          type: string
+          example: "Cleared for regular school activities"
+        effective_at:
+          type: string
+          format: date-time
+          readOnly: true
+          example: "2026-09-29T14:10:00+08:00"
+        created_at:
+          type: string
+          format: date-time
+          readOnly: true
+          example: "2026-09-29T14:10:00+08:00"
+        updated_at:
+          type: string
+          format: date-time
+          readOnly: true
+          example: "2026-09-29T14:10:00+08:00"
+
+
+    MedicineDispensationStatus:
+      type: string
+      enum:
+        - COMPLETED
+        - ROLLED_BACK
+      example: COMPLETED
+
+    MedicineDispensationCreate:
+      type: object
+      additionalProperties: false
+      required:
+        - student_id
+        - medicine_id
+        - quantity
+      properties:
+        student_id:
+          type: string
+          example: "2026-0001"
+        medicine_id:
+          type: string
+          example: "MED-0001"
+        quantity:
+          type: integer
+          minimum: 1
+          example: 2
+        reason:
+          type: string
+          default: ""
+          example: "Headache"
+
+    MedicineDispensation:
+      type: object
+      additionalProperties: false
+      required:
+        - dispensation_id
+        - student_id
+        - medicine_id
+        - quantity
+        - reason
+        - status
+        - inventory_transaction_id
+        - dispensed_at
+        - created_at
+      properties:
+        dispensation_id:
+          type: integer
+          minimum: 1
+          readOnly: true
+          example: 1
+        student_id:
+          type: string
+          example: "2026-0001"
+        medicine_id:
+          type: string
+          example: "MED-0001"
+        quantity:
+          type: integer
+          minimum: 1
+          example: 2
+        reason:
+          type: string
+          example: "Headache"
+        status:
+          $ref: "#/components/schemas/MedicineDispensationStatus"
+        inventory_transaction_id:
+          type: string
+          readOnly: true
+          example: "INV-TX-0001"
+        rollback_transaction_id:
+          type:
+            - string
+            - "null"
+          readOnly: true
+          example: null
+        dispensed_at:
+          type: string
+          format: date-time
+          readOnly: true
+          example: "2026-09-29T14:15:00+08:00"
+        rolled_back_at:
+          type:
+            - string
+            - "null"
+          format: date-time
+          readOnly: true
+          example: null
+        created_at:
+          type: string
+          format: date-time
+          readOnly: true
+          example: "2026-09-29T14:15:00+08:00"
+
+
+    StudentStatus:
+      type: string
+      enum:
+        - ACTIVE
+        - INACTIVE
+        - GRADUATED
+      example: ACTIVE
+
+    Student:
+      type: object
+      additionalProperties: false
+      description: >
+        Read-only student projection obtained from the Registrar
+        integration. The Clinic System does not own this data.
+      required:
+        - student_id
+        - first_name
+        - last_name
+        - course
+        - section
+        - status
+      properties:
+        student_id:
+          type: string
+          readOnly: true
+          example: "2026-0001"
+        first_name:
+          type: string
+          readOnly: true
+          example: Juan
+        last_name:
+          type: string
+          readOnly: true
+          example: Dela Cruz
+        course:
+          type: string
+          readOnly: true
+          example: BSIT
+        section:
+          type: string
+          readOnly: true
+          example: 3A
+        status:
+          allOf:
+            - $ref: "#/components/schemas/StudentStatus"
+          readOnly: true
+
+
+    MedicineStatus:
+      type: string
+      enum:
+        - ACTIVE
+        - INACTIVE
+      example: ACTIVE
+
+    Medicine:
+      type: object
+      additionalProperties: false
+      description: >
+        Read-only medicine and stock projection obtained from the
+        Inventory integration. The Clinic System does not own the
+        medicine catalog or stock quantity.
+      required:
+        - medicine_id
+        - name
+        - generic_name
+        - unit
+        - quantity_in_stock
+        - reorder_level
+        - is_low_stock
+        - status
+      properties:
+        medicine_id:
+          type: string
+          readOnly: true
+          example: "MED-0001"
+        name:
+          type: string
+          readOnly: true
+          example: Paracetamol
+        generic_name:
+          type: string
+          readOnly: true
+          example: Paracetamol
+        unit:
+          type: string
+          readOnly: true
+          example: tablet
+        quantity_in_stock:
+          type: integer
+          minimum: 0
+          readOnly: true
+          example: 100
+        reorder_level:
+          type: integer
+          minimum: 0
+          readOnly: true
+          example: 20
+        is_low_stock:
+          type: boolean
+          readOnly: true
+          description: >
+            True when quantity_in_stock is less than or equal to
+            reorder_level.
+          example: false
+        status:
+          allOf:
+            - $ref: "#/components/schemas/MedicineStatus"
+          readOnly: true
+
+
+    DashboardSummary:
+      type: object
+      additionalProperties: false
+      required:
+        - total_students
+        - total_health_records
+        - total_medicine_stock
+        - low_stock_medicines
+      properties:
+        total_students:
+          type: integer
+          minimum: 0
+          description: Count obtained from the Registrar integration.
+          example: 1200
+        total_health_records:
+          type: integer
+          minimum: 0
+          description: Count of Clinic-owned health records.
+          example: 850
+        total_medicine_stock:
+          type: integer
+          minimum: 0
+          description: >
+            Aggregate medicine stock quantity obtained from the
+            Inventory integration.
+          example: 540
+        low_stock_medicines:
+          type: integer
+          minimum: 0
+          description: >
+            Count of low-stock medicines obtained from the Inventory
+            integration.
+          example: 3
+
+    ActivityType:
+      type: string
+      enum:
+        - HEALTH_RECORD
+        - CONSULTATION
+        - HEALTH_STATUS
+        - MEDICINE_DISPENSATION
+        - MEDICINE_DISPENSATION_ROLLBACK
+      example: CONSULTATION
+
+    RecentActivity:
+      type: object
+      additionalProperties: false
+      required:
+        - activity_type
+        - reference_id
+        - student_id
+        - occurred_at
+      properties:
+        activity_type:
+          $ref: "#/components/schemas/ActivityType"
+        reference_id:
+          type: integer
+          minimum: 1
+          description: >
+            Identifier of the corresponding Clinic-owned resource.
+          example: 18
+        student_id:
+          type: string
+          example: "2026-0001"
+        occurred_at:
+          type: string
+          format: date-time
+          example: "2026-09-29T13:50:00+08:00"
+
+    Dashboard:
+      type: object
+      additionalProperties: false
+      required:
+        - summary
+        - recent_activity
+      properties:
+        summary:
+          $ref: "#/components/schemas/DashboardSummary"
+        recent_activity:
+          type: array
+          items:
+            $ref: "#/components/schemas/RecentActivity"
+
+
+    IntegrationHealthStatusValue:
+      type: string
+      enum:
+        - CLEARED
+        - RESTRICTED
+        - UNDER_OBSERVATION
+        - NOT_AVAILABLE
+      example: CLEARED
+
+    IntegrationHealthStatus:
+      type: object
+      additionalProperties: false
+      description: >
+        Limited read-only health-status representation exposed to
+        authorized external College Management System modules.
+      required:
+        - student_id
+        - status
+        - remarks
+        - effective_at
+      properties:
+        student_id:
+          type: string
+          readOnly: true
+          example: "2026-0001"
+        status:
+          allOf:
+            - $ref: "#/components/schemas/IntegrationHealthStatusValue"
+          readOnly: true
+        remarks:
+          type:
+            - string
+            - "null"
+          readOnly: true
+          example: "Cleared for regular school activities"
+        effective_at:
+          type:
+            - string
+            - "null"
+          format: date-time
+          readOnly: true
+          example: "2026-09-29T14:10:00+08:00"
+
+
+    FieldErrors:
+      type: object
+      description: >
+        Optional field-level validation errors. Each property name
+        identifies the invalid request field and contains one or
+        more human-readable error messages.
+      additionalProperties:
+        type: array
+        items:
+          type: string
+      example:
+        quantity:
+          - "Quantity must be greater than zero."
+
+    ProblemDetails:
+      type: object
+      additionalProperties: false
+      description: >
+        Standard error representation used by the Clinic API.
+        The code field is a stable machine-readable error code.
+      required:
+        - type
+        - title
+        - status
+        - detail
+        - instance
+        - code
+      properties:
+        type:
+          type: string
+          format: uri-reference
+          example: "about:blank"
+        title:
+          type: string
+          example: "Validation Error"
+        status:
+          type: integer
+          minimum: 400
+          maximum: 599
+          example: 400
+        detail:
+          type: string
+          example: "One or more fields are invalid."
+        instance:
+          type: string
+          format: uri-reference
+          example: "/api/v1/medicine-dispensations/"
+        code:
+          type: string
+          description: >
+            Stable machine-readable error code. Clients should use
+            this value rather than parsing the detail message.
+          example: "VALIDATION_ERROR"
+        errors:
+          $ref: "#/components/schemas/FieldErrors"
+
+  responses:
+
+    BadRequest:
+      description: >
+        The request contains invalid syntax, fields, query parameters,
+        pagination values, ordering, or date-range values.
+      content:
+        application/problem+json:
+          schema:
+            $ref: "#/components/schemas/ProblemDetails"
+          example:
+            type: "about:blank"
+            title: "Validation Error"
+            status: 400
+            detail: "One or more fields are invalid."
+            instance: "/api/v1/medicine-dispensations/"
+            code: "VALIDATION_ERROR"
+            errors:
+              quantity:
+                - "Quantity must be greater than zero."
+
+    Unauthorized:
+      description: Authentication is required or the supplied authentication is invalid.
+      content:
+        application/problem+json:
+          schema:
+            $ref: "#/components/schemas/ProblemDetails"
+          example:
+            type: "about:blank"
+            title: "Authentication Required"
+            status: 401
+            detail: "Authentication is required to access this resource."
+            instance: "/api/v1/health-records/"
+            code: "AUTHENTICATION_REQUIRED"
+
+    Forbidden:
+      description: >
+        The caller is authenticated but does not have permission
+        to perform the requested operation.
+      content:
+        application/problem+json:
+          schema:
+            $ref: "#/components/schemas/ProblemDetails"
+          example:
+            type: "about:blank"
+            title: "Permission Denied"
+            status: 403
+            detail: "You do not have permission to perform this operation."
+            instance: "/api/v1/health-statuses/1/"
+            code: "PERMISSION_DENIED"
+
+    NotFound:
+      description: >
+        The requested Clinic resource or referenced external resource
+        does not exist.
+      content:
+        application/problem+json:
+          schema:
+            $ref: "#/components/schemas/ProblemDetails"
+          examples:
+            clinicResourceNotFound:
+              summary: Clinic resource not found
+              value:
+                type: "about:blank"
+                title: "Health Record Not Found"
+                status: 404
+                detail: "The requested health record does not exist."
+                instance: "/api/v1/health-records/999/"
+                code: "HEALTH_RECORD_NOT_FOUND"
+
+            studentNotFound:
+              summary: Registrar student not found
+              value:
+                type: "about:blank"
+                title: "Student Not Found"
+                status: 404
+                detail: "The supplied student_id was not found in Registrar."
+                instance: "/api/v1/health-records/"
+                code: "STUDENT_NOT_FOUND"
+
+            medicineNotFound:
+              summary: Inventory medicine not found
+              value:
+                type: "about:blank"
+                title: "Medicine Not Found"
+                status: 404
+                detail: "The supplied medicine_id was not found in Inventory."
+                instance: "/api/v1/medicine-dispensations/"
+                code: "MEDICINE_NOT_FOUND"
+
+    Conflict:
+      description: >
+        The requested operation conflicts with the current state
+        of the resource.
+      content:
+        application/problem+json:
+          schema:
+            $ref: "#/components/schemas/ProblemDetails"
+          example:
+            type: "about:blank"
+            title: "Dispensation Already Rolled Back"
+            status: 409
+            detail: "This medicine dispensation has already been rolled back."
+            instance: "/api/v1/medicine-dispensations/1/rollback/"
+            code: "DISPENSATION_ALREADY_ROLLED_BACK"
+
+    UnprocessableEntity:
+      description: >
+        The request is syntactically valid but cannot be completed
+        because a Clinic business rule or external resource state
+        prevents the operation.
+      content:
+        application/problem+json:
+          schema:
+            $ref: "#/components/schemas/ProblemDetails"
+          examples:
+            insufficientStock:
+              summary: Insufficient medicine stock
+              value:
+                type: "about:blank"
+                title: "Insufficient Medicine Stock"
+                status: 422
+                detail: "The requested quantity exceeds available medicine stock."
+                instance: "/api/v1/medicine-dispensations/"
+                code: "INSUFFICIENT_STOCK"
+                errors:
+                  quantity:
+                    - "Requested quantity exceeds available stock."
+
+            inactiveStudent:
+              summary: Student is not active
+              value:
+                type: "about:blank"
+                title: "Student Not Active"
+                status: 422
+                detail: "The student exists but is not active for this operation."
+                instance: "/api/v1/medicine-dispensations/"
+                code: "STUDENT_NOT_ACTIVE"
+
+            inactiveMedicine:
+              summary: Medicine is inactive
+              value:
+                type: "about:blank"
+                title: "Medicine Unavailable"
+                status: 422
+                detail: "The selected medicine is not active for dispensing."
+                instance: "/api/v1/medicine-dispensations/"
+                code: "MEDICINE_INACTIVE"
+
+    InternalServerError:
+      description: An unexpected Clinic server error occurred.
+      content:
+        application/problem+json:
+          schema:
+            $ref: "#/components/schemas/ProblemDetails"
+          example:
+            type: "about:blank"
+            title: "Internal Server Error"
+            status: 500
+            detail: "An unexpected error occurred while processing the request."
+            instance: "/api/v1/health-records/"
+            code: "INTERNAL_SERVER_ERROR"
+
+    BadGateway:
+      description: >
+        Clinic could not complete the operation because a required
+        external integration failed.
+      content:
+        application/problem+json:
+          schema:
+            $ref: "#/components/schemas/ProblemDetails"
+          examples:
+            registrarUnavailable:
+              summary: Registrar integration unavailable
+              value:
+                type: "about:blank"
+                title: "Registrar Service Unavailable"
+                status: 502
+                detail: "Clinic could not complete the request because Registrar is unavailable."
+                instance: "/api/v1/health-records/"
+                code: "REGISTRAR_SERVICE_UNAVAILABLE"
+
+            inventoryUnavailable:
+              summary: Inventory integration unavailable
+              value:
+                type: "about:blank"
+                title: "Inventory Service Unavailable"
+                status: 502
+                detail: "Clinic could not complete the request because Inventory is unavailable."
+                instance: "/api/v1/medicine-dispensations/"
+                code: "INVENTORY_SERVICE_UNAVAILABLE"
+security:
+  - sessionAuth: []
+
+paths:
+  ####
+  /api/v1/health/:
+    get:
+      tags:
+        - System
+      summary: Check Clinic API health
+      description: >
+        Returns the current availability of the Clinic API.
+        This endpoint can be used by developers and other systems
+        to verify that the Clinic service is running.
+      operationId: getApiHealth
+      responses:
+        "200":
+          description: Clinic API is available.
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: false
+                required:
+                  - status
+                properties:
+                  status:
+                    type: string
+                    enum:
+                      - OK
+                    example: OK
+              example:
+                status: OK
+
+        "500":
+          $ref: "#/components/responses/InternalServerError"
+
+      security: []
+
+  ####
+  /api/v1/dashboard/:
+    get:
+      tags:
+        - Dashboard
+      summary: Get Clinic dashboard
+      description: >
+        Returns aggregated Clinic dashboard information. Health-record
+        and recent-activity information comes from Clinic-owned data,
+        student totals are obtained through the Registrar integration,
+        and medicine-stock information is obtained through the Inventory
+        integration.
+      operationId: getDashboard
+      responses:
+        "200":
+          description: Dashboard information retrieved successfully.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Dashboard"
+              example:
+                summary:
+                  total_students: 1200
+                  total_health_records: 850
+                  total_medicine_stock: 540
+                  low_stock_medicines: 3
+                recent_activity:
+                  - activity_type: CONSULTATION
+                    reference_id: 18
+                    student_id: "2026-0001"
+                    occurred_at: "2026-09-29T13:50:00+08:00"
+
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+
+        "500":
+          $ref: "#/components/responses/InternalServerError"
+
+        "502":
+          $ref: "#/components/responses/BadGateway"
+
+  ####
+  /api/v1/students/:
+    get:
+      tags:
+        - Students
+      summary: List students
+      description: >
+        Returns read-only student projections obtained through the
+        Registrar integration. The Clinic System does not own or
+        modify student identity or profile information.
+      operationId: listStudents
+      parameters:
+        - $ref: "#/components/parameters/SearchQuery"
+        - $ref: "#/components/parameters/StatusQuery"
+        - $ref: "#/components/parameters/CourseQuery"
+        - $ref: "#/components/parameters/SectionQuery"
+        - $ref: "#/components/parameters/PageQuery"
+        - $ref: "#/components/parameters/PageSizeQuery"
+      responses:
+        "200":
+          description: Student projections retrieved successfully.
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: false
+                required:
+                  - count
+                  - page
+                  - page_size
+                  - total_pages
+                  - results
+                properties:
+                  count:
+                    type: integer
+                    minimum: 0
+                    example: 3
+                  page:
+                    type: integer
+                    minimum: 1
+                    example: 1
+                  page_size:
+                    type: integer
+                    minimum: 1
+                    maximum: 100
+                    example: 20
+                  total_pages:
+                    type: integer
+                    minimum: 0
+                    example: 1
+                  results:
+                    type: array
+                    items:
+                      $ref: "#/components/schemas/Student"
+              example:
+                count: 3
+                page: 1
+                page_size: 20
+                total_pages: 1
+                results:
+                  - student_id: "2026-0001"
+                    first_name: Juan
+                    last_name: Dela Cruz
+                    course: BSIT
+                    section: 3A
+                    status: ACTIVE
+                  - student_id: "2026-0002"
+                    first_name: Maria
+                    last_name: Santos
+                    course: BSCS
+                    section: 2B
+                    status: ACTIVE
+                  - student_id: "2026-0003"
+                    first_name: Pedro
+                    last_name: Reyes
+                    course: BSIT
+                    section: 4A
+                    status: GRADUATED
+
+        "400":
+          $ref: "#/components/responses/BadRequest"
+
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+
+        "500":
+          $ref: "#/components/responses/InternalServerError"
+
+        "502":
+          $ref: "#/components/responses/BadGateway"
+
+  ####
+  /api/v1/students/{student_id}/:
+    get:
+      tags:
+        - Students
+      summary: Get student
+      description: >
+        Returns a single read-only student projection obtained
+        through the Registrar integration.
+      operationId: getStudent
+      parameters:
+        - $ref: "#/components/parameters/StudentIdPath"
+      responses:
+        "200":
+          description: Student projection retrieved successfully.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Student"
+              example:
+                student_id: "2026-0001"
+                first_name: Juan
+                last_name: Dela Cruz
+                course: BSIT
+                section: 3A
+                status: ACTIVE
+
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+
+        "404":
+          $ref: "#/components/responses/NotFound"
+
+        "500":
+          $ref: "#/components/responses/InternalServerError"
+
+        "502":
+          $ref: "#/components/responses/BadGateway"
+
+  ####
+  /api/v1/health-records/:
+    get:
+      tags:
+        - Health Records
+      summary: List health records
+      description: >
+        Returns paginated Clinic-owned health records. Results may
+        be filtered by student identifier or blood type and searched
+        across allergies, medical history, and current medications.
+      operationId: listHealthRecords
+      parameters:
+        - $ref: "#/components/parameters/StudentIdQuery"
+        - $ref: "#/components/parameters/BloodTypeQuery"
+        - $ref: "#/components/parameters/SearchQuery"
+        - $ref: "#/components/parameters/OrderingQuery"
+        - $ref: "#/components/parameters/PageQuery"
+        - $ref: "#/components/parameters/PageSizeQuery"
+      responses:
+        "200":
+          description: Health records retrieved successfully.
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: false
+                required:
+                  - count
+                  - page
+                  - page_size
+                  - total_pages
+                  - results
+                properties:
+                  count:
+                    type: integer
+                    minimum: 0
+                    example: 1
+                  page:
+                    type: integer
+                    minimum: 1
+                    example: 1
+                  page_size:
+                    type: integer
+                    minimum: 1
+                    maximum: 100
+                    example: 20
+                  total_pages:
+                    type: integer
+                    minimum: 0
+                    example: 1
+                  results:
+                    type: array
+                    items:
+                      $ref: "#/components/schemas/HealthRecord"
+              example:
+                count: 1
+                page: 1
+                page_size: 20
+                total_pages: 1
+                results:
+                  - health_record_id: 1
+                    student_id: "2026-0001"
+                    blood_type: "O+"
+                    allergies: "Penicillin"
+                    medical_history: "History of asthma"
+                    current_medications: "None"
+                    height_cm: 170.5
+                    weight_kg: 65.2
+                    created_at: "2026-09-29T14:00:00+08:00"
+                    updated_at: "2026-09-29T14:00:00+08:00"
+
+        "400":
+          $ref: "#/components/responses/BadRequest"
+
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+
+        "500":
+          $ref: "#/components/responses/InternalServerError"
+
+    post:
+      tags:
+        - Health Records
+      summary: Create health record
+      description: >
+        Creates a Clinic-owned health record for an active student.
+        The supplied student_id is validated through the Registrar
+        integration before the record is created.
+      operationId: createHealthRecord
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/HealthRecordCreate"
+            example:
+              student_id: "2026-0001"
+              blood_type: "O+"
+              allergies: "Penicillin"
+              medical_history: "History of asthma"
+              current_medications: "None"
+              height_cm: 170.5
+              weight_kg: 65.2
+      responses:
+        "201":
+          description: Health record created successfully.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/HealthRecord"
+
+        "400":
+          $ref: "#/components/responses/BadRequest"
+
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+
+        "404":
+          $ref: "#/components/responses/NotFound"
+
+        "422":
+          $ref: "#/components/responses/UnprocessableEntity"
+
+        "500":
+          $ref: "#/components/responses/InternalServerError"
+
+        "502":
+          $ref: "#/components/responses/BadGateway"
+
+  ####
+  /api/v1/health-records/{health_record_id}/:
+    parameters:
+      - $ref: "#/components/parameters/HealthRecordIdPath"
+
+    get:
+      tags:
+        - Health Records
+      summary: Get health record
+      description: Returns a single Clinic-owned health record.
+      operationId: getHealthRecord
+      responses:
+        "200":
+          description: Health record retrieved successfully.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/HealthRecord"
+
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+
+        "404":
+          $ref: "#/components/responses/NotFound"
+
+        "500":
+          $ref: "#/components/responses/InternalServerError"
+
+    put:
+      tags:
+        - Health Records
+      summary: Replace health record
+      description: >
+        Replaces the editable fields of an existing Clinic-owned
+        health record.
+      operationId: updateHealthRecord
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/HealthRecordUpdate"
+            example:
+              student_id: "2026-0001"
+              blood_type: "O+"
+              allergies: "Penicillin"
+              medical_history: "History of asthma"
+              current_medications: "None"
+              height_cm: 171.0
+              weight_kg: 66.0
+      responses:
+        "200":
+          description: Health record updated successfully.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/HealthRecord"
+
+        "400":
+          $ref: "#/components/responses/BadRequest"
+
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+
+        "404":
+          $ref: "#/components/responses/NotFound"
+
+        "422":
+          $ref: "#/components/responses/UnprocessableEntity"
+
+        "500":
+          $ref: "#/components/responses/InternalServerError"
+
+        "502":
+          $ref: "#/components/responses/BadGateway"
+
+    patch:
+      tags:
+        - Health Records
+      summary: Partially update health record
+      description: >
+        Updates one or more editable fields of an existing
+        Clinic-owned health record.
+      operationId: patchHealthRecord
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/HealthRecordPatch"
+            example:
+              weight_kg: 66.0
+              current_medications: "Salbutamol as needed"
+      responses:
+        "200":
+          description: Health record updated successfully.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/HealthRecord"
+
+        "400":
+          $ref: "#/components/responses/BadRequest"
+
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+
+        "404":
+          $ref: "#/components/responses/NotFound"
+
+        "422":
+          $ref: "#/components/responses/UnprocessableEntity"
+
+        "500":
+          $ref: "#/components/responses/InternalServerError"
+
+        "502":
+          $ref: "#/components/responses/BadGateway"
+
+    delete:
+      tags:
+        - Health Records
+      summary: Delete health record
+      description: Deletes an existing Clinic-owned health record.
+      operationId: deleteHealthRecord
+      responses:
+        "204":
+          description: Health record deleted successfully.
+
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+
+        "404":
+          $ref: "#/components/responses/NotFound"
+
+        "500":
+          $ref: "#/components/responses/InternalServerError"
+
+  ####
+  /api/v1/consultations/:
+    get:
+      tags:
+        - Consultations
+      summary: List consultations
+      description: >
+        Returns paginated Clinic-owned consultation records. Results
+        may be filtered by student identifier and consultation date
+        range, and searched across chief complaint, assessment,
+        treatment, and notes.
+      operationId: listConsultations
+      parameters:
+        - $ref: "#/components/parameters/StudentIdQuery"
+        - $ref: "#/components/parameters/SearchQuery"
+        - $ref: "#/components/parameters/DateFromQuery"
+        - $ref: "#/components/parameters/DateToQuery"
+        - $ref: "#/components/parameters/OrderingQuery"
+        - $ref: "#/components/parameters/PageQuery"
+        - $ref: "#/components/parameters/PageSizeQuery"
+      responses:
+        "200":
+          description: Consultations retrieved successfully.
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: false
+                required:
+                  - count
+                  - page
+                  - page_size
+                  - total_pages
+                  - results
+                properties:
+                  count:
+                    type: integer
+                    minimum: 0
+                    example: 1
+                  page:
+                    type: integer
+                    minimum: 1
+                    example: 1
+                  page_size:
+                    type: integer
+                    minimum: 1
+                    maximum: 100
+                    example: 20
+                  total_pages:
+                    type: integer
+                    minimum: 0
+                    example: 1
+                  results:
+                    type: array
+                    items:
+                      $ref: "#/components/schemas/Consultation"
+              example:
+                count: 1
+                page: 1
+                page_size: 20
+                total_pages: 1
+                results:
+                  - consultation_id: 1
+                    student_id: "2026-0001"
+                    chief_complaint: "Headache and dizziness"
+                    assessment: "Possible tension headache"
+                    treatment: "Rest and hydration advised"
+                    notes: "Return if symptoms persist"
+                    consulted_at: "2026-09-29T14:05:00+08:00"
+                    created_at: "2026-09-29T14:05:00+08:00"
+                    updated_at: "2026-09-29T14:05:00+08:00"
+
+        "400":
+          $ref: "#/components/responses/BadRequest"
+
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+
+        "500":
+          $ref: "#/components/responses/InternalServerError"
+
+    post:
+      tags:
+        - Consultations
+      summary: Create consultation
+      description: >
+        Creates a Clinic-owned consultation for an active student.
+        The supplied student_id is validated through the Registrar
+        integration before the consultation is created.
+      operationId: createConsultation
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ConsultationCreate"
+            example:
+              student_id: "2026-0001"
+              chief_complaint: "Headache and dizziness"
+              assessment: "Possible tension headache"
+              treatment: "Rest and hydration advised"
+              notes: "Return if symptoms persist"
+      responses:
+        "201":
+          description: Consultation created successfully.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Consultation"
+
+        "400":
+          $ref: "#/components/responses/BadRequest"
+
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+
+        "404":
+          $ref: "#/components/responses/NotFound"
+
+        "422":
+          $ref: "#/components/responses/UnprocessableEntity"
+
+        "500":
+          $ref: "#/components/responses/InternalServerError"
+
+        "502":
+          $ref: "#/components/responses/BadGateway"
+
+  ####
+  /api/v1/consultations/{consultation_id}/:
+    parameters:
+      - $ref: "#/components/parameters/ConsultationIdPath"
+
+    get:
+      tags:
+        - Consultations
+      summary: Get consultation
+      description: Returns a single Clinic-owned consultation record.
+      operationId: getConsultation
+      responses:
+        "200":
+          description: Consultation retrieved successfully.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Consultation"
+
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+
+        "404":
+          $ref: "#/components/responses/NotFound"
+
+        "500":
+          $ref: "#/components/responses/InternalServerError"
+
+    put:
+      tags:
+        - Consultations
+      summary: Replace consultation
+      description: >
+        Replaces the editable fields of an existing Clinic-owned
+        consultation.
+      operationId: updateConsultation
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ConsultationUpdate"
+            example:
+              student_id: "2026-0001"
+              chief_complaint: "Headache and dizziness"
+              assessment: "Tension headache"
+              treatment: "Rest, hydration, and observation"
+              notes: "Symptoms improved after rest"
+      responses:
+        "200":
+          description: Consultation updated successfully.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Consultation"
+
+        "400":
+          $ref: "#/components/responses/BadRequest"
+
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+
+        "404":
+          $ref: "#/components/responses/NotFound"
+
+        "422":
+          $ref: "#/components/responses/UnprocessableEntity"
+
+        "500":
+          $ref: "#/components/responses/InternalServerError"
+
+        "502":
+          $ref: "#/components/responses/BadGateway"
+
+    patch:
+      tags:
+        - Consultations
+      summary: Partially update consultation
+      description: >
+        Updates one or more editable fields of an existing
+        Clinic-owned consultation.
+      operationId: patchConsultation
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ConsultationPatch"
+            example:
+              assessment: "Tension headache"
+              notes: "Symptoms improved after rest"
+      responses:
+        "200":
+          description: Consultation updated successfully.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Consultation"
+
+        "400":
+          $ref: "#/components/responses/BadRequest"
+
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+
+        "404":
+          $ref: "#/components/responses/NotFound"
+
+        "422":
+          $ref: "#/components/responses/UnprocessableEntity"
+
+        "500":
+          $ref: "#/components/responses/InternalServerError"
+
+        "502":
+          $ref: "#/components/responses/BadGateway"
+
+    delete:
+      tags:
+        - Consultations
+      summary: Delete consultation
+      description: Deletes an existing Clinic-owned consultation record.
+      operationId: deleteConsultation
+      responses:
+        "204":
+          description: Consultation deleted successfully.
+
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+
+        "404":
+          $ref: "#/components/responses/NotFound"
+
+        "500":
+          $ref: "#/components/responses/InternalServerError"
+
+  ####
+  /api/v1/health-statuses/:
+    get:
+      tags:
+        - Health Statuses
+      summary: List health statuses
+      description: >
+        Returns paginated Clinic-owned health status records.
+        Results may be filtered by student identifier, status,
+        and effective date range.
+      operationId: listHealthStatuses
+      parameters:
+        - $ref: "#/components/parameters/StudentIdQuery"
+        - $ref: "#/components/parameters/StatusQuery"
+        - $ref: "#/components/parameters/DateFromQuery"
+        - $ref: "#/components/parameters/DateToQuery"
+        - $ref: "#/components/parameters/OrderingQuery"
+        - $ref: "#/components/parameters/PageQuery"
+        - $ref: "#/components/parameters/PageSizeQuery"
+      responses:
+        "200":
+          description: Health statuses retrieved successfully.
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: false
+                required:
+                  - count
+                  - page
+                  - page_size
+                  - total_pages
+                  - results
+                properties:
+                  count:
+                    type: integer
+                    minimum: 0
+                    example: 1
+                  page:
+                    type: integer
+                    minimum: 1
+                    example: 1
+                  page_size:
+                    type: integer
+                    minimum: 1
+                    maximum: 100
+                    example: 20
+                  total_pages:
+                    type: integer
+                    minimum: 0
+                    example: 1
+                  results:
+                    type: array
+                    items:
+                      $ref: "#/components/schemas/HealthStatus"
+              example:
+                count: 1
+                page: 1
+                page_size: 20
+                total_pages: 1
+                results:
+                  - status_id: 1
+                    student_id: "2026-0001"
+                    status: CLEARED
+                    remarks: "Cleared for regular school activities"
+                    effective_at: "2026-09-29T14:10:00+08:00"
+                    created_at: "2026-09-29T14:10:00+08:00"
+                    updated_at: "2026-09-29T14:10:00+08:00"
+
+        "400":
+          $ref: "#/components/responses/BadRequest"
+
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+
+        "500":
+          $ref: "#/components/responses/InternalServerError"
+
+    post:
+      tags:
+        - Health Statuses
+      summary: Create health status
+      description: >
+        Creates a Clinic-owned health status for an active student.
+        The supplied student_id is validated through the Registrar
+        integration before the status is created.
+      operationId: createHealthStatus
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/HealthStatusCreate"
+            example:
+              student_id: "2026-0001"
+              status: CLEARED
+              remarks: "Cleared for regular school activities"
+      responses:
+        "201":
+          description: Health status created successfully.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/HealthStatus"
+
+        "400":
+          $ref: "#/components/responses/BadRequest"
+
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+
+        "404":
+          $ref: "#/components/responses/NotFound"
+
+        "422":
+          $ref: "#/components/responses/UnprocessableEntity"
+
+        "500":
+          $ref: "#/components/responses/InternalServerError"
+
+        "502":
+          $ref: "#/components/responses/BadGateway"
+
+  ####
+  /api/v1/health-statuses/{status_id}/:
+    parameters:
+      - $ref: "#/components/parameters/StatusIdPath"
+
+    get:
+      tags:
+        - Health Statuses
+      summary: Get health status
+      description: Returns a single Clinic-owned health status record.
+      operationId: getHealthStatus
+      responses:
+        "200":
+          description: Health status retrieved successfully.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/HealthStatus"
+
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+
+        "404":
+          $ref: "#/components/responses/NotFound"
+
+        "500":
+          $ref: "#/components/responses/InternalServerError"
+
+    put:
+      tags:
+        - Health Statuses
+      summary: Replace health status
+      description: >
+        Replaces the editable fields of an existing Clinic-owned
+        health status.
+      operationId: updateHealthStatus
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/HealthStatusUpdate"
+            example:
+              student_id: "2026-0001"
+              status: RESTRICTED
+              remarks: "Restricted from strenuous physical activity"
+      responses:
+        "200":
+          description: Health status updated successfully.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/HealthStatus"
+
+        "400":
+          $ref: "#/components/responses/BadRequest"
+
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+
+        "404":
+          $ref: "#/components/responses/NotFound"
+
+        "422":
+          $ref: "#/components/responses/UnprocessableEntity"
+
+        "500":
+          $ref: "#/components/responses/InternalServerError"
+
+        "502":
+          $ref: "#/components/responses/BadGateway"
+
+    patch:
+      tags:
+        - Health Statuses
+      summary: Partially update health status
+      description: >
+        Updates one or more editable fields of an existing
+        Clinic-owned health status.
+      operationId: patchHealthStatus
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/HealthStatusPatch"
+            example:
+              status: CLEARED
+              remarks: "Cleared after follow-up assessment"
+      responses:
+        "200":
+          description: Health status updated successfully.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/HealthStatus"
+
+        "400":
+          $ref: "#/components/responses/BadRequest"
+
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+
+        "404":
+          $ref: "#/components/responses/NotFound"
+
+        "422":
+          $ref: "#/components/responses/UnprocessableEntity"
+
+        "500":
+          $ref: "#/components/responses/InternalServerError"
+
+        "502":
+          $ref: "#/components/responses/BadGateway"
+
+    delete:
+      tags:
+        - Health Statuses
+      summary: Delete health status
+      description: Deletes an existing Clinic-owned health status record.
+      operationId: deleteHealthStatus
+      responses:
+        "204":
+          description: Health status deleted successfully.
+
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+
+        "404":
+          $ref: "#/components/responses/NotFound"
+
+        "500":
+          $ref: "#/components/responses/InternalServerError"
+
+  ####
+  /api/v1/medicines/:
+    get:
+      tags:
+        - Medicines
+      summary: List medicines
+      description: >
+        Returns paginated read-only medicine and stock projections
+        obtained through the Inventory integration. The Clinic System
+        does not own or modify the medicine catalog or stock.
+      operationId: listMedicines
+      parameters:
+        - $ref: "#/components/parameters/SearchQuery"
+        - $ref: "#/components/parameters/LowStockQuery"
+        - $ref: "#/components/parameters/StatusQuery"
+        - $ref: "#/components/parameters/OrderingQuery"
+        - $ref: "#/components/parameters/PageQuery"
+        - $ref: "#/components/parameters/PageSizeQuery"
+      responses:
+        "200":
+          description: Medicine projections retrieved successfully.
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: false
+                required:
+                  - count
+                  - page
+                  - page_size
+                  - total_pages
+                  - results
+                properties:
+                  count:
+                    type: integer
+                    minimum: 0
+                    example: 3
+                  page:
+                    type: integer
+                    minimum: 1
+                    example: 1
+                  page_size:
+                    type: integer
+                    minimum: 1
+                    maximum: 100
+                    example: 20
+                  total_pages:
+                    type: integer
+                    minimum: 0
+                    example: 1
+                  results:
+                    type: array
+                    items:
+                      $ref: "#/components/schemas/Medicine"
+              example:
+                count: 3
+                page: 1
+                page_size: 20
+                total_pages: 1
+                results:
+                  - medicine_id: "MED-0001"
+                    name: Paracetamol
+                    generic_name: Paracetamol
+                    unit: tablet
+                    quantity_in_stock: 100
+                    reorder_level: 20
+                    is_low_stock: false
+                    status: ACTIVE
+                  - medicine_id: "MED-0002"
+                    name: Ibuprofen
+                    generic_name: Ibuprofen
+                    unit: tablet
+                    quantity_in_stock: 15
+                    reorder_level: 20
+                    is_low_stock: true
+                    status: ACTIVE
+                  - medicine_id: "MED-0003"
+                    name: Cetirizine
+                    generic_name: Cetirizine
+                    unit: tablet
+                    quantity_in_stock: 0
+                    reorder_level: 10
+                    is_low_stock: true
+                    status: ACTIVE
+
+        "400":
+          $ref: "#/components/responses/BadRequest"
+
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+
+        "500":
+          $ref: "#/components/responses/InternalServerError"
+
+        "502":
+          $ref: "#/components/responses/BadGateway"
+
+  ####
+  /api/v1/medicines/{medicine_id}/:
+    get:
+      tags:
+        - Medicines
+      summary: Get medicine
+      description: >
+        Returns a single read-only medicine and stock projection
+        obtained through the Inventory integration.
+      operationId: getMedicine
+      parameters:
+        - $ref: "#/components/parameters/MedicineIdPath"
+      responses:
+        "200":
+          description: Medicine projection retrieved successfully.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Medicine"
+              example:
+                medicine_id: "MED-0001"
+                name: Paracetamol
+                generic_name: Paracetamol
+                unit: tablet
+                quantity_in_stock: 100
+                reorder_level: 20
+                is_low_stock: false
+                status: ACTIVE
+
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+
+        "404":
+          $ref: "#/components/responses/NotFound"
+
+        "500":
+          $ref: "#/components/responses/InternalServerError"
+
+        "502":
+          $ref: "#/components/responses/BadGateway"
+
+  ####
+  /api/v1/medicine-dispensations/:
+    get:
+      tags:
+        - Medicine Dispensations
+      summary: List medicine dispensations
+      description: >
+        Returns paginated Clinic-owned medicine dispensation history.
+        Results may be filtered by student identifier, medicine
+        identifier, dispensation status, and dispensing date range.
+      operationId: listMedicineDispensations
+      parameters:
+        - $ref: "#/components/parameters/StudentIdQuery"
+        - $ref: "#/components/parameters/MedicineIdQuery"
+        - $ref: "#/components/parameters/StatusQuery"
+        - $ref: "#/components/parameters/DateFromQuery"
+        - $ref: "#/components/parameters/DateToQuery"
+        - $ref: "#/components/parameters/SearchQuery"
+        - $ref: "#/components/parameters/OrderingQuery"
+        - $ref: "#/components/parameters/PageQuery"
+        - $ref: "#/components/parameters/PageSizeQuery"
+      responses:
+        "200":
+          description: Medicine dispensations retrieved successfully.
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: false
+                required:
+                  - count
+                  - page
+                  - page_size
+                  - total_pages
+                  - results
+                properties:
+                  count:
+                    type: integer
+                    minimum: 0
+                    example: 1
+                  page:
+                    type: integer
+                    minimum: 1
+                    example: 1
+                  page_size:
+                    type: integer
+                    minimum: 1
+                    maximum: 100
+                    example: 20
+                  total_pages:
+                    type: integer
+                    minimum: 0
+                    example: 1
+                  results:
+                    type: array
+                    items:
+                      $ref: "#/components/schemas/MedicineDispensation"
+              example:
+                count: 1
+                page: 1
+                page_size: 20
+                total_pages: 1
+                results:
+                  - dispensation_id: 1
+                    student_id: "2026-0001"
+                    medicine_id: "MED-0001"
+                    quantity: 2
+                    reason: "Headache"
+                    status: COMPLETED
+                    inventory_transaction_id: "INV-TX-0001"
+                    rollback_transaction_id: null
+                    dispensed_at: "2026-09-29T14:15:00+08:00"
+                    rolled_back_at: null
+                    created_at: "2026-09-29T14:15:00+08:00"
+
+        "400":
+          $ref: "#/components/responses/BadRequest"
+
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+
+        "500":
+          $ref: "#/components/responses/InternalServerError"
+
+    post:
+      tags:
+        - Medicine Dispensations
+      summary: Dispense medicine
+      description: >
+        Dispenses medicine to an active student. Clinic validates the
+        student through the Registrar integration and requests an
+        Inventory stock deduction. After Inventory successfully
+        deducts the requested quantity and returns a transaction
+        identifier, Clinic records the medicine dispensation.
+      operationId: createMedicineDispensation
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/MedicineDispensationCreate"
+            example:
+              student_id: "2026-0001"
+              medicine_id: "MED-0001"
+              quantity: 2
+              reason: "Headache"
+      responses:
+        "201":
+          description: Medicine dispensed and recorded successfully.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/MedicineDispensation"
+              example:
+                dispensation_id: 1
+                student_id: "2026-0001"
+                medicine_id: "MED-0001"
+                quantity: 2
+                reason: "Headache"
+                status: COMPLETED
+                inventory_transaction_id: "INV-TX-0001"
+                rollback_transaction_id: null
+                dispensed_at: "2026-09-29T14:15:00+08:00"
+                rolled_back_at: null
+                created_at: "2026-09-29T14:15:00+08:00"
+
+        "400":
+          $ref: "#/components/responses/BadRequest"
+
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+
+        "404":
+          $ref: "#/components/responses/NotFound"
+
+        "422":
+          $ref: "#/components/responses/UnprocessableEntity"
+
+        "500":
+          $ref: "#/components/responses/InternalServerError"
+
+        "502":
+          $ref: "#/components/responses/BadGateway"
+
+  ####
+  /api/v1/medicine-dispensations/{dispensation_id}/:
+    get:
+      tags:
+        - Medicine Dispensations
+      summary: Get medicine dispensation
+      description: Returns a single Clinic-owned medicine dispensation record.
+      operationId: getMedicineDispensation
+      parameters:
+        - $ref: "#/components/parameters/DispensationIdPath"
+      responses:
+        "200":
+          description: Medicine dispensation retrieved successfully.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/MedicineDispensation"
+
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+
+        "404":
+          $ref: "#/components/responses/NotFound"
+
+        "500":
+          $ref: "#/components/responses/InternalServerError"
+
+  ####
+  /api/v1/medicine-dispensations/{dispensation_id}/rollback/:
+    post:
+      tags:
+        - Medicine Dispensations
+      summary: Roll back medicine dispensation
+      description: >
+        Reverses a completed medicine dispensation. Clinic requests
+        Inventory to restore the previously deducted stock. Inventory
+        returns a separate rollback transaction identifier, and Clinic
+        marks the dispensation as ROLLED_BACK. A dispensation that has
+        already been rolled back cannot be rolled back again.
+      operationId: rollbackMedicineDispensation
+      parameters:
+        - $ref: "#/components/parameters/DispensationIdPath"
+      responses:
+        "200":
+          description: Medicine dispensation rolled back successfully.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/MedicineDispensation"
+              example:
+                dispensation_id: 1
+                student_id: "2026-0001"
+                medicine_id: "MED-0001"
+                quantity: 2
+                reason: "Headache"
+                status: ROLLED_BACK
+                inventory_transaction_id: "INV-TX-0001"
+                rollback_transaction_id: "INV-TX-0002"
+                dispensed_at: "2026-09-29T14:15:00+08:00"
+                rolled_back_at: "2026-09-29T14:20:00+08:00"
+                created_at: "2026-09-29T14:15:00+08:00"
+
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+
+        "404":
+          $ref: "#/components/responses/NotFound"
+
+        "409":
+          $ref: "#/components/responses/Conflict"
+
+        "422":
+          $ref: "#/components/responses/UnprocessableEntity"
+
+        "500":
+          $ref: "#/components/responses/InternalServerError"
+
+        "502":
+          $ref: "#/components/responses/BadGateway"
+
+  ####
+  /api/v1/reports/clinic-visits/:
+    get:
+      tags:
+        - Reports
+      summary: Get clinic visits report
+      description: >
+        Returns a report derived from Clinic-owned consultation
+        records. The optional date range is inclusive and applies
+        to the consultation date.
+      operationId: getClinicVisitsReport
+      parameters:
+        - $ref: "#/components/parameters/DateFromQuery"
+        - $ref: "#/components/parameters/DateToQuery"
+      responses:
+        "200":
+          description: Clinic visits report generated successfully.
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: false
+                required:
+                  - total_visits
+                  - results
+                properties:
+                  total_visits:
+                    type: integer
+                    minimum: 0
+                    example: 2
+                  results:
+                    type: array
+                    items:
+                      $ref: "#/components/schemas/Consultation"
+              example:
+                total_visits: 2
+                results:
+                  - consultation_id: 1
+                    student_id: "2026-0001"
+                    chief_complaint: "Headache and dizziness"
+                    assessment: "Possible tension headache"
+                    treatment: "Rest and hydration advised"
+                    notes: "Return if symptoms persist"
+                    consulted_at: "2026-09-29T14:05:00+08:00"
+                    created_at: "2026-09-29T14:05:00+08:00"
+                    updated_at: "2026-09-29T14:05:00+08:00"
+                  - consultation_id: 2
+                    student_id: "2026-0002"
+                    chief_complaint: "Mild fever"
+                    assessment: "Possible viral infection"
+                    treatment: "Rest and hydration advised"
+                    notes: "Monitor temperature"
+                    consulted_at: "2026-09-29T15:00:00+08:00"
+                    created_at: "2026-09-29T15:00:00+08:00"
+                    updated_at: "2026-09-29T15:00:00+08:00"
+
+        "400":
+          $ref: "#/components/responses/BadRequest"
+
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+
+        "500":
+          $ref: "#/components/responses/InternalServerError"
+
+  ####
+  /api/v1/reports/health-records/:
+    get:
+      tags:
+        - Reports
+      summary: Get health records report
+      description: >
+        Returns a report derived from Clinic-owned health records.
+        The optional date range is inclusive and applies to the
+        health record creation date.
+      operationId: getHealthRecordsReport
+      parameters:
+        - $ref: "#/components/parameters/DateFromQuery"
+        - $ref: "#/components/parameters/DateToQuery"
+      responses:
+        "200":
+          description: Health records report generated successfully.
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: false
+                required:
+                  - total_health_records
+                  - results
+                properties:
+                  total_health_records:
+                    type: integer
+                    minimum: 0
+                    example: 1
+                  results:
+                    type: array
+                    items:
+                      $ref: "#/components/schemas/HealthRecord"
+              example:
+                total_health_records: 1
+                results:
+                  - health_record_id: 1
+                    student_id: "2026-0001"
+                    blood_type: "O+"
+                    allergies: "Penicillin"
+                    medical_history: "History of asthma"
+                    current_medications: "None"
+                    height_cm: 170.5
+                    weight_kg: 65.2
+                    created_at: "2026-09-29T14:00:00+08:00"
+                    updated_at: "2026-09-29T14:00:00+08:00"
+
+        "400":
+          $ref: "#/components/responses/BadRequest"
+
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+
+        "500":
+          $ref: "#/components/responses/InternalServerError"
+
+  ####
+  /api/v1/reports/medicine-inventory/:
+    get:
+      tags:
+        - Reports
+      summary: Get medicine inventory report
+      description: >
+        Returns a read-only medicine inventory report using data
+        obtained through the Inventory integration. Clinic does not
+        own the medicine catalog or stock represented by this report.
+      operationId: getMedicineInventoryReport
+      parameters:
+        - $ref: "#/components/parameters/LowStockQuery"
+        - $ref: "#/components/parameters/StatusQuery"
+      responses:
+        "200":
+          description: Medicine inventory report generated successfully.
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: false
+                required:
+                  - total_medicines
+                  - total_stock
+                  - low_stock_medicines
+                  - results
+                properties:
+                  total_medicines:
+                    type: integer
+                    minimum: 0
+                    example: 3
+                  total_stock:
+                    type: integer
+                    minimum: 0
+                    example: 115
+                  low_stock_medicines:
+                    type: integer
+                    minimum: 0
+                    example: 2
+                  results:
+                    type: array
+                    items:
+                      $ref: "#/components/schemas/Medicine"
+              example:
+                total_medicines: 3
+                total_stock: 115
+                low_stock_medicines: 2
+                results:
+                  - medicine_id: "MED-0001"
+                    name: Paracetamol
+                    generic_name: Paracetamol
+                    unit: tablet
+                    quantity_in_stock: 100
+                    reorder_level: 20
+                    is_low_stock: false
+                    status: ACTIVE
+                  - medicine_id: "MED-0002"
+                    name: Ibuprofen
+                    generic_name: Ibuprofen
+                    unit: tablet
+                    quantity_in_stock: 15
+                    reorder_level: 20
+                    is_low_stock: true
+                    status: ACTIVE
+                  - medicine_id: "MED-0003"
+                    name: Cetirizine
+                    generic_name: Cetirizine
+                    unit: tablet
+                    quantity_in_stock: 0
+                    reorder_level: 10
+                    is_low_stock: true
+                    status: ACTIVE
+
+        "400":
+          $ref: "#/components/responses/BadRequest"
+
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+
+        "500":
+          $ref: "#/components/responses/InternalServerError"
+
+        "502":
+          $ref: "#/components/responses/BadGateway"
+
+  ####
+  /api/v1/reports/medicine-dispensations/:
+    get:
+      tags:
+        - Reports
+      summary: Get medicine dispensations report
+      description: >
+        Returns a report derived from Clinic-owned medicine
+        dispensation history. Results may be filtered by date range,
+        student identifier, medicine identifier, and dispensation
+        status.
+      operationId: getMedicineDispensationsReport
+      parameters:
+        - $ref: "#/components/parameters/DateFromQuery"
+        - $ref: "#/components/parameters/DateToQuery"
+        - $ref: "#/components/parameters/StudentIdQuery"
+        - $ref: "#/components/parameters/MedicineIdQuery"
+        - $ref: "#/components/parameters/StatusQuery"
+      responses:
+        "200":
+          description: Medicine dispensations report generated successfully.
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: false
+                required:
+                  - total_dispensations
+                  - total_quantity_dispensed
+                  - results
+                properties:
+                  total_dispensations:
+                    type: integer
+                    minimum: 0
+                    example: 1
+                  total_quantity_dispensed:
+                    type: integer
+                    minimum: 0
+                    example: 2
+                  results:
+                    type: array
+                    items:
+                      $ref: "#/components/schemas/MedicineDispensation"
+              example:
+                total_dispensations: 1
+                total_quantity_dispensed: 2
+                results:
+                  - dispensation_id: 1
+                    student_id: "2026-0001"
+                    medicine_id: "MED-0001"
+                    quantity: 2
+                    reason: "Headache"
+                    status: COMPLETED
+                    inventory_transaction_id: "INV-TX-0001"
+                    rollback_transaction_id: null
+                    dispensed_at: "2026-09-29T14:15:00+08:00"
+                    rolled_back_at: null
+                    created_at: "2026-09-29T14:15:00+08:00"
+
+        "400":
+          $ref: "#/components/responses/BadRequest"
+
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+
+        "500":
+          $ref: "#/components/responses/InternalServerError"
+
+  ####
+  /api/v1/integrations/faculty/health-status/{student_id}/:
+    get:
+      tags:
+        - Integrations
+      summary: Get student health status for Faculty
+      description: >
+        Returns the latest permitted Clinic health status for a student
+        to an authorized Faculty System consumer. This endpoint exposes
+        only the limited health-status projection and does not expose
+        health records, consultations, or medicine dispensation history.
+
+        If the student exists in Registrar but has no Clinic health
+        status record, the response uses NOT_AVAILABLE as an integration
+        response state.
+      operationId: getFacultyStudentHealthStatus
+      parameters:
+        - $ref: "#/components/parameters/StudentIdPath"
+      responses:
+        "200":
+          description: Student health status projection retrieved successfully.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/IntegrationHealthStatus"
+              examples:
+                available:
+                  summary: Student has a Clinic health status
+                  value:
+                    student_id: "2026-0001"
+                    status: CLEARED
+                    remarks: "Cleared for regular school activities"
+                    effective_at: "2026-09-29T14:10:00+08:00"
+
+                notAvailable:
+                  summary: Student exists but has no Clinic health status
+                  value:
+                    student_id: "2026-0005"
+                    status: NOT_AVAILABLE
+                    remarks: null
+                    effective_at: null
+
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+
+        "403":
+          $ref: "#/components/responses/Forbidden"
+
+        "404":
+          $ref: "#/components/responses/NotFound"
+
+        "500":
+          $ref: "#/components/responses/InternalServerError"
+
+        "502":
+          $ref: "#/components/responses/BadGateway"
+
+  ####
+  /api/v1/integrations/student-portal/health-status/{student_id}/:
+    get:
+      tags:
+        - Integrations
+      summary: Get student health status for Student Portal
+      description: >
+        Returns the latest permitted Clinic health status for a student
+        to an authorized Student Portal consumer. This endpoint exposes
+        only the limited health-status projection and does not expose
+        health records, consultations, or medicine dispensation history.
+
+        If the student exists in Registrar but has no Clinic health
+        status record, the response uses NOT_AVAILABLE as an integration
+        response state.
+      operationId: getStudentPortalHealthStatus
+      parameters:
+        - $ref: "#/components/parameters/StudentIdPath"
+      responses:
+        "200":
+          description: Student health status projection retrieved successfully.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/IntegrationHealthStatus"
+              examples:
+                available:
+                  summary: Student has a Clinic health status
+                  value:
+                    student_id: "2026-0001"
+                    status: CLEARED
+                    remarks: "Cleared for regular school activities"
+                    effective_at: "2026-09-29T14:10:00+08:00"
+
+                notAvailable:
+                  summary: Student exists but has no Clinic health status
+                  value:
+                    student_id: "2026-0005"
+                    status: NOT_AVAILABLE
+                    remarks: null
+                    effective_at: null
+
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+
+        "403":
+          $ref: "#/components/responses/Forbidden"
+
+        "404":
+          $ref: "#/components/responses/NotFound"
+
+        "500":
+          $ref: "#/components/responses/InternalServerError"
+
+        "502":
+          $ref: "#/components/responses/BadGateway"
