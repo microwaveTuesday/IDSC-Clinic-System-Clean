@@ -1089,12 +1089,12 @@ components:
           schema:
             $ref: "#/components/schemas/ProblemDetails"
           example:
-            type: "about:blank"
-            title: "Authentication Required"
+            type: "https://clinic.example/problems/unauthorized"
+            title: "Unauthorized"
             status: 401
-            detail: "Authentication is required to access this resource."
+            detail: "Authentication credentials were not provided."
             instance: "/api/v1/health-records/"
-            code: "AUTHENTICATION_REQUIRED"
+            code: "not_authenticated"
 
     Forbidden:
       description: >
@@ -1105,12 +1105,12 @@ components:
           schema:
             $ref: "#/components/schemas/ProblemDetails"
           example:
-            type: "about:blank"
-            title: "Permission Denied"
+            type: "https://clinic.example/problems/forbidden"
+            title: "Forbidden"
             status: 403
-            detail: "You do not have permission to perform this operation."
-            instance: "/api/v1/health-statuses/1/"
-            code: "PERMISSION_DENIED"
+            detail: "Clinic staff access is required."
+            instance: "/api/v1/health-records/"
+            code: "permission_denied"
 
     NotFound:
       description: >
@@ -1256,6 +1256,201 @@ security:
   - sessionAuth: []
 
 paths:
+  /api/auth/csrf/:
+    get:
+      tags:
+        - Authentication
+      summary: Get CSRF token
+      description: >
+        Returns a CSRF token and ensures the Django CSRF cookie is set.
+        The token must be supplied for CSRF-protected authentication
+        operations such as login and logout.
+      operationId: getCsrfToken
+      security: []
+      responses:
+        "200":
+          description: CSRF token issued successfully.
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                  - csrfToken
+                properties:
+                  csrfToken:
+                    type: string
+              example:
+                csrfToken: "example-csrf-token"
+
+  /api/auth/login/:
+    post:
+      tags:
+        - Authentication
+      summary: Log in to the Clinic system
+      description: >
+        Authenticates a Clinic user and creates a Django session.
+        A valid CSRF token is required.
+      operationId: loginClinicUser
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - username
+                - password
+              properties:
+                username:
+                  type: string
+                password:
+                  type: string
+                  format: password
+            example:
+              username: "clinic_staff"
+              password: "example-password"
+      responses:
+        "200":
+          description: Login successful and session created.
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                  - message
+                  - user
+                properties:
+                  message:
+                    type: string
+                  user:
+                    type: object
+                    required:
+                      - id
+                      - username
+                      - email
+                      - is_staff
+                    properties:
+                      id:
+                        type: integer
+                      username:
+                        type: string
+                      email:
+                        type: string
+                        format: email
+                      is_staff:
+                        type: boolean
+              example:
+                message: "Login successful."
+                user:
+                  id: 1
+                  username: "clinic_staff"
+                  email: "clinic@example.com"
+                  is_staff: false
+        "400":
+          description: Username or password was not supplied.
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                  - detail
+                properties:
+                  detail:
+                    type: string
+              example:
+                detail: "Username and password are required."
+        "401":
+          description: Invalid username or password.
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                  - detail
+                properties:
+                  detail:
+                    type: string
+              example:
+                detail: "Invalid username or password."
+        "403":
+          description: The authenticated account is inactive.
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                  - detail
+                properties:
+                  detail:
+                    type: string
+              example:
+                detail: "This account is inactive."
+
+  /api/auth/logout/:
+    post:
+      tags:
+        - Authentication
+      summary: Log out of the Clinic system
+      description: >
+        Logs out the authenticated user and destroys the current
+        Django session. A valid CSRF token is required.
+      operationId: logoutClinicUser
+      responses:
+        "200":
+          description: Logout successful.
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                  - message
+                properties:
+                  message:
+                    type: string
+              example:
+                message: "Logout successful."
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+
+  /api/auth/me/:
+    get:
+      tags:
+        - Authentication
+      summary: Get current Clinic user
+      description: Returns the currently authenticated user's account information.
+      operationId: getCurrentClinicUser
+      responses:
+        "200":
+          description: Current authenticated user.
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                  - id
+                  - username
+                  - email
+                  - is_staff
+                properties:
+                  id:
+                    type: integer
+                  username:
+                    type: string
+                  email:
+                    type: string
+                    format: email
+                  is_staff:
+                    type: boolean
+              example:
+                id: 1
+                username: "clinic_staff"
+                email: "clinic@example.com"
+                is_staff: false
+        "401":
+          $ref: "#/components/responses/Unauthorized"
   ####
   /api/v1/health/:
     get:
@@ -3001,3 +3196,4 @@ paths:
 
         "502":
           $ref: "#/components/responses/BadGateway"
+

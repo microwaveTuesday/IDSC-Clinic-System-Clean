@@ -46,6 +46,9 @@ urlpatterns = [
     # Authentication remains outside the versioned business namespace.
     path("api/auth/", include("authentication.urls")),
 
+    # Administrative Clinic user management.
+    path("api/v1/users/", include("authentication.user_urls")),
+
     # Canonical Clinic business API.
     path("api/v1/", include("clinic.urls")),
 

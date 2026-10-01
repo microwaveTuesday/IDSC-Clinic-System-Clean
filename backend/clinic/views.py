@@ -14,6 +14,8 @@ External data is accessed through service boundaries rather than local
 Clinic ORM models.
 """
 
+from authentication.permissions import IsClinicStaff
+
 from .pagination import ClinicPagination
 
 from django.db import models, transaction
@@ -31,6 +33,7 @@ from rest_framework.decorators import action
 from rest_framework.response import Response
 from rest_framework import status, viewsets
 from rest_framework.views import APIView
+from rest_framework.permissions import IsAuthenticated
 
 from .models import (
     Consultation,
@@ -61,13 +64,13 @@ from .services.registrar import (
     registrar_service,
 )
 
-# temporary exception for business-rule failures; will be replaced with Problem Details in Phase 6
+# HTTP 422 exception for business-rule failures handled by the canonical Problem Details exception handler
 class UnprocessableEntity(APIException):
     """
-    Temporary DRF exception for HTTP 422 business-rule failures.
+    HTTP 422 exception for business-rule failures.
 
-    Phase 6 will standardize the response body using the canonical
-    Problem Details format.
+    The canonical exception handler serializes this exception using
+    the Clinic API Problem Details format.
     """
 
     status_code = status.HTTP_422_UNPROCESSABLE_ENTITY
@@ -75,13 +78,13 @@ class UnprocessableEntity(APIException):
     default_code = "unprocessable_entity"
 
 
-# temporary exception for business-rule conflicts; will be replaced with Problem Details in Phase 6
+# HTTP 409 exception for state conflicts handled by the canonical Problem Details exception handler
 class Conflict(APIException):
     """
-    Temporary DRF exception for HTTP 409 state conflicts.
+    HTTP 409 exception for resource-state conflicts.
 
-    Phase 6 will standardize the response body using the canonical
-    Problem Details format.
+    The canonical exception handler serializes this exception using
+    the Clinic API Problem Details format.
     """
 
     status_code = status.HTTP_409_CONFLICT
@@ -114,6 +117,7 @@ class HealthView(APIView):
 # Clinic dashboard
 # ---------------------------------------------------------------------------
 class DashboardView(APIView):
+    permission_classes = [IsClinicStaff]
     """
     Aggregated Clinic dashboard.
 
@@ -272,6 +276,7 @@ def parse_optional_report_date(value, field_name):
 # Clinic-owned resources
 # ---------------------------------------------------------------------------
 class ClinicVisitsReportView(APIView):
+    permission_classes = [IsClinicStaff]
     """
     Report derived from Clinic-owned consultation records.
 
@@ -343,6 +348,7 @@ class ClinicVisitsReportView(APIView):
 # Health Records
 # ---------------------------------------------------------------------------
 class HealthRecordsReportView(APIView):
+    permission_classes = [IsClinicStaff]
     """
     Report derived from Clinic-owned health records.
 
@@ -414,6 +420,7 @@ class HealthRecordsReportView(APIView):
 # Medicine Inventory
 # ---------------------------------------------------------------------------
 class MedicineInventoryReportView(APIView):
+    permission_classes = [IsClinicStaff]
     """
     Read-only medicine inventory report obtained through the
     Inventory integration boundary.
@@ -484,6 +491,7 @@ class MedicineInventoryReportView(APIView):
 # Medicine Dispensation
 # ---------------------------------------------------------------------------
 class MedicineDispensationReportView(APIView):
+    permission_classes = [IsClinicStaff]
     """
     Report derived from Clinic-owned medicine dispensation history.
 
@@ -584,6 +592,7 @@ class MedicineDispensationReportView(APIView):
 # Registrar projections
 # ---------------------------------------------------------------------------
 class StudentListView(APIView):
+    permission_classes = [IsClinicStaff]
     """
     Read-only student projection backed by Registrar.
 
@@ -611,6 +620,7 @@ class StudentListView(APIView):
 
 
 class StudentDetailView(APIView):
+    permission_classes = [IsClinicStaff]
     """Retrieve one student from the Registrar boundary."""
 
     def get(self, request, student_id):
@@ -629,6 +639,7 @@ class StudentDetailView(APIView):
 # Clinic-owned resources
 # ---------------------------------------------------------------------------
 class HealthRecordViewSet(viewsets.ModelViewSet):
+    permission_classes = [IsClinicStaff]
     """CRUD controller for Clinic-owned HealthRecord resources."""
 
     serializer_class = HealthRecordSerializer
@@ -702,6 +713,7 @@ class HealthRecordViewSet(viewsets.ModelViewSet):
 # Clinic-owned resources
 # ---------------------------------------------------------------------------
 class ConsultationViewSet(viewsets.ModelViewSet):
+    permission_classes = [IsClinicStaff]
     """CRUD controller for Clinic consultation records."""
 
     serializer_class = ConsultationSerializer
@@ -779,6 +791,7 @@ class ConsultationViewSet(viewsets.ModelViewSet):
 # Clinic-owned resources
 # ---------------------------------------------------------------------------
 class HealthStatusViewSet(viewsets.ModelViewSet):
+    permission_classes = [IsClinicStaff]
     """CRUD controller for Clinic-owned HealthStatus resources."""
 
     serializer_class = HealthStatusSerializer
@@ -852,6 +865,7 @@ class HealthStatusViewSet(viewsets.ModelViewSet):
 # Inventory projections
 # ---------------------------------------------------------------------------
 class MedicineListView(APIView):
+    permission_classes = [IsClinicStaff]
     """Read-only medicine/stock projection backed by Inventory."""
 
     def get(self, request):
@@ -901,6 +915,7 @@ class MedicineListView(APIView):
 # Inventory projections
 # ---------------------------------------------------------------------------
 class MedicineDetailView(APIView):
+    permission_classes = [IsClinicStaff]
     """Retrieve one medicine from the Inventory boundary."""
 
     def get(self, request, medicine_id):
@@ -919,6 +934,7 @@ class MedicineDetailView(APIView):
 # Medicine dispensing
 # ---------------------------------------------------------------------------
 class MedicineDispensationViewSet(viewsets.ModelViewSet):
+    permission_classes = [IsClinicStaff]
     """
     Clinic-owned medicine dispensation controller.
 
@@ -1059,8 +1075,8 @@ class MedicineDispensationViewSet(viewsets.ModelViewSet):
                     inventory_transaction_id
                 )
             except Exception:
-                # The original persistence error remains the primary failure.
-                # Phase 6 will provide standardized integration/error handling.
+                # Preserve the original persistence error as the primary failure
+                # if the compensating Inventory operation also fails.
                 pass
             raise
 
@@ -1137,11 +1153,10 @@ class MedicineDispensationViewSet(viewsets.ModelViewSet):
         except Exception:
             # Inventory has already restored stock at this point.
             #
-            # A real distributed integration cannot be rolled back by
-            # Django's database transaction. Phase 6/final integration
-            # hardening will standardize and surface this partial-failure
-            # condition rather than pretending the external operation was
-            # reverted.
+            # A distributed Inventory operation cannot be rolled back by
+            # Django's local database transaction. Preserve and surface the
+            # resulting failure rather than treating the external operation
+            # as though it were reverted.
             raise
 
         serializer = self.get_serializer(dispensation)
@@ -1191,3 +1206,31 @@ class HealthStatusIntegrationView(APIView):
 
         serializer = HealthStatusProjectionSerializer(health_status)
         return Response(serializer.data)
+
+
+# ---------------------------------------------------------------------------
+# Integration projections
+# ---------------------------------------------------------------------------
+class FacultyHealthStatusIntegrationView(HealthStatusIntegrationView):
+    """
+    Read-only health-status projection for the Faculty module.
+
+    Midterm authorization uses authenticated Clinic sessions.
+    A dedicated cross-system trust mechanism can replace this boundary
+    when real module-to-module integration is introduced.
+    """
+
+    permission_classes = [IsAuthenticated]
+
+class StudentPortalHealthStatusIntegrationView(HealthStatusIntegrationView):
+    """
+    Read-only health-status projection for the Student Portal module.
+
+    Midterm authorization uses authenticated sessions.
+    A dedicated cross-system trust mechanism can replace this boundary
+    when real module-to-module integration is introduced.
+    """
+
+    permission_classes = [IsAuthenticated]
+
+

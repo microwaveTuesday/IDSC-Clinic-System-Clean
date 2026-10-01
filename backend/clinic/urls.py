@@ -10,21 +10,24 @@ from django.urls import path
 from rest_framework.routers import DefaultRouter
 
 from .views import (
+    StudentPortalHealthStatusIntegrationView,
+    FacultyHealthStatusIntegrationView,
     MedicineDispensationReportView,
+    HealthStatusIntegrationView,
     MedicineInventoryReportView,
+    MedicineDispensationViewSet,
     HealthRecordsReportView,
     ClinicVisitsReportView,
-    ConsultationViewSet,
-    DashboardView,
     HealthRecordViewSet,
-    HealthStatusIntegrationView,
     HealthStatusViewSet,
-    HealthView,
+    ConsultationViewSet,
     MedicineDetailView,
-    MedicineDispensationViewSet,
-    MedicineListView,
     StudentDetailView,
+    MedicineListView,
     StudentListView,
+    DashboardView,
+    HealthView,
+
 )
 
 
@@ -118,12 +121,12 @@ urlpatterns = [
     # Read-only integration projections.
     path(
         "integrations/faculty/health-status/<str:student_id>/",
-        HealthStatusIntegrationView.as_view(),
+        FacultyHealthStatusIntegrationView.as_view(),
         name="faculty-health-status",
     ),
     path(
         "integrations/student-portal/health-status/<str:student_id>/",
-        HealthStatusIntegrationView.as_view(),
+        StudentPortalHealthStatusIntegrationView.as_view(),
         name="student-portal-health-status",
     ),
 ]
