@@ -13,12 +13,19 @@ from django.db import IntegrityError
 from django.http import Http404
 
 from rest_framework import status
+from rest_framework.exceptions import APIException
 from rest_framework.exceptions import ValidationError as DRFValidationError
 from rest_framework.response import Response
 from rest_framework.views import exception_handler
 
 
 logger = logging.getLogger(__name__)
+
+
+class ConflictError(APIException):
+    status_code = status.HTTP_409_CONFLICT
+    default_detail = "The request conflicts with the current resource state."
+    default_code = "conflict"
 
 
 PROBLEM_TYPES = {
@@ -140,12 +147,21 @@ def custom_exception_handler(exc, context):
             if isinstance(codes, str):
                 code = codes
 
-        return _problem_response(
+        problem_response = _problem_response(
             request,
             status_code,
             detail,
             code=code,
         )
+
+        # Preserve metadata supplied by DRF's exception response, such as
+        # WWW-Authenticate on 401 responses.  Keep the Problem Details
+        # content type produced by _problem_response().
+        for header, value in response.items():
+            if header.lower() != "content-type":
+                problem_response[header] = value
+
+        return problem_response
 
     # Django validation errors.
     if isinstance(exc, DjangoValidationError):

@@ -8,6 +8,8 @@ from rest_framework.decorators import api_view, permission_classes
 from rest_framework.permissions import AllowAny, IsAuthenticated
 from rest_framework.response import Response
 from rest_framework.views import APIView
+from clinic.exceptions import ConflictError
+from rest_framework.exceptions import NotFound
 
 
 
@@ -63,14 +65,6 @@ def login_view(request):
                 "detail": "Invalid username or password."
             },
             status=status.HTTP_401_UNAUTHORIZED,
-        )
-
-    if not user.is_active:
-        return Response(
-            {
-                "detail": "This account is inactive."
-            },
-            status=status.HTTP_403_FORBIDDEN,
         )
 
     login(request, user)
@@ -207,15 +201,13 @@ class StaffDeactivateView(APIView):
                 groups__name=CLINIC_STAFF,
             )
         except User.DoesNotExist:
-            return Response(
-                {"detail": "Staff account not found."},
-                status=status.HTTP_404_NOT_FOUND,
+            raise NotFound(
+                "Staff account not found."
             )
 
         if not user.is_active:
-            return Response(
-                {"detail": "Staff account is already inactive."},
-                status=status.HTTP_409_CONFLICT,
+            raise ConflictError(
+                "Staff account is already inactive."
             )
 
         user.is_active = False
@@ -236,15 +228,13 @@ class StaffActivateView(APIView):
                 groups__name=CLINIC_STAFF,
             )
         except User.DoesNotExist:
-            return Response(
-                {"detail": "Staff account not found."},
-                status=status.HTTP_404_NOT_FOUND,
+            raise NotFound(
+                "Staff account not found."
             )
 
         if user.is_active:
-            return Response(
-                {"detail": "Staff account is already active."},
-                status=status.HTTP_409_CONFLICT,
+            raise ConflictError(
+                "Staff account is already active."
             )
 
         user.is_active = True

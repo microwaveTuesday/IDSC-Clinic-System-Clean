@@ -280,6 +280,15 @@ components:
       example: 20
 
 
+    UserIdPath:
+      name: user_id
+      in: path
+      required: true
+      description: Clinic staff account identifier.
+      schema:
+        type: integer
+        minimum: 0
+      example: 12
   schemas:
     HealthRecordCreate:
       type: object
@@ -289,12 +298,21 @@ components:
       properties:
         student_id:
           type: string
+          maxLength: 100
           description: Registrar-owned student identifier.
           example: "2026-0001"
         blood_type:
-          type:
-            - string
-            - "null"
+          type: string
+          enum:
+            - "A+"
+            - "A-"
+            - "B+"
+            - "B-"
+            - "AB+"
+            - "AB-"
+            - "O+"
+            - "O-"
+            - Unknown
           example: "O+"
         allergies:
           type: string
@@ -312,13 +330,17 @@ components:
           type:
             - number
             - "null"
-          exclusiveMinimum: 0
+          minimum: 0.01
+          maximum: 300
+          multipleOf: 0.01
           example: 170.5
         weight_kg:
           type:
             - number
             - "null"
-          exclusiveMinimum: 0
+          minimum: 0.01
+          maximum: 500
+          multipleOf: 0.01
           example: 65.2
 
     HealthRecordUpdate:
@@ -329,11 +351,20 @@ components:
       properties:
         student_id:
           type: string
+          maxLength: 100
           example: "2026-0001"
         blood_type:
-          type:
-            - string
-            - "null"
+          type: string
+          enum:
+            - "A+"
+            - "A-"
+            - "B+"
+            - "B-"
+            - "AB+"
+            - "AB-"
+            - "O+"
+            - "O-"
+            - Unknown
           example: "O+"
         allergies:
           type: string
@@ -348,27 +379,39 @@ components:
           type:
             - number
             - "null"
-          exclusiveMinimum: 0
+          minimum: 0.01
+          maximum: 300
+          multipleOf: 0.01
           example: 170.5
         weight_kg:
           type:
             - number
             - "null"
-          exclusiveMinimum: 0
+          minimum: 0.01
+          maximum: 500
+          multipleOf: 0.01
           example: 65.2
 
     HealthRecordPatch:
       type: object
       additionalProperties: false
-      minProperties: 1
       properties:
         student_id:
           type: string
+          maxLength: 100
           example: "2026-0001"
         blood_type:
-          type:
-            - string
-            - "null"
+          type: string
+          enum:
+            - "A+"
+            - "A-"
+            - "B+"
+            - "B-"
+            - "AB+"
+            - "AB-"
+            - "O+"
+            - "O-"
+            - Unknown
           example: "O+"
         allergies:
           type: string
@@ -383,13 +426,17 @@ components:
           type:
             - number
             - "null"
-          exclusiveMinimum: 0
+          minimum: 0.01
+          maximum: 300
+          multipleOf: 0.01
           example: 170.5
         weight_kg:
           type:
             - number
             - "null"
-          exclusiveMinimum: 0
+          minimum: 0.01
+          maximum: 500
+          multipleOf: 0.01
           example: 65.2
 
     HealthRecord:
@@ -459,6 +506,7 @@ components:
       properties:
         student_id:
           type: string
+          maxLength: 100
           example: "2026-0001"
         chief_complaint:
           type: string
@@ -486,6 +534,7 @@ components:
       properties:
         student_id:
           type: string
+          maxLength: 100
           example: "2026-0001"
         chief_complaint:
           type: string
@@ -508,6 +557,7 @@ components:
       properties:
         student_id:
           type: string
+          maxLength: 100
           example: "2026-0001"
         chief_complaint:
           type: string
@@ -591,6 +641,7 @@ components:
       properties:
         student_id:
           type: string
+          maxLength: 100
           example: "2026-0001"
         status:
           $ref: "#/components/schemas/HealthStatusValue"
@@ -608,6 +659,7 @@ components:
       properties:
         student_id:
           type: string
+          maxLength: 100
           example: "2026-0001"
         status:
           $ref: "#/components/schemas/HealthStatusValue"
@@ -622,6 +674,7 @@ components:
       properties:
         student_id:
           type: string
+          maxLength: 100
           example: "2026-0001"
         status:
           $ref: "#/components/schemas/HealthStatusValue"
@@ -688,9 +741,11 @@ components:
       properties:
         student_id:
           type: string
+          maxLength: 100
           example: "2026-0001"
         medicine_id:
           type: string
+          maxLength: 100
           example: "MED-0001"
         quantity:
           type: integer
@@ -1061,6 +1116,95 @@ components:
         errors:
           $ref: "#/components/schemas/FieldErrors"
 
+    ClinicUser:
+      type: object
+      additionalProperties: false
+      required:
+      - user_id
+      - username
+      - first_name
+      - last_name
+      - email
+      - role
+      - is_active
+      properties:
+        user_id:
+          type: integer
+          readOnly: true
+          example: 12
+        username:
+          type: string
+          example: clinic.staff
+        first_name:
+          type: string
+          example: Maria
+        last_name:
+          type: string
+          example: Santos
+        email:
+          type: string
+          format: email
+          example: maria.santos@example.edu
+        role:
+          type:
+          - string
+          - 'null'
+          enum:
+            - ADMIN
+            - STAFF
+            - null
+          readOnly: true
+          example: STAFF
+        is_active:
+          type: boolean
+          readOnly: true
+          example: true
+    StaffCreate:
+      type: object
+      additionalProperties: false
+      required:
+      - username
+      - password
+      properties:
+        username:
+          type: string
+          maxLength: 150
+          example: clinic.staff
+        first_name:
+          type: string
+          maxLength: 150
+          example: Maria
+        last_name:
+          type: string
+          maxLength: 150
+          example: Santos
+        email:
+          type: string
+          maxLength: 254
+          format: email
+          example: maria.santos@example.edu
+        password:
+          type: string
+          format: password
+          writeOnly: true
+          example: TemporaryPassword123!
+    StaffUpdate:
+      type: object
+      additionalProperties: false
+      properties:
+        first_name:
+          type: string
+          maxLength: 150
+          example: Maria
+        last_name:
+          type: string
+          maxLength: 150
+          example: Santos
+        email:
+          type: string
+          maxLength: 254
+          format: email
+          example: maria.santos@example.edu
   responses:
 
     BadRequest:
@@ -1223,35 +1367,6 @@ components:
             detail: "An unexpected error occurred while processing the request."
             instance: "/api/v1/health-records/"
             code: "INTERNAL_SERVER_ERROR"
-
-    BadGateway:
-      description: >
-        Clinic could not complete the operation because a required
-        external integration failed.
-      content:
-        application/problem+json:
-          schema:
-            $ref: "#/components/schemas/ProblemDetails"
-          examples:
-            registrarUnavailable:
-              summary: Registrar integration unavailable
-              value:
-                type: "about:blank"
-                title: "Registrar Service Unavailable"
-                status: 502
-                detail: "Clinic could not complete the request because Registrar is unavailable."
-                instance: "/api/v1/health-records/"
-                code: "REGISTRAR_SERVICE_UNAVAILABLE"
-
-            inventoryUnavailable:
-              summary: Inventory integration unavailable
-              value:
-                type: "about:blank"
-                title: "Inventory Service Unavailable"
-                status: 502
-                detail: "Clinic could not complete the request because Inventory is unavailable."
-                instance: "/api/v1/medicine-dispensations/"
-                code: "INVENTORY_SERVICE_UNAVAILABLE"
 security:
   - sessionAuth: []
 
@@ -1374,19 +1489,12 @@ paths:
               example:
                 detail: "Invalid username or password."
         "403":
-          description: The authenticated account is inactive.
+          description: CSRF validation failed. Django may return an HTML CSRF failure response before the login view is executed.
           content:
-            application/json:
+            text/html:
               schema:
-                type: object
-                required:
-                  - detail
-                properties:
-                  detail:
-                    type: string
-              example:
-                detail: "This account is inactive."
-
+                type: string
+              example: <!DOCTYPE html>...
   /api/auth/logout/:
     post:
       tags:
@@ -1524,9 +1632,8 @@ paths:
         "500":
           $ref: "#/components/responses/InternalServerError"
 
-        "502":
-          $ref: "#/components/responses/BadGateway"
-
+        "403":
+          $ref: "#/components/responses/Forbidden"
   ####
   /api/v1/students/:
     get:
@@ -1615,9 +1722,8 @@ paths:
         "500":
           $ref: "#/components/responses/InternalServerError"
 
-        "502":
-          $ref: "#/components/responses/BadGateway"
-
+        "403":
+          $ref: "#/components/responses/Forbidden"
   ####
   /api/v1/students/{student_id}/:
     get:
@@ -1654,9 +1760,8 @@ paths:
         "500":
           $ref: "#/components/responses/InternalServerError"
 
-        "502":
-          $ref: "#/components/responses/BadGateway"
-
+        "403":
+          $ref: "#/components/responses/Forbidden"
   ####
   /api/v1/health-records/:
     get:
@@ -1737,6 +1842,9 @@ paths:
         "500":
           $ref: "#/components/responses/InternalServerError"
 
+
+        "403":
+          $ref: "#/components/responses/Forbidden"
     post:
       tags:
         - Health Records
@@ -1783,9 +1891,8 @@ paths:
         "500":
           $ref: "#/components/responses/InternalServerError"
 
-        "502":
-          $ref: "#/components/responses/BadGateway"
-
+        "403":
+          $ref: "#/components/responses/Forbidden"
   ####
   /api/v1/health-records/{health_record_id}/:
     parameters:
@@ -1814,6 +1921,9 @@ paths:
         "500":
           $ref: "#/components/responses/InternalServerError"
 
+
+        "403":
+          $ref: "#/components/responses/Forbidden"
     put:
       tags:
         - Health Records
@@ -1859,9 +1969,8 @@ paths:
         "500":
           $ref: "#/components/responses/InternalServerError"
 
-        "502":
-          $ref: "#/components/responses/BadGateway"
-
+        "403":
+          $ref: "#/components/responses/Forbidden"
     patch:
       tags:
         - Health Records
@@ -1902,9 +2011,8 @@ paths:
         "500":
           $ref: "#/components/responses/InternalServerError"
 
-        "502":
-          $ref: "#/components/responses/BadGateway"
-
+        "403":
+          $ref: "#/components/responses/Forbidden"
     delete:
       tags:
         - Health Records
@@ -1924,6 +2032,9 @@ paths:
         "500":
           $ref: "#/components/responses/InternalServerError"
 
+
+        "403":
+          $ref: "#/components/responses/Forbidden"
   ####
   /api/v1/consultations/:
     get:
@@ -2005,6 +2116,9 @@ paths:
         "500":
           $ref: "#/components/responses/InternalServerError"
 
+
+        "403":
+          $ref: "#/components/responses/Forbidden"
     post:
       tags:
         - Consultations
@@ -2049,9 +2163,8 @@ paths:
         "500":
           $ref: "#/components/responses/InternalServerError"
 
-        "502":
-          $ref: "#/components/responses/BadGateway"
-
+        "403":
+          $ref: "#/components/responses/Forbidden"
   ####
   /api/v1/consultations/{consultation_id}/:
     parameters:
@@ -2080,6 +2193,9 @@ paths:
         "500":
           $ref: "#/components/responses/InternalServerError"
 
+
+        "403":
+          $ref: "#/components/responses/Forbidden"
     put:
       tags:
         - Consultations
@@ -2123,9 +2239,8 @@ paths:
         "500":
           $ref: "#/components/responses/InternalServerError"
 
-        "502":
-          $ref: "#/components/responses/BadGateway"
-
+        "403":
+          $ref: "#/components/responses/Forbidden"
     patch:
       tags:
         - Consultations
@@ -2166,9 +2281,8 @@ paths:
         "500":
           $ref: "#/components/responses/InternalServerError"
 
-        "502":
-          $ref: "#/components/responses/BadGateway"
-
+        "403":
+          $ref: "#/components/responses/Forbidden"
     delete:
       tags:
         - Consultations
@@ -2188,6 +2302,9 @@ paths:
         "500":
           $ref: "#/components/responses/InternalServerError"
 
+
+        "403":
+          $ref: "#/components/responses/Forbidden"
   ####
   /api/v1/health-statuses/:
     get:
@@ -2266,6 +2383,9 @@ paths:
         "500":
           $ref: "#/components/responses/InternalServerError"
 
+
+        "403":
+          $ref: "#/components/responses/Forbidden"
     post:
       tags:
         - Health Statuses
@@ -2308,9 +2428,8 @@ paths:
         "500":
           $ref: "#/components/responses/InternalServerError"
 
-        "502":
-          $ref: "#/components/responses/BadGateway"
-
+        "403":
+          $ref: "#/components/responses/Forbidden"
   ####
   /api/v1/health-statuses/{status_id}/:
     parameters:
@@ -2339,6 +2458,9 @@ paths:
         "500":
           $ref: "#/components/responses/InternalServerError"
 
+
+        "403":
+          $ref: "#/components/responses/Forbidden"
     put:
       tags:
         - Health Statuses
@@ -2380,9 +2502,8 @@ paths:
         "500":
           $ref: "#/components/responses/InternalServerError"
 
-        "502":
-          $ref: "#/components/responses/BadGateway"
-
+        "403":
+          $ref: "#/components/responses/Forbidden"
     patch:
       tags:
         - Health Statuses
@@ -2423,9 +2544,8 @@ paths:
         "500":
           $ref: "#/components/responses/InternalServerError"
 
-        "502":
-          $ref: "#/components/responses/BadGateway"
-
+        "403":
+          $ref: "#/components/responses/Forbidden"
     delete:
       tags:
         - Health Statuses
@@ -2445,6 +2565,9 @@ paths:
         "500":
           $ref: "#/components/responses/InternalServerError"
 
+
+        "403":
+          $ref: "#/components/responses/Forbidden"
   ####
   /api/v1/medicines/:
     get:
@@ -2539,9 +2662,8 @@ paths:
         "500":
           $ref: "#/components/responses/InternalServerError"
 
-        "502":
-          $ref: "#/components/responses/BadGateway"
-
+        "403":
+          $ref: "#/components/responses/Forbidden"
   ####
   /api/v1/medicines/{medicine_id}/:
     get:
@@ -2580,9 +2702,8 @@ paths:
         "500":
           $ref: "#/components/responses/InternalServerError"
 
-        "502":
-          $ref: "#/components/responses/BadGateway"
-
+        "403":
+          $ref: "#/components/responses/Forbidden"
   ####
   /api/v1/medicine-dispensations/:
     get:
@@ -2667,6 +2788,9 @@ paths:
         "500":
           $ref: "#/components/responses/InternalServerError"
 
+
+        "403":
+          $ref: "#/components/responses/Forbidden"
     post:
       tags:
         - Medicine Dispensations
@@ -2724,9 +2848,8 @@ paths:
         "500":
           $ref: "#/components/responses/InternalServerError"
 
-        "502":
-          $ref: "#/components/responses/BadGateway"
-
+        "403":
+          $ref: "#/components/responses/Forbidden"
   ####
   /api/v1/medicine-dispensations/{dispensation_id}/:
     get:
@@ -2754,6 +2877,9 @@ paths:
         "500":
           $ref: "#/components/responses/InternalServerError"
 
+
+        "403":
+          $ref: "#/components/responses/Forbidden"
   ####
   /api/v1/medicine-dispensations/{dispensation_id}/rollback/:
     post:
@@ -2804,9 +2930,8 @@ paths:
         "500":
           $ref: "#/components/responses/InternalServerError"
 
-        "502":
-          $ref: "#/components/responses/BadGateway"
-
+        "403":
+          $ref: "#/components/responses/Forbidden"
   ####
   /api/v1/reports/clinic-visits/:
     get:
@@ -2872,6 +2997,9 @@ paths:
         "500":
           $ref: "#/components/responses/InternalServerError"
 
+
+        "403":
+          $ref: "#/components/responses/Forbidden"
   ####
   /api/v1/reports/health-records/:
     get:
@@ -2929,6 +3057,9 @@ paths:
         "500":
           $ref: "#/components/responses/InternalServerError"
 
+
+        "403":
+          $ref: "#/components/responses/Forbidden"
   ####
   /api/v1/reports/medicine-inventory/:
     get:
@@ -3012,9 +3143,8 @@ paths:
         "500":
           $ref: "#/components/responses/InternalServerError"
 
-        "502":
-          $ref: "#/components/responses/BadGateway"
-
+        "403":
+          $ref: "#/components/responses/Forbidden"
   ####
   /api/v1/reports/medicine-dispensations/:
     get:
@@ -3083,6 +3213,9 @@ paths:
         "500":
           $ref: "#/components/responses/InternalServerError"
 
+
+        "403":
+          $ref: "#/components/responses/Forbidden"
   ####
   /api/v1/integrations/faculty/health-status/{student_id}/:
     get:
@@ -3127,19 +3260,11 @@ paths:
 
         "401":
           $ref: "#/components/responses/Unauthorized"
-
-        "403":
-          $ref: "#/components/responses/Forbidden"
-
         "404":
           $ref: "#/components/responses/NotFound"
 
         "500":
           $ref: "#/components/responses/InternalServerError"
-
-        "502":
-          $ref: "#/components/responses/BadGateway"
-
   ####
   /api/v1/integrations/student-portal/health-status/{student_id}/:
     get:
@@ -3184,16 +3309,220 @@ paths:
 
         "401":
           $ref: "#/components/responses/Unauthorized"
-
-        "403":
-          $ref: "#/components/responses/Forbidden"
-
         "404":
           $ref: "#/components/responses/NotFound"
 
         "500":
           $ref: "#/components/responses/InternalServerError"
+  /api/v1/users/:
+    get:
+      tags:
+      - User Administration
+      summary: List Clinic staff accounts
+      description: 'Returns Clinic staff accounts. Clinic administrator access is required.
 
-        "502":
-          $ref: "#/components/responses/BadGateway"
+        '
+      operationId: listClinicStaff
+      responses:
+        '200':
+          description: Clinic staff accounts retrieved successfully.
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/ClinicUser'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+    post:
+      tags:
+      - User Administration
+      summary: Create Clinic staff account
+      description: 'Creates an active Clinic staff account and assigns the CLINIC_STAFF role. Clinic administrator access is required.
 
+        '
+      operationId: createClinicStaff
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/StaffCreate'
+            example:
+              username: clinic.staff
+              first_name: Maria
+              last_name: Santos
+              email: maria.santos@example.edu
+              password: TemporaryPassword123!
+      responses:
+        '201':
+          description: Clinic staff account created successfully.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ClinicUser'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+
+  /api/v1/users/{user_id}/:
+    parameters:
+    - $ref: '#/components/parameters/UserIdPath'
+    get:
+      tags:
+      - User Administration
+      summary: Get Clinic staff account
+      description: 'Returns a Clinic staff account. Clinic administrator access is required.
+
+        '
+      operationId: getClinicStaff
+      responses:
+        '200':
+          description: Clinic staff account retrieved successfully.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ClinicUser'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+    put:
+      tags:
+      - User Administration
+      summary: Update Clinic staff account
+      description: 'Updates the editable profile fields of a Clinic staff account. Clinic administrator access is required.
+
+        '
+      operationId: updateClinicStaff
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/StaffUpdate'
+            example:
+              first_name: Maria
+              last_name: Santos
+              email: maria.santos@example.edu
+      responses:
+        '200':
+          description: Clinic staff account updated successfully.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ClinicUser'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+    patch:
+      tags:
+      - User Administration
+      summary: Partially update Clinic staff account
+      description: 'Updates one or more editable profile fields of a Clinic staff account. Clinic administrator access is required.
+
+        '
+      operationId: patchClinicStaff
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/StaffUpdate'
+            example:
+              email: maria.santos@example.edu
+      responses:
+        '200':
+          description: Clinic staff account updated successfully.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ClinicUser'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+
+  /api/v1/users/{user_id}/activate/:
+    parameters:
+    - $ref: '#/components/parameters/UserIdPath'
+    post:
+      tags:
+      - User Administration
+      summary: Activate Clinic staff account
+      description: 'Activates an inactive Clinic staff account. Clinic administrator access is required.
+
+        '
+      operationId: activateClinicStaff
+      responses:
+        '200':
+          description: Clinic staff account activated successfully.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ClinicUser'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '409':
+          $ref: '#/components/responses/Conflict'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+
+  /api/v1/users/{user_id}/deactivate/:
+    parameters:
+    - $ref: '#/components/parameters/UserIdPath'
+    post:
+      tags:
+      - User Administration
+      summary: Deactivate Clinic staff account
+      description: 'Deactivates an active Clinic staff account. Clinic administrator access is required.
+
+        '
+      operationId: deactivateClinicStaff
+      responses:
+        '200':
+          description: Clinic staff account deactivated successfully.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ClinicUser'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '409':
+          $ref: '#/components/responses/Conflict'
+        '500':
+          $ref: '#/components/responses/InternalServerError'

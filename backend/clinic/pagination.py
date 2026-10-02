@@ -14,10 +14,32 @@ The response format follows the canonical OpenAPI contract:
 
 from rest_framework.pagination import PageNumberPagination
 from rest_framework.response import Response
+from rest_framework.exceptions import NotFound, ValidationError
 
 
 class ClinicPagination(PageNumberPagination):
     """Canonical pagination behavior for Clinic list endpoints."""
+    def paginate_queryset(
+        self,
+        queryset,
+        request,
+        view=None,
+    ):
+        try:
+            return super().paginate_queryset(
+                queryset,
+                request,
+                view=view,
+            )
+        except NotFound as exc:
+            raise ValidationError(
+                {
+                    self.page_query_param: [
+                        str(exc.detail)
+                    ]
+                }
+            ) from exc
+
 
     page_size = 20
     page_query_param = "page"

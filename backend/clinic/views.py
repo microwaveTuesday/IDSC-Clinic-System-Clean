@@ -533,9 +533,9 @@ class MedicineDispensationReportView(APIView):
         if date_from and date_to and date_from > date_to:
             raise ValidationError(
                 {
-                    "date_to": (
-                        "date_to must be greater than or equal "
-                        "to date_from."
+                    "date_range": (
+                        "date_from must be earlier than or equal "
+                        "to date_to."
                     )
                 }
             )
@@ -627,10 +627,7 @@ class StudentDetailView(APIView):
         try:
             student = registrar_service.get_student(student_id)
         except StudentNotFoundError as exc:
-            return Response(
-                {"detail": str(exc)},
-                status=status.HTTP_404_NOT_FOUND,
-            )
+            raise NotFound(detail=str(exc)) from exc
 
         return Response(StudentSerializer(student).data)
 
@@ -884,13 +881,12 @@ class MedicineListView(APIView):
             elif normalized == "false":
                 parsed_low_stock = False
             else:
-                return Response(
+                raise ValidationError(
                     {
-                        "detail": (
+                        "low_stock": [
                             "low_stock must be either true or false."
-                        )
-                    },
-                    status=status.HTTP_400_BAD_REQUEST,
+                        ]
+                    }
                 )
 
         medicines = inventory_service.list_medicines(
@@ -922,10 +918,7 @@ class MedicineDetailView(APIView):
         try:
             medicine = inventory_service.get_medicine(medicine_id)
         except MedicineNotFoundError as exc:
-            return Response(
-                {"detail": str(exc)},
-                status=status.HTTP_404_NOT_FOUND,
-            )
+            raise NotFound(detail=str(exc)) from exc
 
         return Response(MedicineSerializer(medicine).data)
 
@@ -1182,10 +1175,7 @@ class HealthStatusIntegrationView(APIView):
         try:
             registrar_service.get_student(student_id)
         except StudentNotFoundError as exc:
-            return Response(
-                {"detail": str(exc)},
-                status=status.HTTP_404_NOT_FOUND,
-            )
+            raise NotFound(detail=str(exc)) from exc
 
         health_status = (
             HealthStatus.objects
