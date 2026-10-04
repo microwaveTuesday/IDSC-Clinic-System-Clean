@@ -270,7 +270,6 @@ IDSC-Clinic-System-Clean/
 
 |
 
-+-- gen/
 
 |
 
