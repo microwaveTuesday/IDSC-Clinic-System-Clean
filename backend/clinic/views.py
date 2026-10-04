@@ -18,9 +18,7 @@ from authentication.permissions import IsClinicStaff
 
 from .pagination import ClinicPagination
 
-from django.db import models, transaction
 
-from django.utils import timezone
 from django.utils.dateparse import parse_date
 
 from rest_framework.exceptions import (
@@ -35,12 +33,6 @@ from rest_framework import status, viewsets
 from rest_framework.views import APIView
 from rest_framework.permissions import IsAuthenticated
 
-from .models import (
-    Consultation,
-    HealthRecord,
-    HealthStatus,
-    MedicineDispensation,
-)
 from .serializers import (
     ConsultationSerializer,
     DashboardSerializer,
@@ -50,6 +42,12 @@ from .serializers import (
     MedicineDispensationSerializer,
     MedicineSerializer,
     StudentSerializer,
+)
+from .services.clinic import (
+    ClinicDispensationAlreadyRolledBackError,
+    ClinicDispensationRollbackUnavailableError,
+    ClinicResourceNotFoundError,
+    clinic_service,
 )
 from .services.inventory import (
     InsufficientStockError,
@@ -97,146 +95,14 @@ class Conflict(APIException):
 # ---------------------------------------------------------------------------
 # System
 # ---------------------------------------------------------------------------
-class HealthView(APIView):
-    """Basic Clinic API health endpoint."""
-
-    authentication_classes = []
-    permission_classes = []
-
-    def get(self, request):
-        return Response({"status": "ok"})
-
-
 # ---------------------------------------------------------------------------
-# Clinic dashboard
-# ---------------------------------------------------------------------------
-class DashboardView(APIView):
-    permission_classes = [IsClinicStaff]
-    """
-    Aggregated Clinic dashboard.
-
-    Data ownership:
-    - Student totals come from Registrar.
-    - Health-record totals come from Clinic.
-    - Medicine stock totals come from Inventory.
-    - Recent activity comes only from Clinic-owned records.
-    """
-
-    RECENT_ACTIVITY_LIMIT = 10
-
-    def get(self, request):
-        students = registrar_service.list_students()
-        medicines = inventory_service.list_medicines()
-
-        total_students = len(students)
-
-        total_health_records = HealthRecord.objects.count()
-
-        total_medicine_stock = sum(
-            medicine["quantity_in_stock"]
-            for medicine in medicines
-        )
-
-        low_stock_medicines = sum(
-            1
-            for medicine in medicines
-            if medicine["is_low_stock"]
-        )
-
-        recent_activity = self._get_recent_activity()
-
-        data = {
-            "summary": {
-                "total_students": total_students,
-                "total_health_records": total_health_records,
-                "total_medicine_stock": total_medicine_stock,
-                "low_stock_medicines": low_stock_medicines,
-            },
-            "recent_activity": recent_activity,
-        }
-
-        serializer = DashboardSerializer(instance=data)
-
-        return Response(
-            serializer.data,
-            status=status.HTTP_200_OK,
-        )
-
-    def _get_recent_activity(self):
-        activities = []
-
-        health_records = HealthRecord.objects.order_by(
-            "-created_at"
-        )[: self.RECENT_ACTIVITY_LIMIT]
-
-        for record in health_records:
-            activities.append(
-                {
-                    "activity_type": "HEALTH_RECORD",
-                    "reference_id": record.health_record_id,
-                    "student_id": record.student_id,
-                    "occurred_at": record.created_at,
-                }
-            )
-
-        consultations = Consultation.objects.order_by(
-            "-consulted_at"
-        )[: self.RECENT_ACTIVITY_LIMIT]
-
-        for consultation in consultations:
-            activities.append(
-                {
-                    "activity_type": "CONSULTATION",
-                    "reference_id": consultation.consultation_id,
-                    "student_id": consultation.student_id,
-                    "occurred_at": consultation.consulted_at,
-                }
-            )
-
-        health_statuses = HealthStatus.objects.order_by(
-            "-effective_at"
-        )[: self.RECENT_ACTIVITY_LIMIT]
-
-        for health_status in health_statuses:
-            activities.append(
-                {
-                    "activity_type": "HEALTH_STATUS",
-                    "reference_id": health_status.status_id,
-                    "student_id": health_status.student_id,
-                    "occurred_at": health_status.effective_at,
-                }
-            )
-
-        dispensations = MedicineDispensation.objects.order_by(
-            "-dispensed_at"
-        )[: self.RECENT_ACTIVITY_LIMIT]
-
-        for dispensation in dispensations:
-            activities.append(
-                {
-                    "activity_type": "MEDICINE_DISPENSATION",
-                    "reference_id": dispensation.dispensation_id,
-                    "student_id": dispensation.student_id,
-                    "occurred_at": dispensation.dispensed_at,
-                }
-            )
-
-        activities.sort(
-            key=lambda activity: activity["occurred_at"],
-            reverse=True,
-        )
-
-        return activities[: self.RECENT_ACTIVITY_LIMIT]
-
-
-# ---------------------------------------------------------------------------
-# Report utilities
+# Shared query-parameter utilities
 # ---------------------------------------------------------------------------
 
 
 def parse_optional_report_date(value, field_name):
     """
-    Parse an optional YYYY-MM-DD report query parameter.
+    Parse an optional YYYY-MM-DD query parameter.
 
     Returns None when the parameter is omitted or blank.
     Raises DRF ValidationError for malformed or impossible dates.
@@ -262,20 +128,84 @@ def parse_optional_report_date(value, field_name):
     return parsed
 
 
-# ---------------------------------------------------------------------------
-# Reports
-# ---------------------------------------------------------------------------
+class HealthView(APIView):
+    """Basic Clinic API health endpoint."""
+
+    authentication_classes = []
+    permission_classes = []
+
+    def get(self, request):
+        return Response({"status": "ok"})
+
 
 # ---------------------------------------------------------------------------
-# Clinic-owned resources
+# Clinic dashboard
 # ---------------------------------------------------------------------------
+class DashboardView(APIView):
+    permission_classes = [IsClinicStaff]
+    """
+    Aggregated Clinic dashboard.
+
+    Data ownership:
+    - Student totals come from Registrar.
+    - Health-record totals come through ClinicService.
+    - Medicine stock totals come from Inventory.
+    - Recent activity comes through ClinicService.
+    """
+
+    RECENT_ACTIVITY_LIMIT = 10
+
+    def get(self, request):
+        students = registrar_service.list_students()
+        medicines = inventory_service.list_medicines()
+
+        total_students = len(students)
+
+        total_health_records = (
+            clinic_service.total_health_records()
+        )
+
+        total_medicine_stock = sum(
+            medicine["quantity_in_stock"]
+            for medicine in medicines
+        )
+
+        low_stock_medicines = sum(
+            1
+            for medicine in medicines
+            if medicine["is_low_stock"]
+        )
+
+        recent_activity = clinic_service.recent_activity(
+            self.RECENT_ACTIVITY_LIMIT
+        )
+
+        data = {
+            "summary": {
+                "total_students": total_students,
+                "total_health_records": total_health_records,
+                "total_medicine_stock": total_medicine_stock,
+                "low_stock_medicines": low_stock_medicines,
+            },
+            "recent_activity": recent_activity,
+        }
+
+        serializer = DashboardSerializer(
+            instance=data
+        )
+
+        return Response(
+            serializer.data,
+            status=status.HTTP_200_OK,
+        )
+
+
 class ClinicVisitsReportView(APIView):
     permission_classes = [IsClinicStaff]
     """
-    Report derived from Clinic-owned consultation records.
+    Report derived from Clinic-owned consultation mock data.
 
-    Optional date_from and date_to filters are inclusive and apply
-    to the consultation date.
+    Optional date_from and date_to filters are inclusive.
     """
 
     def get(self, request):
@@ -309,45 +239,31 @@ class ClinicVisitsReportView(APIView):
                 }
             )
 
-        queryset = Consultation.objects.all().order_by(
-            "-consulted_at",
-            "-consultation_id",
+        records = clinic_service.report_consultations(
+            date_from=date_from,
+            date_to=date_to,
         )
 
-        if date_from:
-            queryset = queryset.filter(
-                consulted_at__date__gte=date_from
-            )
-
-        if date_to:
-            queryset = queryset.filter(
-                consulted_at__date__lte=date_to
-            )
-
         serializer = ConsultationSerializer(
-            queryset,
+            records,
             many=True,
         )
 
         return Response(
             {
-                "total_visits": queryset.count(),
+                "total_visits": len(records),
                 "results": serializer.data,
             },
             status=status.HTTP_200_OK,
         )
 
 
-# ---------------------------------------------------------------------------
-# Health Records
-# ---------------------------------------------------------------------------
 class HealthRecordsReportView(APIView):
     permission_classes = [IsClinicStaff]
     """
-    Report derived from Clinic-owned health records.
+    Report derived from Clinic-owned health-record mock data.
 
-    Optional date_from and date_to filters are inclusive and apply
-    to the health record creation date.
+    Optional date_from and date_to filters are inclusive.
     """
 
     def get(self, request):
@@ -381,38 +297,25 @@ class HealthRecordsReportView(APIView):
                 }
             )
 
-        queryset = HealthRecord.objects.all().order_by(
-            "-created_at",
-            "-health_record_id",
+        records = clinic_service.report_health_records(
+            date_from=date_from,
+            date_to=date_to,
         )
 
-        if date_from:
-            queryset = queryset.filter(
-                created_at__date__gte=date_from
-            )
-
-        if date_to:
-            queryset = queryset.filter(
-                created_at__date__lte=date_to
-            )
-
         serializer = HealthRecordSerializer(
-            queryset,
+            records,
             many=True,
         )
 
         return Response(
             {
-                "total_health_records": queryset.count(),
+                "total_health_records": len(records),
                 "results": serializer.data,
             },
             status=status.HTTP_200_OK,
         )
 
 
-# ---------------------------------------------------------------------------
-# Medicine Inventory
-# ---------------------------------------------------------------------------
 class MedicineInventoryReportView(APIView):
     permission_classes = [IsClinicStaff]
     """
@@ -487,10 +390,7 @@ class MedicineInventoryReportView(APIView):
 class MedicineDispensationReportView(APIView):
     permission_classes = [IsClinicStaff]
     """
-    Report derived from Clinic-owned medicine dispensation history.
-
-    Supports inclusive dispensation-date filtering together with
-    student, medicine, and dispensation-status filters.
+    Report derived from Clinic-owned medicine-dispensation mock data.
     """
 
     def get(self, request):
@@ -498,18 +398,22 @@ class MedicineDispensationReportView(APIView):
             "date_from",
             "",
         ).strip()
+
         date_to_raw = request.query_params.get(
             "date_to",
             "",
         ).strip()
+
         student_id = request.query_params.get(
             "student_id",
             "",
         ).strip()
+
         medicine_id = request.query_params.get(
             "medicine_id",
             "",
         ).strip()
+
         dispensation_status = request.query_params.get(
             "status",
             "",
@@ -519,6 +423,7 @@ class MedicineDispensationReportView(APIView):
             date_from_raw,
             "date_from",
         )
+
         date_to = parse_optional_report_date(
             date_to_raw,
             "date_to",
@@ -534,47 +439,25 @@ class MedicineDispensationReportView(APIView):
                 }
             )
 
-        queryset = MedicineDispensation.objects.all().order_by(
-            "-dispensed_at",
-            "-dispensation_id",
+        records = clinic_service.report_dispensations(
+            date_from=date_from,
+            date_to=date_to,
+            student_id=student_id,
+            medicine_id=medicine_id,
+            status=dispensation_status,
         )
 
-        if date_from:
-            queryset = queryset.filter(
-                dispensed_at__date__gte=date_from
-            )
-
-        if date_to:
-            queryset = queryset.filter(
-                dispensed_at__date__lte=date_to
-            )
-
-        if student_id:
-            queryset = queryset.filter(
-                student_id=student_id
-            )
-
-        if medicine_id:
-            queryset = queryset.filter(
-                medicine_id=medicine_id
-            )
-
-        if dispensation_status:
-            queryset = queryset.filter(
-                status=dispensation_status
-            )
-
         serializer = MedicineDispensationSerializer(
-            queryset,
+            records,
             many=True,
         )
 
         return Response(
             {
-                "total_dispensations": queryset.count(),
+                "total_dispensations": len(records),
                 "total_quantity_dispensed": sum(
-                    dispensation.quantity
-                    for dispensation in queryset
+                    row["quantity"]
+                    for row in records
                 ),
                 "results": serializer.data,
             },
@@ -582,9 +465,6 @@ class MedicineDispensationReportView(APIView):
         )
 
 
-# ---------------------------------------------------------------------------
-# Registrar projections
-# ---------------------------------------------------------------------------
 class StudentListView(APIView):
     permission_classes = [IsClinicStaff]
     """
@@ -629,232 +509,631 @@ class StudentDetailView(APIView):
 # ---------------------------------------------------------------------------
 # Clinic-owned resources
 # ---------------------------------------------------------------------------
-class HealthRecordViewSet(viewsets.ModelViewSet):
+class HealthRecordViewSet(viewsets.ViewSet):
     permission_classes = [IsClinicStaff]
-    """CRUD controller for Clinic-owned HealthRecord resources."""
+    """
+    CRUD controller for Clinic-owned HealthRecord mock resources.
+
+    Route/controller responsibilities:
+    - parse request/query parameters
+    - validate payloads with the canonical serializer
+    - delegate domain operations to ClinicService
+
+    Persistence/data access belongs to ClinicService -> data layer.
+    """
 
     serializer_class = HealthRecordSerializer
     pagination_class = ClinicPagination
     lookup_field = "health_record_id"
 
-    ORDERING_FIELDS = {
-        "health_record_id",
-        "student_id",
-        "blood_type",
-        "created_at",
-        "updated_at",
-    }
-
-    def get_queryset(self):
-        queryset = HealthRecord.objects.all().order_by(
-            "-created_at",
-            "-health_record_id",
+    def _serialize(self, instance, many=False):
+        return self.serializer_class(
+            instance=instance,
+            many=many,
         )
 
-        student_id = self.request.query_params.get("student_id", "").strip()
-        blood_type = self.request.query_params.get("blood_type", "").strip()
-        search = self.request.query_params.get("search", "").strip()
-        ordering = self.request.query_params.get("ordering", "").strip()
-
-        if student_id:
-            queryset = queryset.filter(student_id=student_id)
-
-        if blood_type:
-            queryset = queryset.filter(blood_type__iexact=blood_type)
-
-        if search:
-            queryset = queryset.filter(
-                models.Q(student_id__icontains=search)
-                | models.Q(allergies__icontains=search)
-                | models.Q(medical_history__icontains=search)
-                | models.Q(current_medications__icontains=search)
-            )
-
-        if ordering:
-            descending = ordering.startswith("-")
-            field = ordering[1:] if descending else ordering
-
-            if field in self.ORDERING_FIELDS:
-                queryset = queryset.order_by(ordering)
-
-        return queryset
-
-    def _validate_student(self, student_id):
+    def _get_record(self, health_record_id):
         try:
-            registrar_service.validate_student_for_clinic(student_id)
-        except StudentNotFoundError as exc:
-            raise NotFound(detail=str(exc)) from exc
-        except StudentUnavailableError as exc:
-            raise UnprocessableEntity(detail=str(exc)) from exc
+            return clinic_service.get_health_record(
+                health_record_id
+            )
+        except ClinicResourceNotFoundError as exc:
+            raise NotFound(
+                detail=str(exc)
+            ) from exc
 
-    def perform_create(self, serializer):
-        self._validate_student(serializer.validated_data["student_id"])
-        serializer.save()
-
-    def perform_update(self, serializer):
-        student_id = serializer.validated_data.get(
-            "student_id",
-            serializer.instance.student_id,
+    def list(self, request):
+        records = clinic_service.list_health_records(
+            student_id=request.query_params.get(
+                "student_id",
+                "",
+            ).strip(),
+            blood_type=request.query_params.get(
+                "blood_type",
+                "",
+            ).strip(),
+            search=request.query_params.get(
+                "search",
+                "",
+            ).strip(),
+            ordering=request.query_params.get(
+                "ordering",
+                "",
+            ).strip(),
         )
-        self._validate_student(student_id)
-        serializer.save()
+
+        paginator = self.pagination_class()
+
+        page = paginator.paginate_queryset(
+            records,
+            request,
+            view=self,
+        )
+
+        serializer = self._serialize(
+            page,
+            many=True,
+        )
+
+        return paginator.get_paginated_response(
+            serializer.data
+        )
+
+    def retrieve(
+        self,
+        request,
+        health_record_id=None,
+    ):
+        record = self._get_record(
+            health_record_id
+        )
+
+        return Response(
+            self._serialize(record).data
+        )
+
+    def create(self, request):
+        serializer = self.serializer_class(
+            data=request.data
+        )
+
+        serializer.is_valid(
+            raise_exception=True
+        )
+
+        try:
+            record = (
+                clinic_service
+                .create_health_record(
+                    serializer.validated_data
+                )
+            )
+        except StudentNotFoundError as exc:
+            raise NotFound(
+                detail=str(exc)
+            ) from exc
+        except StudentUnavailableError as exc:
+            raise UnprocessableEntity(
+                detail=str(exc)
+            ) from exc
+
+        output = self._serialize(record)
+
+        return Response(
+            output.data,
+            status=status.HTTP_201_CREATED,
+        )
+
+    def update(
+        self,
+        request,
+        health_record_id=None,
+    ):
+        return self._update(
+            request,
+            health_record_id,
+            partial=False,
+        )
+
+    def partial_update(
+        self,
+        request,
+        health_record_id=None,
+    ):
+        return self._update(
+            request,
+            health_record_id,
+            partial=True,
+        )
+
+    def _update(
+        self,
+        request,
+        health_record_id,
+        partial,
+    ):
+        current = self._get_record(
+            health_record_id
+        )
+
+        serializer = self.serializer_class(
+            instance=current,
+            data=request.data,
+            partial=partial,
+        )
+
+        serializer.is_valid(
+            raise_exception=True
+        )
+
+        try:
+            record = (
+                clinic_service
+                .update_health_record(
+                    health_record_id,
+                    serializer.validated_data,
+                )
+            )
+        except ClinicResourceNotFoundError as exc:
+            raise NotFound(
+                detail=str(exc)
+            ) from exc
+        except StudentNotFoundError as exc:
+            raise NotFound(
+                detail=str(exc)
+            ) from exc
+        except StudentUnavailableError as exc:
+            raise UnprocessableEntity(
+                detail=str(exc)
+            ) from exc
+
+        return Response(
+            self._serialize(record).data
+        )
+
+    def destroy(
+        self,
+        request,
+        health_record_id=None,
+    ):
+        try:
+            clinic_service.delete_health_record(
+                health_record_id
+            )
+        except ClinicResourceNotFoundError as exc:
+            raise NotFound(
+                detail=str(exc)
+            ) from exc
+
+        return Response(
+            status=status.HTTP_204_NO_CONTENT
+        )
 
 
-# ---------------------------------------------------------------------------
-# Clinic-owned resources
-# ---------------------------------------------------------------------------
-class ConsultationViewSet(viewsets.ModelViewSet):
+class ConsultationViewSet(viewsets.ViewSet):
     permission_classes = [IsClinicStaff]
-    """CRUD controller for Clinic consultation records."""
+    """CRUD controller for Clinic consultation mock resources."""
 
     serializer_class = ConsultationSerializer
     pagination_class = ClinicPagination
     lookup_field = "consultation_id"
 
-    ORDERING_FIELDS = {
-        "consultation_id",
-        "student_id",
-        "consulted_at",
-        "created_at",
-        "updated_at",
-    }
-
-    def get_queryset(self):
-        queryset = Consultation.objects.all().order_by(
-            "-consulted_at",
-            "-consultation_id",
+    def _serialize(self, instance, many=False):
+        return self.serializer_class(
+            instance=instance,
+            many=many,
         )
 
-        student_id = self.request.query_params.get("student_id", "").strip()
-        search = self.request.query_params.get("search", "").strip()
-        date_from = self.request.query_params.get("date_from", "").strip()
-        date_to = self.request.query_params.get("date_to", "").strip()
-        ordering = self.request.query_params.get("ordering", "").strip()
-
-        if student_id:
-            queryset = queryset.filter(student_id=student_id)
-
-        if search:
-            queryset = queryset.filter(
-                models.Q(chief_complaint__icontains=search)
-                | models.Q(assessment__icontains=search)
-                | models.Q(treatment__icontains=search)
-                | models.Q(notes__icontains=search)
-            )
-
-        if date_from:
-            queryset = queryset.filter(consulted_at__date__gte=date_from)
-
-        if date_to:
-            queryset = queryset.filter(consulted_at__date__lte=date_to)
-
-        if ordering:
-            descending = ordering.startswith("-")
-            field = ordering[1:] if descending else ordering
-
-            if field in self.ORDERING_FIELDS:
-                queryset = queryset.order_by(ordering)
-
-        return queryset
-
-    def _validate_student(self, student_id):
+    def _get_record(self, consultation_id):
         try:
-            registrar_service.validate_student_for_clinic(student_id)
-        except StudentNotFoundError as exc:
-            raise NotFound(detail=str(exc)) from exc
-        except StudentUnavailableError as exc:
-            raise UnprocessableEntity(detail=str(exc)) from exc
+            return clinic_service.get_consultation(
+                consultation_id
+            )
+        except ClinicResourceNotFoundError as exc:
+            raise NotFound(
+                detail=str(exc)
+            ) from exc
 
-    def perform_create(self, serializer):
-        self._validate_student(serializer.validated_data["student_id"])
-        serializer.save()
-
-    def perform_update(self, serializer):
-        student_id = serializer.validated_data.get(
-            "student_id",
-            serializer.instance.student_id,
+    def list(self, request):
+        date_from_raw = (
+            request.query_params.get(
+                "date_from",
+                "",
+            ).strip()
         )
-        self._validate_student(student_id)
-        serializer.save()
+
+        date_to_raw = (
+            request.query_params.get(
+                "date_to",
+                "",
+            ).strip()
+        )
+
+        date_from = parse_optional_report_date(
+            date_from_raw,
+            "date_from",
+        )
+
+        date_to = parse_optional_report_date(
+            date_to_raw,
+            "date_to",
+        )
+
+        records = clinic_service.list_consultations(
+            student_id=request.query_params.get(
+                "student_id",
+                "",
+            ).strip(),
+            search=request.query_params.get(
+                "search",
+                "",
+            ).strip(),
+            date_from=date_from,
+            date_to=date_to,
+            ordering=request.query_params.get(
+                "ordering",
+                "",
+            ).strip(),
+        )
+
+        paginator = self.pagination_class()
+
+        page = paginator.paginate_queryset(
+            records,
+            request,
+            view=self,
+        )
+
+        serializer = self._serialize(
+            page,
+            many=True,
+        )
+
+        return paginator.get_paginated_response(
+            serializer.data
+        )
+
+    def retrieve(
+        self,
+        request,
+        consultation_id=None,
+    ):
+        record = self._get_record(
+            consultation_id
+        )
+
+        return Response(
+            self._serialize(record).data
+        )
+
+    def create(self, request):
+        serializer = self.serializer_class(
+            data=request.data
+        )
+
+        serializer.is_valid(
+            raise_exception=True
+        )
+
+        try:
+            record = (
+                clinic_service
+                .create_consultation(
+                    serializer.validated_data
+                )
+            )
+        except StudentNotFoundError as exc:
+            raise NotFound(
+                detail=str(exc)
+            ) from exc
+        except StudentUnavailableError as exc:
+            raise UnprocessableEntity(
+                detail=str(exc)
+            ) from exc
+
+        return Response(
+            self._serialize(record).data,
+            status=status.HTTP_201_CREATED,
+        )
+
+    def update(
+        self,
+        request,
+        consultation_id=None,
+    ):
+        return self._update(
+            request,
+            consultation_id,
+            partial=False,
+        )
+
+    def partial_update(
+        self,
+        request,
+        consultation_id=None,
+    ):
+        return self._update(
+            request,
+            consultation_id,
+            partial=True,
+        )
+
+    def _update(
+        self,
+        request,
+        consultation_id,
+        partial,
+    ):
+        current = self._get_record(
+            consultation_id
+        )
+
+        serializer = self.serializer_class(
+            instance=current,
+            data=request.data,
+            partial=partial,
+        )
+
+        serializer.is_valid(
+            raise_exception=True
+        )
+
+        try:
+            record = (
+                clinic_service
+                .update_consultation(
+                    consultation_id,
+                    serializer.validated_data,
+                )
+            )
+        except ClinicResourceNotFoundError as exc:
+            raise NotFound(
+                detail=str(exc)
+            ) from exc
+        except StudentNotFoundError as exc:
+            raise NotFound(
+                detail=str(exc)
+            ) from exc
+        except StudentUnavailableError as exc:
+            raise UnprocessableEntity(
+                detail=str(exc)
+            ) from exc
+
+        return Response(
+            self._serialize(record).data
+        )
+
+    def destroy(
+        self,
+        request,
+        consultation_id=None,
+    ):
+        try:
+            clinic_service.delete_consultation(
+                consultation_id
+            )
+        except ClinicResourceNotFoundError as exc:
+            raise NotFound(
+                detail=str(exc)
+            ) from exc
+
+        return Response(
+            status=status.HTTP_204_NO_CONTENT
+        )
 
 
-# ---------------------------------------------------------------------------
-# Clinic-owned resources
-# ---------------------------------------------------------------------------
-class HealthStatusViewSet(viewsets.ModelViewSet):
+class HealthStatusViewSet(viewsets.ViewSet):
     permission_classes = [IsClinicStaff]
-    """CRUD controller for Clinic-owned HealthStatus resources."""
+    """CRUD controller for Clinic-owned HealthStatus mock resources."""
 
     serializer_class = HealthStatusSerializer
     pagination_class = ClinicPagination
     lookup_field = "status_id"
 
-    ORDERING_FIELDS = {
-        "status_id",
-        "student_id",
-        "status",
-        "effective_at",
-        "created_at",
-        "updated_at",
-    }
-
-    def get_queryset(self):
-        queryset = HealthStatus.objects.all().order_by(
-            "-effective_at",
-            "-status_id",
+    def _serialize(self, instance, many=False):
+        return self.serializer_class(
+            instance=instance,
+            many=many,
         )
 
-        student_id = self.request.query_params.get("student_id", "").strip()
-        health_status = self.request.query_params.get("status", "").strip()
-        date_from = self.request.query_params.get("date_from", "").strip()
-        date_to = self.request.query_params.get("date_to", "").strip()
-        ordering = self.request.query_params.get("ordering", "").strip()
-
-        if student_id:
-            queryset = queryset.filter(student_id=student_id)
-
-        if health_status:
-            queryset = queryset.filter(status=health_status)
-
-        if date_from:
-            queryset = queryset.filter(effective_at__date__gte=date_from)
-
-        if date_to:
-            queryset = queryset.filter(effective_at__date__lte=date_to)
-
-        if ordering:
-            descending = ordering.startswith("-")
-            field = ordering[1:] if descending else ordering
-
-            if field in self.ORDERING_FIELDS:
-                queryset = queryset.order_by(ordering)
-
-        return queryset
-
-    def _validate_student(self, student_id):
+    def _get_record(self, status_id):
         try:
-            registrar_service.validate_student_for_clinic(student_id)
-        except StudentNotFoundError as exc:
-            raise NotFound(detail=str(exc)) from exc
-        except StudentUnavailableError as exc:
-            raise UnprocessableEntity(detail=str(exc)) from exc
+            return clinic_service.get_health_status(
+                status_id
+            )
+        except ClinicResourceNotFoundError as exc:
+            raise NotFound(
+                detail=str(exc)
+            ) from exc
 
-    def perform_create(self, serializer):
-        self._validate_student(serializer.validated_data["student_id"])
-        serializer.save()
-
-    def perform_update(self, serializer):
-        student_id = serializer.validated_data.get(
-            "student_id",
-            serializer.instance.student_id,
+    def list(self, request):
+        date_from_raw = (
+            request.query_params.get(
+                "date_from",
+                "",
+            ).strip()
         )
-        self._validate_student(student_id)
-        serializer.save()
+
+        date_to_raw = (
+            request.query_params.get(
+                "date_to",
+                "",
+            ).strip()
+        )
+
+        date_from = parse_optional_report_date(
+            date_from_raw,
+            "date_from",
+        )
+
+        date_to = parse_optional_report_date(
+            date_to_raw,
+            "date_to",
+        )
+
+        records = clinic_service.list_health_statuses(
+            student_id=request.query_params.get(
+                "student_id",
+                "",
+            ).strip(),
+            status=request.query_params.get(
+                "status",
+                "",
+            ).strip(),
+            date_from=date_from,
+            date_to=date_to,
+            ordering=request.query_params.get(
+                "ordering",
+                "",
+            ).strip(),
+        )
+
+        paginator = self.pagination_class()
+
+        page = paginator.paginate_queryset(
+            records,
+            request,
+            view=self,
+        )
+
+        serializer = self._serialize(
+            page,
+            many=True,
+        )
+
+        return paginator.get_paginated_response(
+            serializer.data
+        )
+
+    def retrieve(
+        self,
+        request,
+        status_id=None,
+    ):
+        record = self._get_record(
+            status_id
+        )
+
+        return Response(
+            self._serialize(record).data
+        )
+
+    def create(self, request):
+        serializer = self.serializer_class(
+            data=request.data
+        )
+
+        serializer.is_valid(
+            raise_exception=True
+        )
+
+        try:
+            record = (
+                clinic_service
+                .create_health_status(
+                    serializer.validated_data
+                )
+            )
+        except StudentNotFoundError as exc:
+            raise NotFound(
+                detail=str(exc)
+            ) from exc
+        except StudentUnavailableError as exc:
+            raise UnprocessableEntity(
+                detail=str(exc)
+            ) from exc
+
+        return Response(
+            self._serialize(record).data,
+            status=status.HTTP_201_CREATED,
+        )
+
+    def update(
+        self,
+        request,
+        status_id=None,
+    ):
+        return self._update(
+            request,
+            status_id,
+            partial=False,
+        )
+
+    def partial_update(
+        self,
+        request,
+        status_id=None,
+    ):
+        return self._update(
+            request,
+            status_id,
+            partial=True,
+        )
+
+    def _update(
+        self,
+        request,
+        status_id,
+        partial,
+    ):
+        current = self._get_record(
+            status_id
+        )
+
+        serializer = self.serializer_class(
+            instance=current,
+            data=request.data,
+            partial=partial,
+        )
+
+        serializer.is_valid(
+            raise_exception=True
+        )
+
+        try:
+            record = (
+                clinic_service
+                .update_health_status(
+                    status_id,
+                    serializer.validated_data,
+                )
+            )
+        except ClinicResourceNotFoundError as exc:
+            raise NotFound(
+                detail=str(exc)
+            ) from exc
+        except StudentNotFoundError as exc:
+            raise NotFound(
+                detail=str(exc)
+            ) from exc
+        except StudentUnavailableError as exc:
+            raise UnprocessableEntity(
+                detail=str(exc)
+            ) from exc
+
+        return Response(
+            self._serialize(record).data
+        )
+
+    def destroy(
+        self,
+        request,
+        status_id=None,
+    ):
+        try:
+            clinic_service.delete_health_status(
+                status_id
+            )
+        except ClinicResourceNotFoundError as exc:
+            raise NotFound(
+                detail=str(exc)
+            ) from exc
+
+        return Response(
+            status=status.HTTP_204_NO_CONTENT
+        )
 
 
-# ---------------------------------------------------------------------------
-# Inventory projections
-# ---------------------------------------------------------------------------
 class MedicineListView(APIView):
     permission_classes = [IsClinicStaff]
     """Read-only medicine/stock projection backed by Inventory."""
@@ -920,16 +1199,16 @@ class MedicineDetailView(APIView):
 # ---------------------------------------------------------------------------
 # Medicine dispensing
 # ---------------------------------------------------------------------------
-class MedicineDispensationViewSet(viewsets.ModelViewSet):
+class MedicineDispensationViewSet(viewsets.ViewSet):
     permission_classes = [IsClinicStaff]
     """
-    Clinic-owned medicine dispensation controller.
+    Clinic-owned medicine-dispensation controller.
 
-    Creation validates the student through Registrar, requests Inventory
-    stock deduction, and records the returned Inventory transaction ID.
+    The controller validates HTTP input and delegates business
+    orchestration to ClinicService.
 
-    Update and delete operations are not exposed. Rollback is implemented
-    as a dedicated auditable operation.
+    ClinicService coordinates:
+    Registrar -> Inventory -> Clinic data layer.
     """
 
     serializer_class = MedicineDispensationSerializer
@@ -943,140 +1222,148 @@ class MedicineDispensationViewSet(viewsets.ModelViewSet):
         "options",
     ]
 
-    ORDERING_FIELDS = {
-        "dispensation_id",
-        "student_id",
-        "medicine_id",
-        "quantity",
-        "status",
-        "dispensed_at",
-        "created_at",
-    }
-
-    def get_queryset(self):
-        queryset = MedicineDispensation.objects.all().order_by(
-            "-dispensed_at",
-            "-dispensation_id",
+    def _serialize(
+        self,
+        instance,
+        many=False,
+    ):
+        return self.serializer_class(
+            instance=instance,
+            many=many,
         )
 
-        student_id = self.request.query_params.get(
-            "student_id",
-            "",
-        ).strip()
-        medicine_id = self.request.query_params.get(
-            "medicine_id",
-            "",
-        ).strip()
-        dispensation_status = self.request.query_params.get(
-            "status",
-            "",
-        ).strip()
-        search = self.request.query_params.get(
-            "search",
-            "",
-        ).strip()
-        date_from = self.request.query_params.get(
+    def _get_record(
+        self,
+        dispensation_id,
+    ):
+        try:
+            return clinic_service.get_dispensation(
+                dispensation_id
+            )
+        except ClinicResourceNotFoundError as exc:
+            raise NotFound(
+                detail=str(exc)
+            ) from exc
+
+    def list(self, request):
+        date_from_raw = (
+            request.query_params.get(
+                "date_from",
+                "",
+            ).strip()
+        )
+
+        date_to_raw = (
+            request.query_params.get(
+                "date_to",
+                "",
+            ).strip()
+        )
+
+        date_from = parse_optional_report_date(
+            date_from_raw,
             "date_from",
-            "",
-        ).strip()
-        date_to = self.request.query_params.get(
+        )
+
+        date_to = parse_optional_report_date(
+            date_to_raw,
             "date_to",
-            "",
-        ).strip()
-        ordering = self.request.query_params.get(
-            "ordering",
-            "",
-        ).strip()
+        )
 
-        if student_id:
-            queryset = queryset.filter(student_id=student_id)
+        records = clinic_service.list_dispensations(
+            student_id=request.query_params.get(
+                "student_id",
+                "",
+            ).strip(),
+            medicine_id=request.query_params.get(
+                "medicine_id",
+                "",
+            ).strip(),
+            status=request.query_params.get(
+                "status",
+                "",
+            ).strip(),
+            search=request.query_params.get(
+                "search",
+                "",
+            ).strip(),
+            date_from=date_from,
+            date_to=date_to,
+            ordering=request.query_params.get(
+                "ordering",
+                "",
+            ).strip(),
+        )
 
-        if medicine_id:
-            queryset = queryset.filter(medicine_id=medicine_id)
+        paginator = self.pagination_class()
 
-        if dispensation_status:
-            queryset = queryset.filter(status=dispensation_status)
+        page = paginator.paginate_queryset(
+            records,
+            request,
+            view=self,
+        )
 
-        if search:
-            queryset = queryset.filter(
-                models.Q(student_id__icontains=search)
-                | models.Q(medicine_id__icontains=search)
-                | models.Q(reason__icontains=search)
-                | models.Q(inventory_transaction_id__icontains=search)
-                | models.Q(rollback_transaction_id__icontains=search)
-            )
+        serializer = self._serialize(
+            page,
+            many=True,
+        )
 
-        if date_from:
-            queryset = queryset.filter(
-                dispensed_at__date__gte=date_from
-            )
+        return paginator.get_paginated_response(
+            serializer.data
+        )
 
-        if date_to:
-            queryset = queryset.filter(
-                dispensed_at__date__lte=date_to
-            )
-
-        if ordering:
-            descending = ordering.startswith("-")
-            field = ordering[1:] if descending else ordering
-
-            if field in self.ORDERING_FIELDS:
-                queryset = queryset.order_by(ordering)
-
-        return queryset
-
-    def create(self, request, *args, **kwargs):
-        serializer = self.get_serializer(data=request.data)
-        serializer.is_valid(raise_exception=True)
-
-        student_id = serializer.validated_data["student_id"]
-        medicine_id = serializer.validated_data["medicine_id"]
-        quantity = serializer.validated_data["quantity"]
-
-        try:
-            registrar_service.validate_student_for_clinic(student_id)
-        except StudentNotFoundError as exc:
-            raise NotFound(detail=str(exc)) from exc
-        except StudentUnavailableError as exc:
-            raise UnprocessableEntity(detail=str(exc)) from exc
-
-        try:
-            inventory_transaction_id = inventory_service.deduct_stock(
-                medicine_id,
-                quantity,
-            )
-        except MedicineNotFoundError as exc:
-            raise NotFound(detail=str(exc)) from exc
-        except (MedicineUnavailableError, InsufficientStockError) as exc:
-            raise UnprocessableEntity(detail=str(exc)) from exc
-
-        try:
-            with transaction.atomic():
-                dispensation = serializer.save(
-                    status="COMPLETED",
-                    inventory_transaction_id=inventory_transaction_id,
-                )
-        except Exception:
-            try:
-                inventory_service.restore_stock(
-                    inventory_transaction_id
-                )
-            except Exception:
-                # Preserve the original persistence error as the primary failure
-                # if the compensating Inventory operation also fails.
-                pass
-            raise
-
-        response_serializer = self.get_serializer(dispensation)
-
-        headers = self.get_success_headers(
-            response_serializer.data
+    def retrieve(
+        self,
+        request,
+        dispensation_id=None,
+    ):
+        record = self._get_record(
+            dispensation_id
         )
 
         return Response(
-            response_serializer.data,
+            self._serialize(record).data
+        )
+
+    def create(
+        self,
+        request,
+    ):
+        serializer = self.serializer_class(
+            data=request.data
+        )
+
+        serializer.is_valid(
+            raise_exception=True
+        )
+
+        try:
+            record = clinic_service.create_dispensation(
+                serializer.validated_data
+            )
+        except StudentNotFoundError as exc:
+            raise NotFound(
+                detail=str(exc)
+            ) from exc
+        except StudentUnavailableError as exc:
+            raise UnprocessableEntity(
+                detail=str(exc)
+            ) from exc
+        except MedicineNotFoundError as exc:
+            raise NotFound(
+                detail=str(exc)
+            ) from exc
+        except (
+            MedicineUnavailableError,
+            InsufficientStockError,
+        ) as exc:
+            raise UnprocessableEntity(
+                detail=str(exc)
+            ) from exc
+
+        return Response(
+            self._serialize(record).data,
             status=status.HTTP_201_CREATED,
-            headers=headers,
         )
 
     @action(
@@ -1084,71 +1371,48 @@ class MedicineDispensationViewSet(viewsets.ModelViewSet):
         methods=["post"],
         url_path="rollback",
     )
-    def rollback(self, request, dispensation_id=None):
-        """
-        Roll back a completed medicine dispensation.
-
-        Inventory restores the stock using the original deduction
-        transaction. Clinic then records the rollback transaction and
-        preserves the dispensation as an auditable ROLLED_BACK record.
-        """
-
-        dispensation = self.get_object()
-
-        if dispensation.status == "ROLLED_BACK":
+    def rollback(
+        self,
+        request,
+        dispensation_id=None,
+    ):
+        try:
+            record = (
+                clinic_service
+                .rollback_dispensation(
+                    dispensation_id
+                )
+            )
+        except ClinicResourceNotFoundError as exc:
+            raise NotFound(
+                detail=str(exc)
+            ) from exc
+        except (
+            ClinicDispensationAlreadyRolledBackError
+        ) as exc:
             raise Conflict(
-                detail=(
-                    f"Dispensation '{dispensation.dispensation_id}' "
-                    "has already been rolled back."
-                )
-            )
-
-        if not dispensation.inventory_transaction_id:
+                detail=str(exc)
+            ) from exc
+        except (
+            ClinicDispensationRollbackUnavailableError
+        ) as exc:
             raise UnprocessableEntity(
-                detail=(
-                    f"Dispensation '{dispensation.dispensation_id}' "
-                    "does not have an Inventory transaction to roll back."
-                )
-            )
-
-        try:
-            rollback_transaction_id = inventory_service.restore_stock(
-                dispensation.inventory_transaction_id
-            )
-        except InventoryTransactionNotFoundError as exc:
-            raise UnprocessableEntity(detail=str(exc)) from exc
-        except MedicineNotFoundError as exc:
-            raise UnprocessableEntity(detail=str(exc)) from exc
+                detail=str(exc)
+            ) from exc
+        except (
+            InventoryTransactionNotFoundError,
+            MedicineNotFoundError,
+        ) as exc:
+            raise UnprocessableEntity(
+                detail=str(exc)
+            ) from exc
         except ValueError as exc:
-            raise Conflict(detail=str(exc)) from exc
+            raise Conflict(
+                detail=str(exc)
+            ) from exc
 
-        try:
-            with transaction.atomic():
-                dispensation.status = "ROLLED_BACK"
-                dispensation.rollback_transaction_id = (
-                    rollback_transaction_id
-                )
-                dispensation.rolled_back_at = timezone.now()
-
-                dispensation.save(
-                    update_fields=[
-                        "status",
-                        "rollback_transaction_id",
-                        "rolled_back_at",
-                    ]
-                )
-        except Exception:
-            # Inventory has already restored stock at this point.
-            #
-            # A distributed Inventory operation cannot be rolled back by
-            # Django's local database transaction. Preserve and surface the
-            # resulting failure rather than treating the external operation
-            # as though it were reverted.
-            raise
-
-        serializer = self.get_serializer(dispensation)
         return Response(
-            serializer.data,
+            self._serialize(record).data,
             status=status.HTTP_200_OK,
         )
 
@@ -1160,23 +1424,21 @@ class HealthStatusIntegrationView(APIView):
     """
     Restricted read-only health-status projection.
 
-    Faculty and Student Portal use separate URLs pointing to this controller.
-    Authorization differences are added during the authentication/permission
-    phase.
+    Faculty and Student Portal use separate URLs pointing to this
+    controller. Clinic-owned status data is read through ClinicService.
     """
 
     def get(self, request, student_id):
         try:
-            registrar_service.get_student(student_id)
+            health_status = (
+                clinic_service.latest_health_status_for_student(
+                    student_id
+                )
+            )
         except StudentNotFoundError as exc:
-            raise NotFound(detail=str(exc)) from exc
-
-        health_status = (
-            HealthStatus.objects
-            .filter(student_id=student_id)
-            .order_by("-effective_at", "-status_id")
-            .first()
-        )
+            raise NotFound(
+                detail=str(exc)
+            ) from exc
 
         if health_status is None:
             return Response(
@@ -1188,13 +1450,13 @@ class HealthStatusIntegrationView(APIView):
                 }
             )
 
-        serializer = HealthStatusProjectionSerializer(health_status)
+        serializer = HealthStatusProjectionSerializer(
+            health_status
+        )
+
         return Response(serializer.data)
 
 
-# ---------------------------------------------------------------------------
-# Integration projections
-# ---------------------------------------------------------------------------
 class FacultyHealthStatusIntegrationView(HealthStatusIntegrationView):
     """
     Read-only health-status projection for the Faculty module.

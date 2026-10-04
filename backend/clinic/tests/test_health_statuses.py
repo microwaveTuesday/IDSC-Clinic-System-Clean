@@ -1,11 +1,11 @@
-﻿from datetime import timedelta
+from datetime import timedelta
 
 from django.contrib.auth import get_user_model
 from django.contrib.auth.models import Group
 from django.utils import timezone
 from rest_framework.test import APITestCase
 
-from clinic.models import HealthStatus
+from clinic.tests.mock_domain import MockDomainTestMixin
 
 
 User = get_user_model()
@@ -19,7 +19,7 @@ INACTIVE_STUDENT = "2026-0003"
 MISSING_STUDENT = "9999-9999"
 
 
-class HealthStatusContractTests(APITestCase):
+class HealthStatusContractTests(MockDomainTestMixin, APITestCase):
     """Permanent regression tests for Clinic health-status records."""
 
     @classmethod
@@ -35,6 +35,8 @@ class HealthStatusContractTests(APITestCase):
         cls.user.groups.add(group)
 
     def setUp(self):
+        self.reset_mock_domain()
+
         self.client.force_authenticate(
             user=self.user
         )
@@ -50,9 +52,12 @@ class HealthStatusContractTests(APITestCase):
             "status": status,
             "remarks": "Cleared for regular activities",
         }
+
         data.update(overrides)
 
-        return HealthStatus.objects.create(**data)
+        return self.create_mock_health_status(
+            **data
+        )
 
     def assert_problem(
         self,
@@ -130,13 +135,15 @@ class HealthStatusContractTests(APITestCase):
         old_time = timezone.now() - timedelta(days=2)
         new_time = timezone.now()
 
-        HealthStatus.objects.filter(
-            status_id=first.status_id
-        ).update(effective_at=old_time)
+        self.set_effective_at(
+            first.status_id,
+            old_time,
+        )
 
-        HealthStatus.objects.filter(
-            status_id=second.status_id
-        ).update(effective_at=new_time)
+        self.set_effective_at(
+            second.status_id,
+            new_time,
+        )
 
         response = self.client.get(
             "/api/v1/health-statuses/"
@@ -246,13 +253,15 @@ class HealthStatusContractTests(APITestCase):
         now = timezone.now()
         old_time = now - timedelta(days=2)
 
-        HealthStatus.objects.filter(
-            status_id=old.status_id
-        ).update(effective_at=old_time)
+        self.set_effective_at(
+            old.status_id,
+            old_time,
+        )
 
-        HealthStatus.objects.filter(
-            status_id=recent.status_id
-        ).update(effective_at=now)
+        self.set_effective_at(
+            recent.status_id,
+            now,
+        )
 
         response = self.client.get(
             "/api/v1/health-statuses/",
@@ -285,13 +294,15 @@ class HealthStatusContractTests(APITestCase):
         now = timezone.now()
         old_time = now - timedelta(days=2)
 
-        HealthStatus.objects.filter(
-            status_id=old.status_id
-        ).update(effective_at=old_time)
+        self.set_effective_at(
+            old.status_id,
+            old_time,
+        )
 
-        HealthStatus.objects.filter(
-            status_id=recent.status_id
-        ).update(effective_at=now)
+        self.set_effective_at(
+            recent.status_id,
+            now,
+        )
 
         response = self.client.get(
             "/api/v1/health-statuses/",
@@ -317,9 +328,10 @@ class HealthStatusContractTests(APITestCase):
         status = self.create_status()
         target = timezone.now()
 
-        HealthStatus.objects.filter(
-            status_id=status.status_id
-        ).update(effective_at=target)
+        self.set_effective_at(
+            status.status_id,
+            target,
+        )
 
         date_value = target.date().isoformat()
 
@@ -408,7 +420,7 @@ class HealthStatusContractTests(APITestCase):
             "CLEARED",
         )
         self.assertEqual(
-            HealthStatus.objects.count(),
+            self.health_status_count(),
             1,
         )
 
@@ -483,7 +495,7 @@ class HealthStatusContractTests(APITestCase):
         self.assert_problem(response, 404)
 
         self.assertEqual(
-            HealthStatus.objects.count(),
+            self.health_status_count(),
             0,
         )
 
@@ -500,7 +512,7 @@ class HealthStatusContractTests(APITestCase):
         self.assert_problem(response, 422)
 
         self.assertEqual(
-            HealthStatus.objects.count(),
+            self.health_status_count(),
             0,
         )
 
@@ -666,7 +678,7 @@ class HealthStatusContractTests(APITestCase):
         self.assertEqual(response.status_code, 204)
 
         self.assertFalse(
-            HealthStatus.objects.filter(
-                status_id=status.status_id
-            ).exists()
+            self.health_status_exists(
+                status.status_id
+            )
         )

@@ -1,11 +1,11 @@
-﻿from datetime import timedelta
+from datetime import timedelta
 
 from django.contrib.auth import get_user_model
 from django.contrib.auth.models import Group
 from django.utils import timezone
 from rest_framework.test import APITestCase
 
-from clinic.models import Consultation
+from clinic.tests.mock_domain import MockDomainTestMixin
 
 
 User = get_user_model()
@@ -19,7 +19,7 @@ INACTIVE_STUDENT = "2026-0003"
 MISSING_STUDENT = "9999-9999"
 
 
-class ConsultationContractTests(APITestCase):
+class ConsultationContractTests(MockDomainTestMixin, APITestCase):
     """Permanent regression tests for Clinic consultation records."""
 
     @classmethod
@@ -35,6 +35,8 @@ class ConsultationContractTests(APITestCase):
         cls.user.groups.add(group)
 
     def setUp(self):
+        self.reset_mock_domain()
+
         self.client.force_authenticate(
             user=self.user
         )
@@ -51,9 +53,10 @@ class ConsultationContractTests(APITestCase):
             "treatment": "Rest and hydration",
             "notes": "Return if symptoms persist",
         }
+
         data.update(overrides)
 
-        return Consultation.objects.create(
+        return self.create_mock_consultation(
             **data
         )
 
@@ -131,13 +134,15 @@ class ConsultationContractTests(APITestCase):
         old_time = timezone.now() - timedelta(days=2)
         new_time = timezone.now()
 
-        Consultation.objects.filter(
-            consultation_id=first.consultation_id
-        ).update(consulted_at=old_time)
+        self.set_consulted_at(
+            first.consultation_id,
+            old_time,
+        )
 
-        Consultation.objects.filter(
-            consultation_id=second.consultation_id
-        ).update(consulted_at=new_time)
+        self.set_consulted_at(
+            second.consultation_id,
+            new_time,
+        )
 
         response = self.client.get(
             "/api/v1/consultations/"
@@ -240,13 +245,15 @@ class ConsultationContractTests(APITestCase):
         now = timezone.now()
         old_time = now - timedelta(days=2)
 
-        Consultation.objects.filter(
-            consultation_id=old.consultation_id
-        ).update(consulted_at=old_time)
+        self.set_consulted_at(
+            old.consultation_id,
+            old_time,
+        )
 
-        Consultation.objects.filter(
-            consultation_id=recent.consultation_id
-        ).update(consulted_at=now)
+        self.set_consulted_at(
+            recent.consultation_id,
+            now,
+        )
 
         response = self.client.get(
             "/api/v1/consultations/",
@@ -277,13 +284,15 @@ class ConsultationContractTests(APITestCase):
         now = timezone.now()
         old_time = now - timedelta(days=2)
 
-        Consultation.objects.filter(
-            consultation_id=old.consultation_id
-        ).update(consulted_at=old_time)
+        self.set_consulted_at(
+            old.consultation_id,
+            old_time,
+        )
 
-        Consultation.objects.filter(
-            consultation_id=recent.consultation_id
-        ).update(consulted_at=now)
+        self.set_consulted_at(
+            recent.consultation_id,
+            now,
+        )
 
         response = self.client.get(
             "/api/v1/consultations/",
@@ -310,9 +319,10 @@ class ConsultationContractTests(APITestCase):
 
         target = timezone.now()
 
-        Consultation.objects.filter(
-            consultation_id=consultation.consultation_id
-        ).update(consulted_at=target)
+        self.set_consulted_at(
+            consultation.consultation_id,
+            target,
+        )
 
         date_value = target.date().isoformat()
 
@@ -403,7 +413,7 @@ class ConsultationContractTests(APITestCase):
             "Headache",
         )
         self.assertEqual(
-            Consultation.objects.count(),
+            self.consultation_count(),
             1,
         )
 
@@ -459,7 +469,7 @@ class ConsultationContractTests(APITestCase):
         self.assert_problem(response, 404)
 
         self.assertEqual(
-            Consultation.objects.count(),
+            self.consultation_count(),
             0,
         )
 
@@ -476,7 +486,7 @@ class ConsultationContractTests(APITestCase):
         self.assert_problem(response, 422)
 
         self.assertEqual(
-            Consultation.objects.count(),
+            self.consultation_count(),
             0,
         )
 
@@ -649,11 +659,9 @@ class ConsultationContractTests(APITestCase):
         self.assertEqual(response.status_code, 204)
 
         self.assertFalse(
-            Consultation.objects.filter(
-                consultation_id=(
-                    consultation.consultation_id
-                )
-            ).exists()
+            self.consultation_exists(
+                consultation.consultation_id
+            )
         )
 
     def test_delete_missing_consultation_returns_404(self):

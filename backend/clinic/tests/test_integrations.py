@@ -1,8 +1,8 @@
-﻿from django.contrib.auth import get_user_model
+from django.contrib.auth import get_user_model
 from django.contrib.auth.models import Group
 from rest_framework.test import APIClient, APITestCase
 
-from clinic.models import HealthStatus
+from clinic.tests.mock_domain import MockDomainTestMixin
 from clinic.services.inventory import (
     MedicineNotFoundError,
     inventory_service,
@@ -55,7 +55,7 @@ HEALTH_STATUS_FIELDS = {
 }
 
 
-class IntegrationContractTests(APITestCase):
+class IntegrationContractTests(MockDomainTestMixin, APITestCase):
     """Permanent regression tests for Clinic integration boundaries."""
 
     @classmethod
@@ -71,6 +71,8 @@ class IntegrationContractTests(APITestCase):
         cls.user.groups.add(group)
 
     def setUp(self):
+        self.reset_mock_domain()
+
         self.client.force_authenticate(
             user=self.user
         )
@@ -297,7 +299,7 @@ class IntegrationContractTests(APITestCase):
         )
 
     def test_faculty_returns_available_health_status(self):
-        HealthStatus.objects.create(
+        self.create_mock_health_status(
             student_id=ACTIVE_STUDENT,
             status="RESTRICTED",
             remarks="Permanent integration test",
@@ -335,7 +337,7 @@ class IntegrationContractTests(APITestCase):
         )
 
     def test_student_portal_returns_available_health_status(self):
-        HealthStatus.objects.create(
+        self.create_mock_health_status(
             student_id=ACTIVE_STUDENT,
             status="UNDER_OBSERVATION",
             remarks="Permanent portal test",
@@ -373,16 +375,23 @@ class IntegrationContractTests(APITestCase):
         )
 
     def test_integration_projection_uses_latest_health_status(self):
-        HealthStatus.objects.create(
+        older = self.create_mock_health_status(
             student_id=ACTIVE_STUDENT,
             status="CLEARED",
             remarks="Older",
         )
 
-        latest = HealthStatus.objects.create(
+        latest = self.create_mock_health_status(
             student_id=ACTIVE_STUDENT,
             status="RESTRICTED",
             remarks="Latest",
+        )
+
+        # Make the ordering contract deterministic even on clocks with
+        # coarse timestamp precision.
+        self.set_effective_at(
+            older.status_id,
+            older.effective_at,
         )
 
         response = self.client.get(

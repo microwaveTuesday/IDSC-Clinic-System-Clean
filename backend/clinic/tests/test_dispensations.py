@@ -1,11 +1,11 @@
-﻿from datetime import timedelta
+from datetime import timedelta
 
 from django.contrib.auth import get_user_model
 from django.contrib.auth.models import Group
 from django.utils import timezone
 from rest_framework.test import APITestCase
 
-from clinic.models import MedicineDispensation
+from clinic.tests.mock_domain import MockDomainTestMixin
 from clinic.services.inventory import inventory_service
 
 
@@ -24,7 +24,7 @@ SECOND_MEDICINE = "MED-0002"
 MISSING_MEDICINE = "MED-9999"
 
 
-class MedicineDispensationContractTests(APITestCase):
+class MedicineDispensationContractTests(MockDomainTestMixin, APITestCase):
     """Permanent regression tests for medicine dispensing."""
 
     @classmethod
@@ -40,6 +40,8 @@ class MedicineDispensationContractTests(APITestCase):
         cls.user.groups.add(group)
 
     def setUp(self):
+        self.reset_mock_domain()
+
         self.client.force_authenticate(
             user=self.user
         )
@@ -224,13 +226,15 @@ class MedicineDispensationContractTests(APITestCase):
         now = timezone.now()
         old_time = now - timedelta(days=2)
 
-        MedicineDispensation.objects.filter(
-            dispensation_id=first_id
-        ).update(dispensed_at=old_time)
+        self.set_dispensed_at(
+            first_id,
+            old_time,
+        )
 
-        MedicineDispensation.objects.filter(
-            dispensation_id=second_id
-        ).update(dispensed_at=now)
+        self.set_dispensed_at(
+            second_id,
+            now,
+        )
 
         response = self.client.get(
             "/api/v1/medicine-dispensations/"
@@ -343,13 +347,15 @@ class MedicineDispensationContractTests(APITestCase):
         now = timezone.now()
         old_time = now - timedelta(days=2)
 
-        MedicineDispensation.objects.filter(
-            dispensation_id=first_id
-        ).update(dispensed_at=old_time)
+        self.set_dispensed_at(
+            first_id,
+            old_time,
+        )
 
-        MedicineDispensation.objects.filter(
-            dispensation_id=second_id
-        ).update(dispensed_at=now)
+        self.set_dispensed_at(
+            second_id,
+            now,
+        )
 
         response = self.client.get(
             "/api/v1/medicine-dispensations/",
@@ -378,13 +384,15 @@ class MedicineDispensationContractTests(APITestCase):
         now = timezone.now()
         old_time = now - timedelta(days=2)
 
-        MedicineDispensation.objects.filter(
-            dispensation_id=first_id
-        ).update(dispensed_at=old_time)
+        self.set_dispensed_at(
+            first_id,
+            old_time,
+        )
 
-        MedicineDispensation.objects.filter(
-            dispensation_id=second_id
-        ).update(dispensed_at=now)
+        self.set_dispensed_at(
+            second_id,
+            now,
+        )
 
         response = self.client.get(
             "/api/v1/medicine-dispensations/",

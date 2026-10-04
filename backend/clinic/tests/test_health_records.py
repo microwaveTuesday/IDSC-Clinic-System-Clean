@@ -1,8 +1,8 @@
-﻿from django.contrib.auth import get_user_model
+from django.contrib.auth import get_user_model
 from django.contrib.auth.models import Group
 from rest_framework.test import APITestCase
 
-from clinic.models import HealthRecord
+from clinic.tests.mock_domain import MockDomainTestMixin
 
 
 User = get_user_model()
@@ -16,7 +16,7 @@ INACTIVE_STUDENT = "2026-0003"
 MISSING_STUDENT = "9999-9999"
 
 
-class HealthRecordContractTests(APITestCase):
+class HealthRecordContractTests(MockDomainTestMixin, APITestCase):
     """Permanent regression tests for Clinic-owned health records."""
 
     @classmethod
@@ -32,6 +32,8 @@ class HealthRecordContractTests(APITestCase):
         cls.user.groups.add(group)
 
     def setUp(self):
+        self.reset_mock_domain()
+
         self.client.force_authenticate(
             user=self.user
         )
@@ -50,9 +52,10 @@ class HealthRecordContractTests(APITestCase):
             "height_cm": "170.50",
             "weight_kg": "65.20",
         }
+
         data.update(overrides)
 
-        return HealthRecord.objects.create(
+        return self.create_mock_health_record(
             **data
         )
 
@@ -328,7 +331,7 @@ class HealthRecordContractTests(APITestCase):
             "O+",
         )
         self.assertEqual(
-            HealthRecord.objects.count(),
+            self.health_record_count(),
             1,
         )
 
@@ -348,7 +351,7 @@ class HealthRecordContractTests(APITestCase):
         )
 
         self.assertEqual(
-            HealthRecord.objects.count(),
+            self.health_record_count(),
             0,
         )
 
@@ -368,7 +371,7 @@ class HealthRecordContractTests(APITestCase):
         )
 
         self.assertEqual(
-            HealthRecord.objects.count(),
+            self.health_record_count(),
             0,
         )
 
@@ -657,11 +660,9 @@ class HealthRecordContractTests(APITestCase):
             204,
         )
         self.assertFalse(
-            HealthRecord.objects.filter(
-                health_record_id=(
-                    record.health_record_id
-                )
-            ).exists()
+            self.health_record_exists(
+                record.health_record_id
+            )
         )
 
     def test_delete_missing_record_returns_404(self):
