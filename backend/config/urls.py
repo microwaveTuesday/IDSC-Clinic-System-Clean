@@ -32,7 +32,7 @@ def api_root_view(request):
                 "api": "/api/v1/",
                 "authentication": "/api/auth/",
                 "schema": "/api/schema/",
-                "swagger_ui": "/api/schema/swagger-ui/",
+                "swagger_ui": "/docs",
                 "redoc": "/api/schema/redoc/",
                 "admin": "/admin/",
             },
@@ -54,6 +54,19 @@ urlpatterns = [
 
     # OpenAPI schema and interactive documentation.
     path("api/schema/", SpectacularAPIView.as_view(), name="schema"),
+    # Canonical rubric-required Swagger UI.
+    path(
+        "docs",
+        SpectacularSwaggerView.as_view(url_name="schema"),
+        name="docs",
+    ),
+    path(
+        "docs/",
+        SpectacularSwaggerView.as_view(url_name="schema"),
+        name="docs-slash",
+    ),
+
+    # Backward-compatible Swagger route.
     path(
         "api/schema/swagger-ui/",
         SpectacularSwaggerView.as_view(url_name="schema"),

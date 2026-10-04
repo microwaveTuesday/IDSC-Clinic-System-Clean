@@ -104,13 +104,7 @@ class HealthView(APIView):
     permission_classes = []
 
     def get(self, request):
-        return Response(
-            {
-                "status": "healthy",
-                "service": "clinic",
-                "version": "1.0.0",
-            }
-        )
+        return Response({"status": "ok"})
 
 
 # ---------------------------------------------------------------------------

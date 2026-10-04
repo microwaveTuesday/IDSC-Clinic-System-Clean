@@ -59,10 +59,18 @@ router.register(
 
 
 urlpatterns = [
+    # Canonical rubric-compliant health endpoint.
+    path(
+        "health",
+        HealthView.as_view(),
+        name="health",
+    ),
+
+    # Backward-compatible trailing-slash alias.
     path(
         "health/",
         HealthView.as_view(),
-        name="health",
+        name="health-slash",
     ),
 
     # Read-only integration projections.

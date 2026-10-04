@@ -1560,7 +1560,7 @@ paths:
         "401":
           $ref: "#/components/responses/Unauthorized"
   ####
-  /api/v1/health/:
+  /api/v1/health:
     get:
       tags:
         - System
@@ -1584,10 +1584,10 @@ paths:
                   status:
                     type: string
                     enum:
-                      - OK
-                    example: OK
+                      - ok
+                    example: ok
               example:
-                status: OK
+                status: ok
 
         "500":
           $ref: "#/components/responses/InternalServerError"
