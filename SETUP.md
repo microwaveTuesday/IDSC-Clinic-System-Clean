@@ -1,729 +1,633 @@
 # IDSC Clinic System — Developer Setup Guide
 
-This guide provides step-by-step instructions for installing, configuring, running, and verifying the **IDSC Clinic System** in a local development environment.
+This guide describes the verified **midterm integration setup** for the Clinic module on `fix/pre-main-integration`.
 
-The project consists of:
-
-* **Frontend:** React + Vite
-* **Backend:** Django + Django REST Framework
-* **Database:** PostgreSQL
-* **Database Runtime:** Docker
-
-> [!IMPORTANT]
-> **PostgreSQL and Django have different responsibilities.**
->
-> * **Docker** runs the PostgreSQL database server.
-> * **PostgreSQL** provides the `clinic_db` database.
-> * **Django migrations** create and update the database tables.
->
-> Developers **do not manually create the application tables with SQL**.
-
----
-
-## 1. Prerequisites
-
-Ensure the following tools are installed:
-
-| Tool               | Recommended Version | Purpose                       |
-| :----------------- | :------------------ | :---------------------------- |
-| **Git**            | `2.x+`              | Version control               |
-| **Python**         | `3.10+`             | Backend runtime               |
-| **Docker Desktop** | Latest              | Runs the PostgreSQL container |
-| **Node.js**        | `18+`               | Frontend runtime              |
-| **npm**            | `9+`                | Frontend package management   |
-
----
-
-## 2. Get the Project
-
-Clone the repository into your preferred workspace:
-
-```powershell
-git clone <repository-url> "IDSC Clinic System"
-cd "IDSC Clinic System"
-```
-
-All commands in this guide assume you are working from the project root unless otherwise specified.
-
----
-
-# 3. Start Docker Desktop
-
-Launch **Docker Desktop** and make sure the Docker daemon is running.
-
-Verify Docker is available:
-
-```powershell
-docker --version
-```
-
-You should receive a Docker version without a connection error.
-
----
-
-# 4. PostgreSQL Setup
-
-The project uses PostgreSQL through Docker so that developers can use a consistent database environment.
-
-### How the database setup works
-
-The setup follows this flow:
+The current backend deliberately separates **Clinic business data** from **Django framework infrastructure**:
 
 ```text
-Docker Desktop
-      ↓
-clinic-postgres container
-      ↓
-PostgreSQL server
-      ↓
-clinic_db database
-      ↓
-Django migrations
-      ↓
-Application + Django tables
+HTTP route
+   |
+   v
+DRF view/controller
+   |
+   v
+ClinicService
+   |
+   v
+MockClinicRepository
+   |
+   v
+in-memory Clinic business records
 ```
 
-### Important
-
-You **do not manually create** tables such as:
-
-* `students`
-* `health_records`
-* `auth_user`
-* other Django-managed tables
-
-Django creates and updates these tables through migrations.
+Django still uses a small local SQLite database for authentication, groups, permissions, sessions, and admin support.
 
 ---
 
-## 4.1 First-Time Setup — Create the PostgreSQL Container
+## 1. Current Runtime Architecture
 
-Run this command **only if the `clinic-postgres` container does not already exist**:
+### Clinic business data
 
-```powershell
-docker run --name clinic-postgres -e POSTGRES_DB=clinic_db -e POSTGRES_USER=postgres -e POSTGRES_PASSWORD=postgres -p 5432:5432 -d postgres:16-alpine
+The midterm default is:
+
+```text
+CLINIC_DATA_BACKEND=mock
 ```
 
-This command:
+Clinic-owned business resources are held in `MockClinicRepository`:
 
-* Downloads the `postgres:16-alpine` image if it is not already available.
-* Creates the container named `clinic-postgres`.
-* Creates the PostgreSQL database `clinic_db`.
-* Creates the PostgreSQL user `postgres`.
-* Sets the development password to `postgres`.
-* Exposes PostgreSQL on `localhost:5432`.
-* Starts PostgreSQL in the background.
+- `HealthRecord`
+- `Consultation`
+- `HealthStatus`
+- `MedicineDispensation`
 
-> [!IMPORTANT]
-> `docker run` creates a **new container**. It should normally only be used during the initial setup.
+They are **not persisted through Django ORM during the midterm workflow**.
 
-After the container has been created, do **not** run the `docker run` command again.
+### Django framework database
+
+The default database engine is SQLite.
+
+Its default file is:
+
+```text
+backend/framework.sqlite3
+```
+
+SQLite is used only for Django framework infrastructure such as:
+
+- authentication;
+- `CLINIC_ADMIN` and `CLINIC_STAFF` groups;
+- permissions;
+- sessions;
+- admin support; and
+- migration bookkeeping.
+
+The SQLite file is ignored by Git.
+
+### Finals database direction
+
+PostgreSQL is an **opt-in finals configuration**, not the midterm default.
+
+PostgreSQL support uses:
+
+```text
+backend/requirements-finals.txt
+```
+
+and environment variables such as:
+
+```ini
+DB_ENGINE=django.db.backends.postgresql
+POSTGRES_DB=clinic_db
+POSTGRES_USER=postgres
+POSTGRES_PASSWORD=<local-development-password>
+POSTGRES_HOST=localhost
+POSTGRES_PORT=5432
+```
+
+Do not switch to the finals database mode unless the team intentionally begins the database-backed finals repository work.
 
 ---
 
-## 4.2 Returning Developer — Start the Existing Container
+## 2. Domain Ownership
 
-If `clinic-postgres` already exists, start it with:
+The setup must preserve the College Management System ownership boundaries.
 
-```powershell
-docker start clinic-postgres
-```
+### Registrar owns
 
-Check that it is running:
+- student identity;
+- student profile;
+- course and section; and
+- `student_id`.
 
-```powershell
-docker ps
-```
+Clinic consumes Registrar student information through an integration boundary.
 
-You should see `clinic-postgres` in the list of running containers.
+`student_id` is a **Registrar-owned opaque external identifier**. Clinic does not generate student identities and does not own student lifecycle CRUD.
 
----
+### Clinic owns
 
-## 4.3 PostgreSQL Container Management
+- `HealthRecord`;
+- `Consultation`;
+- `HealthStatus`; and
+- `MedicineDispensation`.
 
-Useful commands:
+### Inventory owns
 
-**Start:**
+- medicine catalog;
+- medicine stock;
+- `medicine_id`; and
+- Inventory stock transactions.
 
-```powershell
-docker start clinic-postgres
-```
+Clinic records Inventory transaction identifiers only for orchestration, audit, compensation, and rollback.
 
-**Stop:**
+### Faculty and Student Portal
 
-```powershell
-docker stop clinic-postgres
-```
-
-**Restart:**
-
-```powershell
-docker restart clinic-postgres
-```
-
-**Check running containers:**
-
-```powershell
-docker ps
-```
-
-**Check all containers:**
-
-```powershell
-docker ps -a
-```
-
-**View PostgreSQL logs:**
-
-```powershell
-docker logs clinic-postgres
-```
+Clinic exposes restricted read-only health-status projections to Faculty and Student Portal.
 
 ---
 
-# 5. Backend Virtual Environment
+## 3. Prerequisites
 
-Navigate to the backend directory:
+Install:
 
-```powershell
-cd backend
-```
+- Git
+- Python 3.13-compatible environment
+- Node.js and npm for Newman/frontend workflows
+- VS Code or another editor
 
-Create the virtual environment if one does not already exist:
+Docker and PostgreSQL are **not required for the current midterm mock-data workflow**.
 
-```powershell
-python -m venv venv
-```
-
-Activate it in PowerShell:
-
-```powershell
-.\venv\Scripts\Activate.ps1
-```
-
-If PowerShell reports an execution-policy error, run:
-
-```powershell
-Set-ExecutionPolicy -Scope Process -ExecutionPolicy Bypass
-```
-
-Then activate the environment again:
-
-```powershell
-.\venv\Scripts\Activate.ps1
-```
-
-A successful activation should show `(venv)` in the terminal prompt.
+They are only relevant if the team intentionally switches to the finals PostgreSQL configuration.
 
 ---
 
-# 6. Install Backend Dependencies
-
-With the virtual environment activated and while inside the `backend` directory:
+## 4. Clone and Open the Project
 
 ```powershell
-pip install -r requirements.txt
+git clone https://github.com/microwaveTuesday/IDSC-Clinic-System-Clean.git
+cd IDSC-Clinic-System-Clean
 ```
 
-The project's backend dependencies include:
+For integration work, use the reviewed integration branch rather than `main`:
 
-* Django
-* Django REST Framework
-* django-cors-headers
-* psycopg
-* python-dotenv
+```powershell
+git switch fix/pre-main-integration
+```
 
-The exact versions are controlled by `requirements.txt`.
-
-> [!NOTE]
-> `requirements.txt` is the source of truth for the project's Python dependencies. Do not manually install packages unless required by the project.
+Never push directly to `main`.
 
 ---
 
-# 7. Environment Configuration
+## 5. Create and Activate the Virtual Environment
 
-The Django backend reads database and application settings from:
+From the repository root:
+
+```powershell
+python -m venv .venv
+.\.venv\Scripts\Activate.ps1
+```
+
+A successful activation shows:
+
+```text
+(.venv)
+```
+
+in the PowerShell prompt.
+
+---
+
+## 6. Install Midterm Backend Dependencies
+
+```powershell
+pip install -r backend\requirements.txt
+```
+
+The midterm dependency set includes:
+
+- Django
+- Django REST Framework
+- django-cors-headers
+- python-dotenv
+- drf-spectacular
+
+`psycopg` is intentionally excluded from the normal midterm requirements.
+
+For the finals PostgreSQL direction only:
+
+```powershell
+pip install -r backend\requirements-finals.txt
+```
+
+---
+
+## 7. Environment Configuration
+
+The backend loads optional environment values from:
 
 ```text
 backend/.env
 ```
 
-If the project provides an environment template, copy it:
-
-```powershell
-Copy-Item .env.example .env
-```
-
-Then open `backend/.env` and verify the database configuration.
-
-Example development configuration:
+A minimal local midterm configuration can be:
 
 ```ini
-SECRET_KEY=<your-development-secret-key>
 DEBUG=True
 ALLOWED_HOSTS=localhost,127.0.0.1
-
-DB_ENGINE=django.db.backends.postgresql
-DB_NAME=clinic_db
-DB_USER=postgres
-DB_PASSWORD=postgres
-DB_HOST=localhost
-DB_PORT=5432
-
-CORS_ALLOWED_ORIGINS=http://localhost:5173,http://127.0.0.1:5173,http://localhost:3000,http://127.0.0.1:3000
+CLINIC_DATA_BACKEND=mock
+DB_ENGINE=django.db.backends.sqlite3
+DB_NAME=framework.sqlite3
 ```
 
-> [!IMPORTANT]
-> Do not commit `.env` files containing secrets or credentials to Git.
->
-> The values above are intended for local development only.
+The defaults already select `mock` Clinic data and SQLite framework infrastructure, so these values are mainly useful when making the local configuration explicit.
+
+Do not commit `.env` secrets.
 
 ---
 
-# 8. Database Migrations
+## 8. Initialize Django Framework Infrastructure
 
-This is the step that creates the Django database schema.
+The first local run needs Django's framework tables for authentication and sessions.
 
-From the `backend` directory, run:
-
-```powershell
-python manage.py migrate
-```
-
-Django will create the tables required by:
-
-* Django authentication
-* Django admin
-* Django sessions
-* Content types
-* The clinic application
-
-### Important distinction
-
-You do **not** need to manually create:
-
-```text
-students
-health_records
-auth_user
-django_session
-...
-```
-
-Django migrations handle these tables.
-
-To see the migrations available and their status:
-
-```powershell
-python manage.py showmigrations
-```
-
----
-
-# 9. Database Inspection
-
-You can inspect PostgreSQL directly through Docker without installing pgAdmin.
-
-Connect to PostgreSQL:
-
-```powershell
-docker exec -it clinic-postgres psql -U postgres -d clinic_db
-```
-
-Inside `psql`, useful commands include:
-
-### List tables
-
-```sql
-\dt
-```
-
-### Inspect students
-
-```sql
-\d students
-```
-
-### Inspect health records
-
-```sql
-\d health_records
-```
-
-### Query students
-
-```sql
-SELECT * FROM students;
-```
-
-### Query health records
-
-```sql
-SELECT * FROM health_records;
-```
-
-### Exit PostgreSQL
-
-```sql
-\q
-```
-
-> [!NOTE]
-> Database inspection is optional. Normal development should be performed through the Django application, models, serializers, and API rather than manually modifying database tables.
-
----
-
-# 10. Student ID Behavior
-
-The `student_id` field is generated automatically.
-
-### Creating a student
-
-When creating a student through the API, **do not provide `student_id`**.
-
-Example:
-
-```json
-{
-    "first_name": "Juan",
-    "last_name": "Dela Cruz"
-}
-```
-
-Django/PostgreSQL generates the ID automatically.
-
-For example:
-
-```text
-student_id = 1
-```
-
-The next student may receive:
-
-```text
-student_id = 2
-```
-
-### Creating a Health Record
-
-When creating a health record, use the generated `student_id` of the student the record belongs to.
-
-For example:
-
-```json
-{
-    "student_id": 1
-}
-```
-
-The same principle applies to `health_id`: it is generated automatically and should not normally be supplied manually.
-
-> [!IMPORTANT]
-> **Do not manually assign IDs in API requests unless the API documentation specifically requires it.**
-
----
-
-# 11. Run Automated Tests
-
-Run the backend test suite:
-
-```powershell
-python manage.py test clinic
-```
-
-The test suite verifies the application's models, serializers, endpoints, and database behavior.
-
-A successful run should end with:
-
-```text
-OK
-```
-
-The exact number of tests and execution time may change as the project develops, so the current test count should not be treated as a permanent value.
-
----
-
-# 12. Create a Django Admin Superuser
-
-Creating a Django admin account is optional.
-
-To create one:
-
-```powershell
-python manage.py createsuperuser
-```
-
-Follow the prompts to enter the username, email address, and password.
-
-The Django Admin interface is available at:
-
-```text
-http://127.0.0.1:8000/admin/
-```
-
----
-
-# 13. Start the Backend
-
-From the `backend` directory:
-
-```powershell
-python manage.py runserver 8000
-```
-
-The backend should now be available at:
-
-```text
-http://127.0.0.1:8000/
-```
-
-Important endpoints include:
-
-| Endpoint               | Purpose            |
-| :--------------------- | :----------------- |
-| `/`                    | API root/discovery |
-| `/api/students/`       | Students API       |
-| `/api/health-records/` | Health Records API |
-| `/admin/`              | Django Admin       |
-
----
-
-# 14. Frontend Setup
-
-Open a **separate terminal window**.
-
-Navigate to the frontend:
-
-```powershell
-cd frontend
-```
-
-Install the frontend dependencies:
-
-```powershell
-npm install
-```
-
-Start the Vite development server:
-
-```powershell
-npm run dev
-```
-
-The frontend should be available at:
-
-```text
-http://localhost:5173
-```
-
----
-
-# 15. Normal Development Workflow
-
-Once the project has already been set up, the normal workflow is:
-
-### Terminal 1 — PostgreSQL
-
-```powershell
-docker start clinic-postgres
-```
-
-### Terminal 2 — Backend
+For the midterm workflow, apply only the framework/authentication migrations:
 
 ```powershell
 cd backend
-.\venv\Scripts\Activate.ps1
-python manage.py migrate
-python manage.py runserver 8000
+
+python manage.py migrate contenttypes --noinput
+python manage.py migrate auth --noinput
+python manage.py migrate admin --noinput
+python manage.py migrate sessions --noinput
+python manage.py migrate authentication --noinput
 ```
 
-### Terminal 3 — Frontend
+The `authentication` migration creates the required Clinic roles:
 
-```powershell
-cd frontend
-npm run dev
-```
+- `CLINIC_ADMIN`
+- `CLINIC_STAFF`
 
-You normally **do not need to recreate the PostgreSQL container**.
+### Why the migrations are targeted
 
-You only need to run `docker run` again if the existing container has been intentionally removed.
+The repository retains Clinic ORM migrations for the finals database direction, but Clinic business data currently uses `MockClinicRepository`.
 
----
+Therefore, the verified midterm integration workflow intentionally keeps Clinic domain migrations unapplied.
 
-# 16. Verification Checklist
-
-Use this checklist to confirm that the development environment is working:
-
-* [ ] Docker Desktop is running.
-* [ ] `clinic-postgres` exists.
-* [ ] `clinic-postgres` is running.
-* [ ] PostgreSQL is available on port `5432`.
-* [ ] `clinic_db` exists.
-* [ ] `backend/.env` is configured.
-* [ ] Python virtual environment is activated.
-* [ ] Backend dependencies are installed.
-* [ ] Django migrations complete successfully.
-* [ ] `students` table exists.
-* [ ] `health_records` table exists.
-* [ ] Backend tests pass.
-* [ ] Django backend runs on port `8000`.
-* [ ] API root responds.
-* [ ] Frontend dependencies are installed.
-* [ ] Vite frontend runs on port `5173`.
-
----
-
-# 17. Troubleshooting
-
-## Container Name Already Exists
-
-### Error
-
-```text
-The container name "/clinic-postgres" is already in use
-```
-
-### Solution
-
-The container has already been created.
-
-Do not run `docker run` again.
-
-Start the existing container:
-
-```powershell
-docker start clinic-postgres
-```
-
----
-
-## PostgreSQL Port Already in Use
-
-### Error
-
-```text
-Error: Port 5432 is already allocated
-```
-
-Another PostgreSQL instance or container is already using port `5432`.
-
-Check running containers:
-
-```powershell
-docker ps
-```
-
-If another container is using the port, stop it if appropriate:
-
-```powershell
-docker stop <container_id>
-```
-
-You can also check whether a local PostgreSQL service is using the port.
-
----
-
-## Django Port Already in Use
-
-### Error
-
-```text
-Error: That port is already in use
-```
-
-Run Django on another port:
-
-```powershell
-python manage.py runserver 8080
-```
-
----
-
-## Migration Problems
-
-Check migration status:
+You can inspect migration state with:
 
 ```powershell
 python manage.py showmigrations
 ```
 
-Check whether model changes require migrations:
-
-```powershell
-python manage.py makemigrations --check
-```
-
-If migrations are required because models were intentionally changed, create them with:
-
-```powershell
-python manage.py makemigrations
-```
-
-Then apply them:
-
-```powershell
-python manage.py migrate
-```
-
-> [!IMPORTANT]
-> Do not manually modify the PostgreSQL schema to fix a Django migration issue. Resolve the issue through Django's migration system.
-
----
-
-## PostgreSQL Connection Error
-
-If Django cannot connect to PostgreSQL, verify:
-
-1. Docker Desktop is running.
-2. `clinic-postgres` is running.
-3. PostgreSQL is listening on port `5432`.
-4. `clinic_db` exists.
-5. The database credentials in `.env` match the PostgreSQL container.
-6. `DB_HOST` is set to `localhost`.
-7. `DB_PORT` is set to `5432`.
-
-Check the container:
-
-```powershell
-docker ps
-```
-
-Check its logs:
-
-```powershell
-docker logs clinic-postgres
-```
-
----
-
-# 18. Key Development Rules
-
-Keep these rules in mind when working on the project:
-
-1. **Do not manually create database tables.**
-2. **Do not manually assign `student_id` when creating students.**
-3. **Do not manually assign `health_id` unless explicitly required.**
-4. **Use Django migrations for database schema changes.**
-5. **Use the existing `clinic-postgres` container instead of creating another one.**
-6. **Keep local credentials and secrets out of Git.**
-7. **Use the API/models rather than manually modifying database records during normal development.**
-
-The intended architecture is:
+Expected architectural result:
 
 ```text
-React / Vite
-     │
-     │ HTTP API
-     ▼
-Django / DRF
-     │
-     │ Django ORM
-     ▼
-PostgreSQL
-     │
-     │
-     ▼
-Docker Container
+Django framework/authentication migrations -> applied
+Clinic domain migrations                   -> unapplied for midterm runtime
+CLINIC_DATA_BACKEND                        -> mock
 ```
 
-This separation keeps the development environment consistent and prevents developers from accidentally creating conflicting database schemas or containers.
+---
+
+## 9. Create a Local Clinic Administrator
+
+Session-authenticated API testing requires a Django user with the correct Clinic role.
+
+The Postman collection contains local development variables named:
+
+```text
+username
+password
+```
+
+The validated Newman flow uses a local account matching those variables and assigned to `CLINIC_ADMIN`.
+
+You may create the account through Django shell or another controlled local setup process. Do not commit local credentials.
+
+Verify the account is:
+
+- active;
+- able to authenticate with the Postman collection credentials; and
+- a member of `CLINIC_ADMIN`.
+
+---
+
+## 10. Run Django System Checks
+
+From `backend`:
+
+```powershell
+python manage.py check
+python manage.py makemigrations --check --dry-run
+```
+
+Verified integration expectations:
+
+```text
+System check identified no issues
+No changes detected
+```
+
+---
+
+## 11. Run Automated Tests
+
+From `backend`:
+
+```powershell
+python manage.py test --verbosity 1
+```
+
+Verified permanent baseline:
+
+```text
+Found 167 test(s).
+Ran 167 tests
+OK
+```
+
+The Django test runner creates and destroys its own test database.
+
+---
+
+## 12. Start the Backend
+
+From `backend`:
+
+```powershell
+python manage.py runserver 127.0.0.1:8000
+```
+
+The local backend is then available at:
+
+```text
+http://127.0.0.1:8000
+```
+
+---
+
+## 13. Canonical Runtime Routes
+
+| Purpose | Route |
+|---|---|
+| API discovery | `/` |
+| Authentication namespace | `/api/auth/` |
+| Business API namespace | `/api/v1/` |
+| Canonical health endpoint | `/api/v1/health` |
+| Dynamic OpenAPI schema | `/api/schema/` |
+| Canonical Swagger UI | `/docs` |
+| ReDoc | `/api/schema/redoc/` |
+| Django admin | `/admin/` |
+
+Canonical health request:
+
+```http
+GET /api/v1/health
+```
+
+Exact response:
+
+```json
+{
+  "status": "ok"
+}
+```
+
+A runtime `/api/v1/health/` compatibility alias may respond successfully, but `/api/v1/health` is the canonical OpenAPI operation.
+
+---
+
+## 14. Authentication Flow
+
+The backend uses Django session authentication.
+
+Public operations are:
+
+```text
+GET  /api/auth/csrf/
+POST /api/auth/login/
+GET  /api/v1/health
+```
+
+Protected requests use the `sessionid` cookie.
+
+Unsafe session-authenticated requests also require CSRF protection.
+
+Typical browser/Postman flow:
+
+```text
+GET /api/auth/csrf/
+    -> receive csrftoken
+
+POST /api/auth/login/
+    -> send credentials + CSRF token
+    -> receive authenticated session
+
+protected /api/v1/... requests
+    -> send session cookie
+    -> include CSRF token on unsafe methods
+
+POST /api/auth/logout/
+    -> terminate session
+```
+
+---
+
+## 15. CORS and Frontend Development
+
+Credentialed CORS is restricted to:
+
+```text
+http://localhost:5173
+http://127.0.0.1:5173
+```
+
+These origins are also trusted CSRF origins.
+
+Do not disable CSRF and do not enable wildcard credentialed CORS just to simplify development.
+
+The currently committed frontend is still a React/Vite starter and is not evidence of the final Clinic high-fidelity interface.
+
+---
+
+## 16. OpenAPI and Swagger Verification
+
+Open the canonical Swagger UI:
+
+```text
+http://127.0.0.1:8000/docs
+```
+
+Dynamic schema:
+
+```text
+http://127.0.0.1:8000/api/schema/
+```
+
+Verified contract baseline:
+
+```text
+OpenAPI version    = 3.1.0
+Paths              = 29
+Operations         = 45
+Public operations  = 3
+Protected          = 42
+```
+
+The canonical static contract is:
+
+```text
+openapi.yaml
+```
+
+---
+
+## 17. Postman and Newman
+
+The collection is:
+
+```text
+postman/IDSC-Clinic-System.postman_collection.json
+```
+
+Canonical collection base URL:
+
+```text
+http://127.0.0.1:8000
+```
+
+With the backend running and the local Clinic admin provisioned:
+
+```powershell
+npx --yes newman run .\postman\IDSC-Clinic-System.postman_collection.json
+```
+
+Verified baseline:
+
+```text
+Requests executed = 45
+Request failures  = 0
+Test scripts      = 45
+Assertions        = 46
+Assertion failures = 0
+```
+
+---
+
+## 18. Problem Details Errors
+
+API errors use RFC-style Problem Details with:
+
+```json
+{
+  "type": "https://clinic.example/problems/example",
+  "title": "Example",
+  "status": 400,
+  "detail": "Human-readable explanation.",
+  "instance": "/api/v1/example/",
+  "code": "example_code"
+}
+```
+
+Validation responses may additionally contain an `errors` object.
+
+Verified status families include:
+
+- `400`
+- `401`
+- `403`
+- `404`
+- `409`
+- `422`
+
+---
+
+## 19. Repository Hygiene
+
+Do not commit local runtime artifacts such as:
+
+- `.venv/`
+- `.env`
+- `*.sqlite3`
+- `__pycache__/`
+- `.idea/`
+- generated temporary reports
+
+The cleaned integration baseline also excludes the obsolete root `main.py` and generated `gen/` client.
+
+Before committing:
+
+```powershell
+git status --short
+git diff --check
+```
+
+---
+
+## 20. Finals PostgreSQL Direction
+
+PostgreSQL is retained as the finals direction, not the active midterm default.
+
+When the team intentionally begins the database-backed Clinic repository:
+
+1. install `backend/requirements-finals.txt`;
+2. configure `DB_ENGINE=django.db.backends.postgresql`;
+3. configure the `POSTGRES_*` or equivalent `DB_*` variables;
+4. implement/activate a database-backed Clinic repository behind `ClinicService`;
+5. review the retained Clinic ORM migrations;
+6. apply Clinic migrations only as part of that intentional finals transition;
+7. rerun the full automated, OpenAPI, runtime, and integration test gates.
+
+Do not silently switch the midterm API from mock storage to ORM persistence.
+
+---
+
+## 21. Normal Midterm Development Workflow
+
+### Terminal 1 — Backend
+
+```powershell
+cd backend
+..\.venv\Scripts\Activate.ps1
+```
+
+If the virtual environment is already active, skip the activation command.
+
+Then:
+
+```powershell
+python manage.py check
+python manage.py runserver 127.0.0.1:8000
+```
+
+### Terminal 2 — Frontend
+
+```powershell
+cd frontend
+npm install
+npm run dev
+```
+
+### Optional API regression
+
+From the repository root:
+
+```powershell
+npx --yes newman run .\postman\IDSC-Clinic-System.postman_collection.json
+```
+
+---
+
+## 22. Verification Checklist
+
+Before considering the local integration environment healthy:
+
+- [ ] virtual environment is active;
+- [ ] midterm backend dependencies are installed;
+- [ ] `CLINIC_DATA_BACKEND` resolves to `mock`;
+- [ ] SQLite framework infrastructure is initialized;
+- [ ] `CLINIC_ADMIN` and `CLINIC_STAFF` groups exist;
+- [ ] a local Clinic admin can authenticate;
+- [ ] Clinic domain migrations remain unapplied for the midterm runtime;
+- [ ] `python manage.py check` passes;
+- [ ] all 167 Django tests pass;
+- [ ] `GET /api/v1/health` returns exactly `{"status":"ok"}`;
+- [ ] `/docs` loads Swagger UI;
+- [ ] `/api/schema/` reports OpenAPI 3.1.0;
+- [ ] the Postman/Newman collection completes 45 requests and 46 assertions with zero failures;
+- [ ] Git working tree contains no accidental runtime artifacts.
+
+---
+
+## 23. Git Integration Rules
+
+The project integration baseline requires:
+
+- `phase7/tests-contract-validation` remains the canonical source branch to preserve;
+- legacy feature branches are historical/reference only;
+- integration fixes happen on `fix/pre-main-integration`;
+- never push directly to `main`;
+- protect `main`;
+- merge only through a reviewed Pull Request;
+- require teammate approval before the final merge.
+
+These rules are part of the release process, not optional workflow suggestions.

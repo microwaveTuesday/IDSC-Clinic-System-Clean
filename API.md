@@ -1,738 +1,549 @@
-﻿# IDSC Clinic System API Reference
+# IDSC Clinic System API Reference
 
-Interactive API documentation and comprehensive reference for the IDSC Clinic System REST backend.
+This document summarizes the verified API contract of the Clinic module on `fix/pre-main-integration`.
 
----
+The authoritative machine-readable contract is:
 
-## Table of Contents
+```text
+openapi.yaml
+```
 
-- [Overview](#overview)
-- [Base URL](#base-url)
-- [Interactive Documentation](#interactive-documentation)
-- [Authentication & Permissions](#authentication--permissions)
-- [Standard Response & Error Format](#standard-response--error-format)
-- [Endpoints Summary](#endpoints-summary)
-- [Students API](#students-api)
-  - [1. List Students](#1-list-students)
-  - [2. Create Student](#2-create-student)
-  - [3. Retrieve Student Details](#3-retrieve-student-details)
-  - [4. Fully Update Student](#4-fully-update-student)
-  - [5. Partially Update Student](#5-partially-update-student)
-  - [6. Delete Student](#6-delete-student)
-  - [7. List Health Records for Student](#7-list-health-records-for-student)
-  - [8. Create Health Record for Student](#8-create-health-record-for-student)
-- [Health Records API](#health-records-api)
-  - [1. List Health Records](#1-list-health-records)
-  - [2. Create Health Record](#2-create-health-record)
-  - [3. Retrieve Health Record](#3-retrieve-health-record)
-  - [4. Fully Update Health Record](#4-fully-update-health-record)
-  - [5. Partially Update Health Record](#5-partially-update-health-record)
-  - [6. Delete Health Record](#6-delete-health-record)
-- [System & Discovery Endpoints](#system--discovery-endpoints)
+Runtime schema:
+
+```text
+GET /api/schema/
+```
+
+Canonical Swagger UI:
+
+```text
+/docs
+```
 
 ---
 
-## Overview
+## 1. Contract Baseline
 
-The IDSC Clinic System API provides complete CRUD functionality for managing clinic operations, student patient profiles, and medical consultation records.
+| Property | Verified value |
+|---|---:|
+| API version | `1.0.0` |
+| OpenAPI version | `3.1.0` |
+| Business namespace | `/api/v1/` |
+| Authentication namespace | `/api/auth/` |
+| Paths | `29` |
+| Operations | `45` |
+| Public operations | `3` |
+| Protected operations | `42` |
+| Session authentication | Yes |
+| Problem Details errors | Yes |
 
-- **API Version:** `1.0.0`
-- **Format:** JSON (`application/json`)
-- **OpenAPI Version:** `3.0.3`
+Development server:
 
----
-
-## Base URL
-
-| Environment | Base URL |
-| :--- | :--- |
-| **Development** | `http://127.0.0.1:8000` or `http://localhost:8000` |
-| **API Prefix** | `/api/` |
-
----
-
-## Interactive Documentation
-
-Interactive documentation interfaces and the raw OpenAPI 3.0 schema are served directly by the backend:
-
-| Interface | URL Path | Description |
-| :--- | :--- | :--- |
-| **Swagger UI** | `/api/docs/` | Interactive API explorer to test requests directly in browser |
-| **ReDoc** | `/api/redoc/` | Clean, responsive reference documentation |
-| **OpenAPI Schema** | `/api/schema/` | Raw OpenAPI 3.0 YAML/JSON specification |
+```text
+http://127.0.0.1:8000
+```
 
 ---
 
-## Authentication & Permissions
+## 2. Domain Ownership
 
-- **Default Permission:** `AllowAny` (public access for clinic frontend client integration).
-- **Supported Schemes:** Session Authentication (`cookieAuth` via `sessionid`), HTTP Basic Authentication (`basicAuth`).
+The API preserves strict College Management System ownership boundaries.
+
+### Registrar-owned students
+
+Registrar owns:
+
+- student identity;
+- student profile;
+- course and section; and
+- `student_id`.
+
+Clinic exposes read-only Registrar-backed student projections through:
+
+```text
+GET /api/v1/students/
+GET /api/v1/students/{student_id}/
+```
+
+Clinic does **not** create, update, or delete Registrar students.
+
+`student_id` is an opaque external string identifier, for example:
+
+```text
+2026-0001
+```
+
+### Clinic-owned resources
+
+Clinic owns:
+
+- `HealthRecord`
+- `Consultation`
+- `HealthStatus`
+- `MedicineDispensation`
+
+### Inventory-owned medicine data
+
+Inventory owns:
+
+- medicine catalog;
+- stock;
+- `medicine_id`; and
+- stock transactions.
+
+Clinic exposes read-only medicine projections and coordinates stock changes through its Inventory boundary.
+
+### Faculty and Student Portal
+
+Faculty and Student Portal receive authenticated read-only health-status projections.
 
 ---
 
-## Standard Response & Error Format
+## 3. Authentication and Security
 
-All API errors return standardized JSON structures processed by the backend exception handler:
+The default DRF permission is:
 
-### Standard Error Response Format
+```text
+IsAuthenticated
+```
+
+The default authentication mechanism is Django session authentication through:
+
+```text
+ClinicSessionAuthentication
+```
+
+### Public operations
+
+Exactly three operations are public:
+
+| Method | Path | Purpose |
+|---|---|---|
+| `GET` | `/api/auth/csrf/` | Obtain CSRF token |
+| `POST` | `/api/auth/login/` | Create authenticated session |
+| `GET` | `/api/v1/health` | Health check |
+
+All other canonical operations are protected.
+
+### Session flow
+
+Typical flow:
+
+```text
+GET /api/auth/csrf/
+    -> csrftoken
+
+POST /api/auth/login/
+    -> credentials + X-CSRFToken
+    -> sessionid cookie
+
+protected request
+    -> sessionid
+    -> X-CSRFToken for unsafe methods
+
+POST /api/auth/logout/
+    -> session invalidated
+```
+
+A failed anonymous request to a protected endpoint returns `401` and:
+
+```http
+WWW-Authenticate: Session
+```
+
+---
+
+## 4. CSRF and CORS
+
+CSRF middleware remains enabled.
+
+Unsafe session-authenticated requests require CSRF protection.
+
+Approved local credentialed CORS origins:
+
+```text
+http://localhost:5173
+http://127.0.0.1:5173
+```
+
+Wildcard credentialed CORS is not part of the verified configuration.
+
+---
+
+## 5. Standard Problem Details Error Contract
+
+Errors use `application/problem+json`.
+
+Canonical fields:
 
 ```json
 {
-  "success": false,
-  "status_code": 400,
+  "type": "https://clinic.example/problems/not-found",
+  "title": "Not Found",
+  "status": 404,
+  "detail": "The requested resource was not found.",
+  "instance": "/api/v1/example/",
+  "code": "not_found"
+}
+```
+
+Validation errors may additionally include:
+
+```json
+{
   "errors": {
-    "first_name": [
-      "First name cannot be blank."
+    "field": [
+      "Validation message."
     ]
   }
 }
 ```
 
-### 404 Not Found Response
+Verified Problem Details status families include:
 
-```json
-{
-  "success": false,
-  "status_code": 404,
-  "errors": {
-    "detail": "The requested resource was not found."
-  }
-}
-```
-
-### 500 Internal Server Error Response
-
-```json
-{
-  "success": false,
-  "status_code": 500,
-  "errors": {
-    "detail": "An unexpected server error occurred."
-  }
-}
-```
+- `400 Bad Request`
+- `401 Unauthorized`
+- `403 Forbidden`
+- `404 Not Found`
+- `409 Conflict`
+- `422 Unprocessable Entity`
 
 ---
 
-## Endpoints Summary
+## 6. Documentation Routes
 
-| Method | Endpoint | Description |
-| :--- | :--- | :--- |
-| `GET` | `/api/students/` | List all students with search and filtering |
-| `POST` | `/api/students/` | Register a new student |
-| `GET` | `/api/students/{student_id}/` | Retrieve student details and nested health records |
-| `PUT` | `/api/students/{student_id}/` | Update all fields of a student |
-| `PATCH` | `/api/students/{student_id}/` | Partially update fields of a student |
-| `DELETE` | `/api/students/{student_id}/` | Delete student and all associated records |
-| `GET` | `/api/students/{student_id}/health-records/` | List health records for a specific student |
-| `POST` | `/api/students/{student_id}/health-records/` | Create health record for a specific student |
-| `GET` | `/api/health-records/` | List all health records with filtering |
-| `POST` | `/api/health-records/` | Create a new health record |
-| `GET` | `/api/health-records/{health_id}/` | Retrieve details of a health record |
-| `PUT` | `/api/health-records/{health_id}/` | Update all fields of a health record |
-| `PATCH` | `/api/health-records/{health_id}/` | Partially update fields of a health record |
-| `DELETE` | `/api/health-records/{health_id}/` | Delete a health record |
-| `GET` | `/` | API discovery and health status endpoint |
-| `GET` | `/api/schema/` | OpenAPI 3.0 schema file download |
-| `GET` | `/api/docs/` | Swagger UI documentation |
-| `GET` | `/api/redoc/` | ReDoc documentation |
+| Purpose | Path |
+|---|---|
+| API discovery | `/` |
+| Dynamic OpenAPI | `/api/schema/` |
+| Canonical Swagger UI | `/docs` |
+| Swagger compatibility alias | `/docs/` |
+| ReDoc | `/api/schema/redoc/` |
+
+The canonical Swagger path is `/docs`.
 
 ---
 
-## Students API
+## 7. Health and Dashboard
 
-### 1. List Students
-
-Retrieve a list of students with optional query parameter filtering.
-
-- **HTTP Method:** `GET`
-- **Path:** `/api/students/`
-
-#### Query Parameters
-
-| Parameter | Type | Required | Description |
-| :--- | :--- | :--- | :--- |
-| `search` | `string` | No | Search across first name, last name, course, section, or student ID |
-| `course` | `string` | No | Filter by course / program (case-insensitive exact match) |
-| `section` | `string` | No | Filter by section (case-insensitive exact match) |
-| `sex` | `string` | No | Filter by sex (`Male`, `Female`, `Other`) |
-
-#### Example Request
+### Health
 
 ```http
-GET /api/students/?course=BSIT&sex=Male HTTP/1.1
-Host: localhost:8000
-Accept: application/json
+GET /api/v1/health
 ```
 
-#### Response (`200 OK`)
+Access: public.
 
-```json
-[
-  {
-    "student_id": 1,
-    "first_name": "Juan",
-    "last_name": "Dela Cruz",
-    "birth_date": "2002-05-15",
-    "sex": "Male",
-    "course": "BS Information Technology",
-    "section": "3A",
-    "contact_no": "09123456789",
-    "health_records_count": 2,
-    "created_at": "2026-08-28T10:00:00Z",
-    "updated_at": "2026-08-28T10:30:00Z"
-  }
-]
-```
-
----
-
-### 2. Create Student
-
-Register a new student in the clinic system.
-
-- **HTTP Method:** `POST`
-- **Path:** `/api/students/`
-- **Content-Type:** `application/json`
-
-#### Request Body Fields
-
-| Field | Type | Required | Description |
-| :--- | :--- | :--- | :--- |
-| `first_name` | `string` (max 100) | **Yes** | Student's first name |
-| `last_name` | `string` (max 100) | **Yes** | Student's last name |
-| `course` | `string` (max 100) | **Yes** | Degree program or course (e.g., `BSIT`, `BSCS`, `BSN`) |
-| `section` | `string` (max 50) | **Yes** | Class section (e.g., `3A`, `1-1`) |
-| `birth_date` | `string` (date: `YYYY-MM-DD`) | No | Date of birth (cannot be in the future) |
-| `sex` | `string` | No | `Male`, `Female`, or `Other` |
-| `contact_no` | `string` (max 30) | No | Contact telephone or mobile number |
-
-#### Example Request
+Exact response:
 
 ```json
 {
-  "first_name": "Juan",
-  "last_name": "Dela Cruz",
-  "birth_date": "2002-05-15",
-  "sex": "Male",
-  "course": "BS Information Technology",
-  "section": "3A",
-  "contact_no": "09123456789"
+  "status": "ok"
 }
 ```
 
-#### Response (`201 Created`)
+The runtime compatibility alias `/api/v1/health/` may also respond successfully, but it is intentionally excluded from the canonical OpenAPI operation inventory.
 
-```json
-{
-  "student_id": 1,
-  "first_name": "Juan",
-  "last_name": "Dela Cruz",
-  "birth_date": "2002-05-15",
-  "sex": "Male",
-  "course": "BS Information Technology",
-  "section": "3A",
-  "contact_no": "09123456789",
-  "health_records_count": 0,
-  "created_at": "2026-08-28T10:00:00Z",
-  "updated_at": "2026-08-28T10:00:00Z"
-}
+### Dashboard
+
+```http
+GET /api/v1/dashboard/
 ```
+
+Access: Clinic staff/admin.
+
+Returns Clinic dashboard information aggregated through the service/integration layer.
 
 ---
 
-### 3. Retrieve Student Details
+## 8. Authentication Endpoints
 
-Retrieve complete details for a specific student, including their nested list of health records.
-
-- **HTTP Method:** `GET`
-- **Path:** `/api/students/{student_id}/`
-
-#### Path Parameters
-
-| Parameter | Type | Required | Description |
-| :--- | :--- | :--- | :--- |
-| `student_id` | `integer` | **Yes** | Unique auto-incrementing student identifier |
-
-#### Response (`200 OK`)
-
-```json
-{
-  "student_id": 1,
-  "first_name": "Juan",
-  "last_name": "Dela Cruz",
-  "birth_date": "2002-05-15",
-  "sex": "Male",
-  "course": "BS Information Technology",
-  "section": "3A",
-  "contact_no": "09123456789",
-  "health_records_count": 1,
-  "created_at": "2026-08-28T10:00:00Z",
-  "updated_at": "2026-08-28T10:30:00Z",
-  "health_records": [
-    {
-      "health_id": 10,
-      "student_id": 1,
-      "student_name": "Juan Dela Cruz",
-      "allergies": "Penicillin",
-      "blood_type": "O+",
-      "medical_history": "Mild Asthma",
-      "medication": "Salbutamol inhaler as needed",
-      "weight": "65.50",
-      "height": "172.00",
-      "visit": "2026-08-28T09:30:00Z",
-      "consultation": "Patient reported mild shortness of breath after physical education. Administered nebulization.",
-      "created_at": "2026-08-28T09:35:00Z",
-      "updated_at": "2026-08-28T09:35:00Z"
-    }
-  ]
-}
-```
+| Method | Endpoint | Access | Description |
+|---|---|---|---|
+| `GET` | `/api/auth/csrf/` | Public | Obtain CSRF token |
+| `POST` | `/api/auth/login/` | Public | Log in and create session |
+| `GET` | `/api/auth/me/` | Authenticated | Current session user |
+| `POST` | `/api/auth/logout/` | Authenticated | End session |
 
 ---
 
-### 4. Fully Update Student
+## 9. Registrar Student Projection
 
-Replace all writable fields of an existing student.
+| Method | Endpoint | Access | Description |
+|---|---|---|---|
+| `GET` | `/api/v1/students/` | Clinic staff/admin | List Registrar-backed student projections |
+| `GET` | `/api/v1/students/{student_id}/` | Clinic staff/admin | Retrieve one student projection |
 
-- **HTTP Method:** `PUT`
-- **Path:** `/api/students/{student_id}/`
-- **Content-Type:** `application/json`
-
-#### Example Request
-
-```json
-{
-  "first_name": "Juan",
-  "last_name": "Dela Cruz",
-  "birth_date": "2002-05-15",
-  "sex": "Male",
-  "course": "BS Computer Science",
-  "section": "4A",
-  "contact_no": "09123456780"
-}
-```
-
-#### Response (`200 OK`)
-
-```json
-{
-  "student_id": 1,
-  "first_name": "Juan",
-  "last_name": "Dela Cruz",
-  "birth_date": "2002-05-15",
-  "sex": "Male",
-  "course": "BS Computer Science",
-  "section": "4A",
-  "contact_no": "09123456780",
-  "health_records_count": 1,
-  "created_at": "2026-08-28T10:00:00Z",
-  "updated_at": "2026-08-28T11:00:00Z"
-}
-```
+These operations are read-only.
 
 ---
 
-### 5. Partially Update Student
+## 10. Health Records
 
-Update one or more fields of an existing student.
+| Method | Endpoint | Access |
+|---|---|---|
+| `GET` | `/api/v1/health-records/` | Clinic staff/admin |
+| `POST` | `/api/v1/health-records/` | Clinic staff/admin |
+| `GET` | `/api/v1/health-records/{health_record_id}/` | Clinic staff/admin |
+| `PUT` | `/api/v1/health-records/{health_record_id}/` | Clinic staff/admin |
+| `PATCH` | `/api/v1/health-records/{health_record_id}/` | Clinic staff/admin |
+| `DELETE` | `/api/v1/health-records/{health_record_id}/` | Clinic staff/admin |
 
-- **HTTP Method:** `PATCH`
-- **Path:** `/api/students/{student_id}/`
-- **Content-Type:** `application/json`
-
-#### Example Request
-
-```json
-{
-  "section": "4B",
-  "contact_no": "09991112233"
-}
-```
-
-#### Response (`200 OK`)
+Example create request:
 
 ```json
 {
-  "student_id": 1,
-  "first_name": "Juan",
-  "last_name": "Dela Cruz",
-  "birth_date": "2002-05-15",
-  "sex": "Male",
-  "course": "BS Computer Science",
-  "section": "4B",
-  "contact_no": "09991112233",
-  "health_records_count": 1,
-  "created_at": "2026-08-28T10:00:00Z",
-  "updated_at": "2026-08-28T11:15:00Z"
-}
-```
-
----
-
-### 6. Delete Student
-
-Delete an existing student. Deleting a student cascades and removes all associated health records.
-
-- **HTTP Method:** `DELETE`
-- **Path:** `/api/students/{student_id}/`
-
-#### Response (`204 No Content`)
-
-Empty body.
-
----
-
-### 7. List Health Records for Student
-
-Retrieve all health records for a specific student, ordered by visit date descending.
-
-- **HTTP Method:** `GET`
-- **Path:** `/api/students/{student_id}/health-records/`
-
-#### Response (`200 OK`)
-
-```json
-[
-  {
-    "health_id": 10,
-    "student_id": 1,
-    "student_name": "Juan Dela Cruz",
-    "allergies": "Penicillin",
-    "blood_type": "O+",
-    "medical_history": "Mild Asthma",
-    "medication": "Salbutamol inhaler",
-    "weight": "65.50",
-    "height": "172.00",
-    "visit": "2026-08-28T09:30:00Z",
-    "consultation": "Routine clinic visit. Vital signs stable.",
-    "created_at": "2026-08-28T09:35:00Z",
-    "updated_at": "2026-08-28T09:35:00Z"
-  }
-]
-```
-
----
-
-### 8. Create Health Record for Student
-
-Create a new health record directly associated with the specified student.
-
-- **HTTP Method:** `POST`
-- **Path:** `/api/students/{student_id}/health-records/`
-- **Content-Type:** `application/json`
-
-#### Example Request
-
-```json
-{
+  "student_id": "2026-0001",
   "blood_type": "O+",
-  "allergies": "Penicillin",
+  "allergies": "None",
   "medical_history": "None",
-  "medication": "Paracetamol 500mg",
-  "weight": "64.00",
-  "height": "172.00",
-  "visit": "2026-08-28T10:30:00Z",
-  "consultation": "Headache and mild fever. Prescribed rest and hydration."
+  "current_medications": "",
+  "height_cm": "170.00",
+  "weight_kg": "65.00"
 }
 ```
 
-#### Response (`201 Created`)
+Clinic validates the Registrar-owned `student_id` through the Registrar integration boundary before student-dependent writes.
+
+---
+
+## 11. Consultations
+
+| Method | Endpoint | Access |
+|---|---|---|
+| `GET` | `/api/v1/consultations/` | Clinic staff/admin |
+| `POST` | `/api/v1/consultations/` | Clinic staff/admin |
+| `GET` | `/api/v1/consultations/{consultation_id}/` | Clinic staff/admin |
+| `PUT` | `/api/v1/consultations/{consultation_id}/` | Clinic staff/admin |
+| `PATCH` | `/api/v1/consultations/{consultation_id}/` | Clinic staff/admin |
+| `DELETE` | `/api/v1/consultations/{consultation_id}/` | Clinic staff/admin |
+
+Example create request:
 
 ```json
 {
-  "health_id": 11,
-  "student_id": 1,
-  "student_name": "Juan Dela Cruz",
-  "allergies": "Penicillin",
-  "blood_type": "O+",
-  "medical_history": "None",
-  "medication": "Paracetamol 500mg",
-  "weight": "64.00",
-  "height": "172.00",
-  "visit": "2026-08-28T10:30:00Z",
-  "consultation": "Headache and mild fever. Prescribed rest and hydration.",
-  "created_at": "2026-08-28T10:32:00Z",
-  "updated_at": "2026-08-28T10:32:00Z"
+  "student_id": "2026-0001",
+  "chief_complaint": "Headache",
+  "assessment": "Mild tension headache",
+  "treatment": "Rest and hydration",
+  "notes": "Return if symptoms worsen"
 }
 ```
 
 ---
 
-## Health Records API
+## 12. Health Statuses
 
-### 1. List Health Records
+| Method | Endpoint | Access |
+|---|---|---|
+| `GET` | `/api/v1/health-statuses/` | Clinic staff/admin |
+| `POST` | `/api/v1/health-statuses/` | Clinic staff/admin |
+| `GET` | `/api/v1/health-statuses/{status_id}/` | Clinic staff/admin |
+| `PUT` | `/api/v1/health-statuses/{status_id}/` | Clinic staff/admin |
+| `PATCH` | `/api/v1/health-statuses/{status_id}/` | Clinic staff/admin |
+| `DELETE` | `/api/v1/health-statuses/{status_id}/` | Clinic staff/admin |
 
-Retrieve all clinic health records with optional filtering by student ID, blood type, or search terms.
+Stored status values:
 
-- **HTTP Method:** `GET`
-- **Path:** `/api/health-records/`
+```text
+CLEARED
+RESTRICTED
+UNDER_OBSERVATION
+```
 
-#### Query Parameters
+`NOT_AVAILABLE` is an integration projection state, not a stored Clinic status.
 
-| Parameter | Type | Required | Description |
-| :--- | :--- | :--- | :--- |
-| `student_id` | `string` / `integer` | No | Filter records by associated student identifier |
-| `blood_type` | `string` | No | Filter by blood type (`A+`, `A-`, `B+`, `B-`, `AB+`, `AB-`, `O+`, `O-`, `Unknown`) |
-| `search` | `string` | No | Search across student name, allergies, consultation, or medical history |
+---
 
-#### Response (`200 OK`)
+## 13. Inventory Medicine Projection
 
-```json
-[
-  {
-    "health_id": 10,
-    "student_id": 1,
-    "student_name": "Juan Dela Cruz",
-    "allergies": "Penicillin",
-    "blood_type": "O+",
-    "medical_history": "Mild Asthma",
-    "medication": "Salbutamol",
-    "weight": "65.50",
-    "height": "172.00",
-    "visit": "2026-08-28T09:30:00Z",
-    "consultation": "Patient presented with dizziness.",
-    "created_at": "2026-08-28T09:35:00Z",
-    "updated_at": "2026-08-28T09:35:00Z"
-  }
-]
+| Method | Endpoint | Access |
+|---|---|---|
+| `GET` | `/api/v1/medicines/` | Clinic staff/admin |
+| `GET` | `/api/v1/medicines/{medicine_id}/` | Clinic staff/admin |
+
+These are read-only Inventory-backed projections.
+
+Example external identifier:
+
+```text
+MED-0001
 ```
 
 ---
 
-### 2. Create Health Record
+## 14. Medicine Dispensations
 
-Create a new clinical consultation record.
+| Method | Endpoint | Access |
+|---|---|---|
+| `GET` | `/api/v1/medicine-dispensations/` | Clinic staff/admin |
+| `POST` | `/api/v1/medicine-dispensations/` | Clinic staff/admin |
+| `GET` | `/api/v1/medicine-dispensations/{dispensation_id}/` | Clinic staff/admin |
+| `POST` | `/api/v1/medicine-dispensations/{dispensation_id}/rollback/` | Clinic staff/admin |
 
-- **HTTP Method:** `POST`
-- **Path:** `/api/health-records/`
-- **Content-Type:** `application/json`
+Creation orchestration:
 
-#### Request Body Fields
-
-| Field | Type | Required | Description |
-| :--- | :--- | :--- | :--- |
-| `student_id` | `integer` | **Yes** | ID of the student associated with this record |
-| `blood_type` | `string` | No | Blood type choice (`A+`, `A-`, `B+`, `B-`, `AB+`, `AB-`, `O+`, `O-`, `Unknown`) |
-| `allergies` | `string` | No | Known allergies |
-| `medical_history` | `string` | No | Chronic conditions and past illnesses |
-| `medication` | `string` | No | Current medications |
-| `weight` | `decimal` (0.00 - 500.00) | No | Weight in kilograms (kg) |
-| `height` | `decimal` (0.00 - 300.00) | No | Height in centimeters (cm) |
-| `visit` | `string` (date-time: ISO 8601) | No | Date and time of consultation (defaults to now) |
-| `consultation` | `string` | No | Clinical assessment notes and prescriptions |
-
-#### Example Request
-
-```json
-{
-  "student_id": 1,
-  "blood_type": "O+",
-  "allergies": "Penicillin",
-  "medical_history": "Mild Asthma",
-  "medication": "Salbutamol",
-  "weight": "65.50",
-  "height": "172.00",
-  "visit": "2026-08-28T09:30:00Z",
-  "consultation": "Patient reported mild shortness of breath. Vitals normal."
-}
+```text
+validate Registrar student
+    -> deduct Inventory stock
+    -> receive inventory_transaction_id
+    -> create Clinic dispensation
 ```
 
-#### Response (`201 Created`)
+If Clinic persistence fails after the Inventory deduction, the service attempts a compensating stock restore.
 
-```json
-{
-  "health_id": 10,
-  "student_id": 1,
-  "student_name": "Juan Dela Cruz",
-  "allergies": "Penicillin",
-  "blood_type": "O+",
-  "medical_history": "Mild Asthma",
-  "medication": "Salbutamol",
-  "weight": "65.50",
-  "height": "172.00",
-  "visit": "2026-08-28T09:30:00Z",
-  "consultation": "Patient reported mild shortness of breath. Vitals normal.",
-  "created_at": "2026-08-28T09:35:00Z",
-  "updated_at": "2026-08-28T09:35:00Z"
-}
+Explicit rollback restores Inventory stock and records a `rollback_transaction_id`.
+
+Stored Clinic dispensation status values:
+
+```text
+COMPLETED
+ROLLED_BACK
 ```
 
 ---
 
-### 3. Retrieve Health Record
+## 15. Reports
 
-Retrieve details of a single health record by `health_id`.
+| Method | Endpoint | Access |
+|---|---|---|
+| `GET` | `/api/v1/reports/clinic-visits/` | Clinic staff/admin |
+| `GET` | `/api/v1/reports/health-records/` | Clinic staff/admin |
+| `GET` | `/api/v1/reports/medicine-inventory/` | Clinic staff/admin |
+| `GET` | `/api/v1/reports/medicine-dispensations/` | Clinic staff/admin |
 
-- **HTTP Method:** `GET`
-- **Path:** `/api/health-records/{health_id}/`
+Report filters use the schemas documented in `openapi.yaml`.
 
-#### Path Parameters
-
-| Parameter | Type | Required | Description |
-| :--- | :--- | :--- | :--- |
-| `health_id` | `integer` | **Yes** | Unique health record identifier |
-
-#### Response (`200 OK`)
-
-```json
-{
-  "health_id": 10,
-  "student_id": 1,
-  "student_name": "Juan Dela Cruz",
-  "allergies": "Penicillin",
-  "blood_type": "O+",
-  "medical_history": "Mild Asthma",
-  "medication": "Salbutamol",
-  "weight": "65.50",
-  "height": "172.00",
-  "visit": "2026-08-28T09:30:00Z",
-  "consultation": "Patient reported mild shortness of breath. Vitals normal.",
-  "created_at": "2026-08-28T09:35:00Z",
-  "updated_at": "2026-08-28T09:35:00Z"
-}
-```
+Invalid dates and invalid date ranges return Problem Details validation errors.
 
 ---
 
-### 4. Fully Update Health Record
+## 16. External Health-Status Projections
 
-Update all fields of an existing health record.
+### Faculty
 
-- **HTTP Method:** `PUT`
-- **Path:** `/api/health-records/{health_id}/`
-- **Content-Type:** `application/json`
-
-#### Example Request
-
-```json
-{
-  "student_id": 1,
-  "blood_type": "O+",
-  "allergies": "Penicillin, Dust",
-  "medical_history": "Mild Asthma",
-  "medication": "Salbutamol 100mcg",
-  "weight": "66.00",
-  "height": "172.00",
-  "visit": "2026-08-28T09:30:00Z",
-  "consultation": "Follow-up consultation. Respiratory exam clear."
-}
+```http
+GET /api/v1/integrations/faculty/health-status/{student_id}/
 ```
 
-#### Response (`200 OK`)
+### Student Portal
 
-```json
-{
-  "health_id": 10,
-  "student_id": 1,
-  "student_name": "Juan Dela Cruz",
-  "allergies": "Penicillin, Dust",
-  "blood_type": "O+",
-  "medical_history": "Mild Asthma",
-  "medication": "Salbutamol 100mcg",
-  "weight": "66.00",
-  "height": "172.00",
-  "visit": "2026-08-28T09:30:00Z",
-  "consultation": "Follow-up consultation. Respiratory exam clear.",
-  "created_at": "2026-08-28T09:35:00Z",
-  "updated_at": "2026-08-28T10:00:00Z"
-}
+```http
+GET /api/v1/integrations/student-portal/health-status/{student_id}/
 ```
+
+Access: authenticated.
+
+These routes expose restricted read-only Clinic health-status projections.
+
+They do not expose full health records and do not permit external modules to mutate Clinic data.
 
 ---
 
-### 5. Partially Update Health Record
+## 17. Clinic User Administration
 
-Partially update one or more fields of an existing health record.
+These operations require Clinic admin permissions.
 
-- **HTTP Method:** `PATCH`
-- **Path:** `/api/health-records/{health_id}/`
-- **Content-Type:** `application/json`
+| Method | Endpoint |
+|---|---|
+| `GET` | `/api/v1/users/` |
+| `POST` | `/api/v1/users/` |
+| `GET` | `/api/v1/users/{user_id}/` |
+| `PUT` | `/api/v1/users/{user_id}/` |
+| `PATCH` | `/api/v1/users/{user_id}/` |
+| `POST` | `/api/v1/users/{user_id}/activate/` |
+| `POST` | `/api/v1/users/{user_id}/deactivate/` |
 
-#### Example Request
-
-```json
-{
-  "weight": "66.20",
-  "consultation": "Updated vitals and notes."
-}
-```
-
-#### Response (`200 OK`)
-
-```json
-{
-  "health_id": 10,
-  "student_id": 1,
-  "student_name": "Juan Dela Cruz",
-  "allergies": "Penicillin, Dust",
-  "blood_type": "O+",
-  "medical_history": "Mild Asthma",
-  "medication": "Salbutamol 100mcg",
-  "weight": "66.20",
-  "height": "172.00",
-  "visit": "2026-08-28T09:30:00Z",
-  "consultation": "Updated vitals and notes.",
-  "created_at": "2026-08-28T09:35:00Z",
-  "updated_at": "2026-08-28T10:05:00Z"
-}
-```
+These users are Django framework/authentication accounts, not Registrar student identities.
 
 ---
 
-### 6. Delete Health Record
+## 18. Pagination
 
-Delete an existing health record.
-
-- **HTTP Method:** `DELETE`
-- **Path:** `/api/health-records/{health_id}/`
-
-#### Response (`204 No Content`)
-
-Empty body.
-
----
-
-## System & Discovery Endpoints
-
-### 1. API Root / Discovery Endpoint
-
-- **HTTP Method:** `GET`
-- **Path:** `/`
-
-#### Response (`200 OK`)
+Canonical paginated list envelopes use:
 
 ```json
 {
-  "name": "IDSC Clinic System API",
-  "version": "1.0.0",
-  "status": "healthy",
-  "endpoints": {
-    "students": "/api/students/",
-    "health_records": "/api/health-records/",
-    "student_health_records": "/api/students/<student_id>/health-records/",
-    "schema": "/api/schema/",
-    "docs": "/api/docs/",
-    "redoc": "/api/redoc/",
-    "admin": "/admin/"
-  }
+  "count": 1,
+  "page": 1,
+  "page_size": 20,
+  "total_pages": 1,
+  "results": []
 }
 ```
 
-### 2. OpenAPI Schema
+The OpenAPI 3.1 schema matches this runtime shape.
 
-- **HTTP Method:** `GET`
-- **Path:** `/api/schema/`
-- **Format:** OpenAPI 3.0 YAML / JSON download
+Legacy `next` and `previous` pagination properties are not part of the canonical Clinic pagination envelope.
 
-### 3. Swagger UI
+---
 
-- **HTTP Method:** `GET`
-- **Path:** `/api/docs/`
-- **Format:** Interactive HTML Swagger UI
+## 19. Midterm Data Runtime
 
-### 4. ReDoc UI
+Clinic business data uses:
 
-- **HTTP Method:** `GET`
-- **Path:** `/api/redoc/`
-- **Format:** Interactive HTML ReDoc UI
+```text
+CLINIC_DATA_BACKEND=mock
+```
+
+and flows through:
+
+```text
+route
+  -> view/controller
+  -> ClinicService
+  -> MockClinicRepository
+```
+
+SQLite is used only for Django framework infrastructure such as authentication, groups, permissions, sessions, admin, and migration bookkeeping.
+
+The retained Clinic ORM models/migrations describe the finals persistence direction but are not the active midterm Clinic business-data path.
+
+---
+
+## 20. Postman / Newman Baseline
+
+Collection:
+
+```text
+postman/IDSC-Clinic-System.postman_collection.json
+```
+
+Verified run:
+
+```text
+Requests      = 45
+Failed        = 0
+Test scripts  = 45
+Assertions    = 46
+Failed        = 0
+```
+
+The validated flow covers:
+
+- CSRF acquisition;
+- login;
+- authenticated session;
+- health;
+- dashboard;
+- Registrar student projections;
+- Clinic CRUD;
+- Inventory medicine projections;
+- dispensation rollback;
+- reports;
+- Faculty/Student Portal projections;
+- Clinic user administration; and
+- logout.
+
+---
+
+## 21. Contract Authority
+
+When examples or prose conflict, use this priority:
+
+1. `openapi.yaml` for the canonical API contract;
+2. runtime behavior verified by the permanent Django tests;
+3. `README.md` and the focused documentation under `docs/`;
+4. this API reference.
+
+Do not copy legacy `/api/...` routes or older ownership assumptions back into the current contract.
