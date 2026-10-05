@@ -1,1053 +1,809 @@
 # IDSC Clinic System
 
+The **IDSC Clinic System** is the Clinic module of the class College Management System (CMS).
 
-The **IDSC Clinic System** is the Clinic module of the College Management System (CMS).
+The backend manages Clinic-owned medical data and coordinates API-level integrations with Registrar, Inventory, Faculty, and Student Portal while preserving each module's domain ownership.
 
-
-The system provides clinic-owned health information management, consultations, health statuses, medicine dispensation, reporting, authentication, and integrations with other CMS modules.
-
+This README describes the verified integration state on `fix/pre-main-integration`.
 
 ---
 
+## 1. Verified Project Baseline
 
-## 1. Project Overview
-
-
-The Clinic backend is implemented using:
-
-
-- Python
-
-- Django
-
-- Django REST Framework
-
-- PostgreSQL
-
-- drf-spectacular
-
-- django-cors-headers
-
-
-The frontend uses React and Vite.
-
-
-### API baseline
-
-
-| Item | Value |
+| Item | Verified value |
 |---|---|
-| OpenAPI version | 3.1.0 |
-| API paths | 29 |
-| API operations | 45 |
-| Public operations | 3 |
-| Protected operations | 42 |
-| Business API | `/api/v1/` |
-| Authentication API | `/api/auth/` |
-| OpenAPI schema | `/api/schema/` |
-| Swagger UI | `/api/schema/swagger-ui/` |
+| Business API namespace | `/api/v1/` |
+| Authentication namespace | `/api/auth/` |
+| Canonical health endpoint | `GET /api/v1/health` |
+| Canonical health response | `{ "status": "ok" }` |
+| Dynamic OpenAPI schema | `/api/schema/` |
+| Canonical Swagger UI | `/docs` |
 | ReDoc | `/api/schema/redoc/` |
-| Django Admin | `/admin/` |
+| OpenAPI version | `3.1.0` |
+| Documented API paths | `29` |
+| Documented API operations | `45` |
+| Public operations | `3` |
+| Protected operations | `42` |
+| Permanent Django tests | `167` |
+| Permanent Django tests passed | `167` |
+| Permanent Django tests failed | `0` |
+| Postman requests | `45` |
+| Newman requests executed | `45` |
+| Newman assertions | `46` |
+| Newman failures | `0` |
 
+The canonical static API contract is `openapi.yaml`.
 
-### Verification baseline
+The canonical runtime Swagger UI is `/docs`. The older `/api/schema/swagger-ui/` route remains only as a backward-compatible runtime alias.
 
-
-| Evidence | Result |
-|---|---:|
-| Permanent Django tests | 167 |
-| Permanent Django tests passed | 167 |
-| Permanent Django tests failed | 0 |
-| Postman requests | 45 |
-| Newman requests executed | 45 |
-| Newman failed requests | 0 |
-| Newman assertions | 46 |
-| Newman failed assertions | 0 |
-
-
----
-
-
-## 2. System Scope and Domain Ownership
-
-
-### Registrar
-
-
-The Registrar owns:
-
-
-- Student identity
-
-- Student profile
-
-- Course and section
-
-- `student_id`
-
-
-The Clinic consumes student information through the Registrar integration. The current implementation uses `MockRegistrarService` with deterministic student data; it does not call a live Registrar API.
-
-
-### Clinic
-
-
-The Clinic owns:
-
-
-- Health records
-
-- Consultations
-
-- Health statuses
-
-- Medicine dispensations
-
-- Clinic reports
-
-- Clinic user management
-
-
-### Inventory
-
-
-Inventory owns:
-
-
-- Medicine catalog
-
-- Medicine stock
-
-- `medicine_id`
-
-- `inventory_transaction_id`
-
-
-The Clinic references Inventory-owned medicine information rather than owning the inventory stock domain. The current implementation uses `MockInventoryService` with deterministic in-memory medicine data, stock, and transactions; it does not call a live Inventory API. Mock stock and transactions reset when the service is recreated.
-
-
-### Student Portal and Faculty
-
-
-The Clinic provides read-only health-status integration projections for:
-
-
-- Student Portal
-
-- Faculty
-
+The canonical health operation is `/api/v1/health` without a trailing slash. A trailing-slash runtime alias may remain for compatibility, but it is intentionally excluded from the canonical OpenAPI operation inventory.
 
 ---
 
+## 2. Midterm Architecture
 
-## 3. Technology Stack
+For the midterm, Clinic business data uses mock/in-memory storage.
 
+The active business-data flow is:
+
+```text
+HTTP route
+   |
+   v
+DRF view/controller
+   |
+   v
+ClinicService
+   |
+   v
+MockClinicRepository
+```
+
+The views handle HTTP concerns and delegate Clinic business operations to `ClinicService`.
+
+`ClinicService` handles domain rules and cross-module orchestration.
+
+`MockClinicRepository` stores Clinic-owned business resources in memory for the midterm.
+
+### Django framework database
+
+Django still needs a database for framework infrastructure such as:
+
+- authentication;
+- groups and permissions;
+- sessions;
+- admin support.
+
+The default framework database is SQLite.
+
+This **does not mean Clinic business resources are persisted through Django ORM during the midterm**.
+
+### Finals database direction
+
+PostgreSQL remains available as an opt-in finals configuration.
+
+Finals dependencies are separated in:
+
+`backend/requirements-finals.txt`
+
+A future database-backed Clinic repository can replace the mock repository without changing the public route structure.
+
+---
+
+## 3. Domain Ownership
+
+### Registrar owns
+
+- student identity;
+- student profile;
+- course and section;
+- `student_id`.
+
+Clinic consumes Registrar-owned student data through a Registrar integration boundary.
+
+The current midterm implementation uses deterministic mock Registrar data.
+
+### Clinic owns
+
+- `HealthRecord`;
+- `Consultation`;
+- `HealthStatus`;
+- `MedicineDispensation`.
+
+Clinic also owns Clinic-specific reports and Clinic account-management behavior.
+
+### Inventory owns
+
+- medicine catalog;
+- medicine stock;
+- `medicine_id`;
+- Inventory stock transactions.
+
+Clinic consumes Inventory-owned medicine and stock information through an Inventory integration boundary.
+
+The current midterm implementation uses deterministic in-memory Inventory data and transactions.
+
+### Faculty and Student Portal
+
+Clinic exposes restricted **read-only health-status projections** for:
+
+- Faculty;
+- Student Portal.
+
+These consumers do not own or directly modify Clinic health-status persistence.
+
+---
+
+## 4. External Identifier Contract
+
+Clinic references externally owned data using API-level identifiers:
+
+- `student_id`;
+- `medicine_id`;
+- `inventory_transaction_id`;
+- `rollback_transaction_id` when rollback/compensation occurs.
+
+These are cross-module references, not shared-database foreign keys.
+
+Registrar remains authoritative for student identity.
+
+Inventory remains authoritative for medicine catalog and stock.
+
+---
+
+## 5. Integration Architecture
+
+```text
+                         +----------------------+
+                         |      Registrar       |
+                         | student identity     |
+                         | student profile      |
+                         +----------+-----------+
+                                    |
+                                    | student_id / validation
+                                    v
++------------------+      +---------+----------+      +----------------------+
+| Faculty          |<-----|                    |----->|      Inventory       |
+| read-only health |      |       CLINIC       |      | medicine catalog     |
++------------------+      |                    |      | medicine stock       |
+                          | HealthRecord       |      | stock transactions   |
++------------------+      | Consultation       |      +----------------------+
+| Student Portal   |<-----| HealthStatus       |
+| read-only health |      | Dispensation       |
++------------------+      +---------+----------+
+                                    |
+                                    v
+                          ClinicService
+                                    |
+                                    v
+                          MockClinicRepository
+                          (midterm business data)
+```
+
+### Medicine-dispensation orchestration
+
+Creating a medicine dispensation coordinates three boundaries:
+
+1. validate the student through Registrar;
+2. deduct medicine stock through Inventory;
+3. persist the Clinic-owned dispensation through the Clinic repository.
+
+If Clinic persistence fails after Inventory deduction, the service attempts a compensating stock restore.
+
+Explicit dispensation rollback restores Inventory stock and records the Clinic-owned dispensation as rolled back.
+
+See `docs/integration.md` for full sequence and error behavior.
+
+---
+
+## 6. Technology Stack
 
 ### Backend
 
-
 - Python
-
 - Django
-
 - Django REST Framework
-
 - drf-spectacular
-
 - django-cors-headers
-
-- psycopg
-
 - python-dotenv
 
+### Midterm data/runtime infrastructure
 
-### Database
+- `MockClinicRepository` for Clinic business-domain data
+- deterministic mock Registrar service
+- deterministic mock Inventory service
+- SQLite for Django framework infrastructure
 
+### Finals opt-in
 
-- PostgreSQL
+- PostgreSQL through environment configuration
+- `psycopg` through `backend/requirements-finals.txt`
 
-
-### Frontend
-
+### Frontend repository
 
 - React
-
 - Vite
-
 - JavaScript / JSX
+- CSS
 
+The currently committed frontend is still a React/Vite starter implementation and is **not evidence of the completed Clinic high-fidelity UI**.
 
-### API and development tooling
+See `docs/design-system.md` for the verified repository design baseline and Figma synchronization rules.
 
+### API/testing tooling
 
+- OpenAPI 3.1
+- Swagger UI
+- ReDoc
+- Postman
+- Newman
+- Redocly CLI
 - Git
 
-- Postman
-
-- Newman
-
-- Swagger UI
-
-- ReDoc
-
-
 ---
 
-
-## 4. System Architecture
-
+## 7. Repository Structure
 
 ```text
-
-React / Vite Frontend
-
-        |
-
-        | HTTP / JSON
-
-        v
-
-Django + Django REST Framework
-
-        |
-
-        +------------------------------+
-
-        |                              |
-
-        v                              v
-
-Clinic Domain                   External Integrations
-
-        |                       Registrar
-
-        |                       Inventory
-
-        |                       Student Portal
-
-        |                       Faculty
-
-        v
-
-PostgreSQL
-
-```
-
-
----
-
-
-## 5. Repository Structure
-
-
-```text
-
 IDSC-Clinic-System-Clean/
-
 |
-
 +-- backend/
-
 |   +-- authentication/
-
 |   +-- clinic/
-
+|   |   +-- data/
+|   |   +-- services/
+|   |   +-- tests/
 |   +-- config/
-
 |   +-- manage.py
-
 |   +-- requirements.txt
-
+|   +-- requirements-finals.txt
 |
-
 +-- docs/
-
+|   +-- architecture.md
+|   +-- data-model.md
+|   +-- integration.md
+|   +-- design-system.md
 |   +-- TEST-EVIDENCE.md
-
+|   +-- decisions/
+|       +-- 0001-midterm-mock-domain-data.md
+|       +-- 0002-domain-ownership-and-external-identifiers.md
+|       +-- 0003-service-repository-layering.md
+|       +-- 0004-session-authentication-csrf-and-cors.md
+|       +-- 0005-openapi-health-and-documentation-contract.md
+|       +-- 0006-clean-integration-and-pr-only-main.md
 |
-
 +-- frontend/
-
 |
-
-
++-- postman/
+|   +-- IDSC-Clinic-System.postman_collection.json
 |
-
 +-- openapi.yaml
-
-+-- README.md
-
++-- redocly.yaml
 +-- API.md
-
 +-- SETUP.md
-
++-- README.md
 ```
-
 
 ---
 
+## 8. Backend Configuration
 
-## 6. Backend Configuration
-
-
-The backend uses Django settings located at:
-
+Primary Django configuration:
 
 `backend/config/settings.py`
 
+Important verified configuration includes:
 
-Important configuration includes:
-
-
-- Django REST Framework
-
-- Session authentication
-
-- CSRF middleware
-
-- CORS support
-
-- PostgreSQL database configuration
-
-- OpenAPI schema generation
-
-- Authentication and permission defaults
-
-
-The default REST authentication class is:
-
-
-`authentication.authentication.ClinicSessionAuthentication`
-
-
-The default REST permission is:
-
-
-`rest_framework.permissions.IsAuthenticated`
-
+- `CLINIC_DATA_BACKEND` defaults to `mock`;
+- default framework database is SQLite;
+- PostgreSQL is opt-in through environment configuration;
+- `ClinicSessionAuthentication` is the default DRF authentication class;
+- `IsAuthenticated` is the default DRF permission;
+- custom Problem Details exception handling is configured;
+- CSRF middleware is enabled;
+- credentialed CORS is explicitly configured;
+- drf-spectacular generates the dynamic OpenAPI schema;
+- project-level OpenAPI metadata is normalized through `config.schema.postprocess_openapi_metadata`.
 
 ---
-
-
-## 7. Database Architecture
-
-
-The production-oriented database engine is PostgreSQL.
-
-
-The Clinic domain uses Django ORM models and migrations.
-
-
-Database ownership follows the Clinic domain boundary.
-
-
-External identifiers are retained as integration references:
-
-
-- `student_id`
-
-- `medicine_id`
-
-- `inventory_transaction_id`
-
-
-The Clinic does not take ownership of Registrar or Inventory master data.
-
-
----
-
-
-## 8. Clinic Domain Models
-
-
-The principal Clinic-owned domain models are:
-
-
-### HealthRecord
-
-
-Stores student health-record information.
-
-
-### Consultation
-
-
-Stores clinic consultation / visit information.
-
-
-### HealthStatus
-
-
-Stores the student's current clinic health-status information.
-
-
-### MedicineDispensation
-
-
-Stores medicine dispensation transactions performed by the Clinic.
-
-
----
-
 
 ## 9. Authentication and Authorization
 
+The midterm backend uses Django session authentication.
 
-The system uses Django session authentication.
+Authentication routes include:
 
+| Method | Endpoint | Access |
+|---|---|---|
+| `GET` | `/api/auth/csrf/` | Public |
+| `POST` | `/api/auth/login/` | Public |
+| `POST` | `/api/auth/logout/` | Authenticated |
+| `GET` | `/api/auth/me/` | Authenticated |
 
-Authentication components include:
+The default authentication class is:
 
+`authentication.authentication.ClinicSessionAuthentication`
 
-- CSRF token endpoint
+The default REST permission is:
 
-- Login
+`rest_framework.permissions.IsAuthenticated`
 
-- Logout
+Clinic role permissions include:
 
-- Current-user endpoint
+- `IsClinicStaff`;
+- `IsClinicAdmin`.
 
-- Session authentication
+Protected business endpoints require authentication and the appropriate role.
 
-- Clinic staff permissions
-
-- Clinic administrator permissions
-
-
-Permission classes include:
-
-
-- `IsClinicStaff`
-
-- `IsClinicAdmin`
-
-
-Protected business endpoints require authentication.
-
-
-Authorization is enforced through DRF permission classes and view-level permissions. `IsClinicStaff` accepts members of `CLINIC_STAFF` or `CLINIC_ADMIN`, and superusers. `IsClinicAdmin` accepts members of `CLINIC_ADMIN` and superusers. Logout, current-user information, and the Faculty and Student Portal projections require authentication without a Clinic role restriction.
-
+The Faculty and Student Portal integration projections require authentication but are not Clinic-staff write operations.
 
 ---
 
+## 10. CSRF and CORS
 
-## 10. API Architecture
+Django's `CsrfViewMiddleware` remains enabled.
 
+Unsafe session-authenticated requests require CSRF protection.
 
-The API is divided into two primary namespaces.
+The frontend can obtain a CSRF token through:
 
+`GET /api/auth/csrf/`
 
-### Authentication API
+Credentialed CORS is enabled only for the approved local Vite origins:
 
+- `http://localhost:5173`
+- `http://127.0.0.1:5173`
 
-```text
+The same local origins are configured as trusted CSRF origins.
 
-/api/auth/
-
-```
-
-
-Used for:
-
-
-- CSRF token
-
-- Login
-
-- Logout
-
-- Current-user information
-
-
-### Business API
-
-
-```text
-
-/api/v1/
-
-```
-
-
-Used for:
-
-
-- Clinic health data
-
-- Consultations
-
-- Health statuses
-
-- Medicine operations
-
-- Reports
-
-- Integrations
-
-- User management
-
+Do not disable CSRF or enable wildcard credentialed CORS to simplify frontend development.
 
 ---
 
+## 11. Canonical API and Documentation Routes
 
-## 11. API Endpoint Reference
+| Purpose | Route |
+|---|---|
+| Backend discovery | `/` |
+| Authentication | `/api/auth/` |
+| Business API | `/api/v1/` |
+| Dynamic OpenAPI | `/api/schema/` |
+| Swagger UI | `/docs` |
+| ReDoc | `/api/schema/redoc/` |
+| Django Admin | `/admin/` |
 
+### Health contract
 
-The method and path inventory below is generated from `openapi.yaml`. Access labels also reflect the implementation permission classes described in Section 9.
+Canonical request:
 
+```http
+GET /api/v1/health
+```
 
-### Authentication Endpoints
+Exact response:
+
+```json
+{
+  "status": "ok"
+}
+```
+
+The health operation is public.
+
+---
+
+## 12. API Endpoint Reference
+
+The authoritative schemas, request bodies, response bodies, examples, and security metadata are defined in `openapi.yaml`.
+
+The current contract contains **45 operations**.
+
+### Authentication
 
 | Method | Endpoint | Access | Description |
 |---|---|---|---|
 | `GET` | `/api/auth/csrf/` | Public | Get CSRF token |
-| `POST` | `/api/auth/login/` | Public | Log in to the Clinic system |
-| `POST` | `/api/auth/logout/` | Authenticated | Log out of the Clinic system |
-| `GET` | `/api/auth/me/` | Authenticated | Get current Clinic user |
+| `POST` | `/api/auth/login/` | Public | Log in |
+| `POST` | `/api/auth/logout/` | Authenticated | Log out |
+| `GET` | `/api/auth/me/` | Authenticated | Get current user |
 
-### Health and Dashboard
-
-| Method | Endpoint | Access | Description |
-|---|---|---|---|
-| `GET` | `/api/v1/health/` | Public | Check Clinic API health |
-| `GET` | `/api/v1/dashboard/` | Clinic staff or administrator | Get Clinic dashboard |
-
-### Student Integration
+### Health and dashboard
 
 | Method | Endpoint | Access | Description |
 |---|---|---|---|
-| `GET` | `/api/v1/students/` | Clinic staff or administrator | List students |
-| `GET` | `/api/v1/students/{student_id}/` | Clinic staff or administrator | Get student |
+| `GET` | `/api/v1/health` | Public | Health check |
+| `GET` | `/api/v1/dashboard/` | Clinic staff/admin | Dashboard summary |
 
-### Health Records
+### Registrar-backed student projection
 
 | Method | Endpoint | Access | Description |
 |---|---|---|---|
-| `GET` | `/api/v1/health-records/` | Clinic staff or administrator | List health records |
-| `POST` | `/api/v1/health-records/` | Clinic staff or administrator | Create health record |
-| `GET` | `/api/v1/health-records/{health_record_id}/` | Clinic staff or administrator | Get health record |
-| `PUT` | `/api/v1/health-records/{health_record_id}/` | Clinic staff or administrator | Replace health record |
-| `PATCH` | `/api/v1/health-records/{health_record_id}/` | Clinic staff or administrator | Partially update health record |
-| `DELETE` | `/api/v1/health-records/{health_record_id}/` | Clinic staff or administrator | Delete health record |
+| `GET` | `/api/v1/students/` | Clinic staff/admin | List students |
+| `GET` | `/api/v1/students/{student_id}/` | Clinic staff/admin | Get student |
+
+### Health records
+
+| Method | Endpoint | Access | Description |
+|---|---|---|---|
+| `GET` | `/api/v1/health-records/` | Clinic staff/admin | List |
+| `POST` | `/api/v1/health-records/` | Clinic staff/admin | Create |
+| `GET` | `/api/v1/health-records/{health_record_id}/` | Clinic staff/admin | Retrieve |
+| `PUT` | `/api/v1/health-records/{health_record_id}/` | Clinic staff/admin | Replace |
+| `PATCH` | `/api/v1/health-records/{health_record_id}/` | Clinic staff/admin | Partial update |
+| `DELETE` | `/api/v1/health-records/{health_record_id}/` | Clinic staff/admin | Delete |
 
 ### Consultations
 
 | Method | Endpoint | Access | Description |
 |---|---|---|---|
-| `GET` | `/api/v1/consultations/` | Clinic staff or administrator | List consultations |
-| `POST` | `/api/v1/consultations/` | Clinic staff or administrator | Create consultation |
-| `GET` | `/api/v1/consultations/{consultation_id}/` | Clinic staff or administrator | Get consultation |
-| `PUT` | `/api/v1/consultations/{consultation_id}/` | Clinic staff or administrator | Replace consultation |
-| `PATCH` | `/api/v1/consultations/{consultation_id}/` | Clinic staff or administrator | Partially update consultation |
-| `DELETE` | `/api/v1/consultations/{consultation_id}/` | Clinic staff or administrator | Delete consultation |
+| `GET` | `/api/v1/consultations/` | Clinic staff/admin | List |
+| `POST` | `/api/v1/consultations/` | Clinic staff/admin | Create |
+| `GET` | `/api/v1/consultations/{consultation_id}/` | Clinic staff/admin | Retrieve |
+| `PUT` | `/api/v1/consultations/{consultation_id}/` | Clinic staff/admin | Replace |
+| `PATCH` | `/api/v1/consultations/{consultation_id}/` | Clinic staff/admin | Partial update |
+| `DELETE` | `/api/v1/consultations/{consultation_id}/` | Clinic staff/admin | Delete |
 
-### Health Status
-
-| Method | Endpoint | Access | Description |
-|---|---|---|---|
-| `GET` | `/api/v1/health-statuses/` | Clinic staff or administrator | List health statuses |
-| `POST` | `/api/v1/health-statuses/` | Clinic staff or administrator | Create health status |
-| `GET` | `/api/v1/health-statuses/{status_id}/` | Clinic staff or administrator | Get health status |
-| `PUT` | `/api/v1/health-statuses/{status_id}/` | Clinic staff or administrator | Replace health status |
-| `PATCH` | `/api/v1/health-statuses/{status_id}/` | Clinic staff or administrator | Partially update health status |
-| `DELETE` | `/api/v1/health-statuses/{status_id}/` | Clinic staff or administrator | Delete health status |
-
-### Medicine Integration
+### Health statuses
 
 | Method | Endpoint | Access | Description |
 |---|---|---|---|
-| `GET` | `/api/v1/medicines/` | Clinic staff or administrator | List medicines |
-| `GET` | `/api/v1/medicines/{medicine_id}/` | Clinic staff or administrator | Get medicine |
+| `GET` | `/api/v1/health-statuses/` | Clinic staff/admin | List |
+| `POST` | `/api/v1/health-statuses/` | Clinic staff/admin | Create |
+| `GET` | `/api/v1/health-statuses/{status_id}/` | Clinic staff/admin | Retrieve |
+| `PUT` | `/api/v1/health-statuses/{status_id}/` | Clinic staff/admin | Replace |
+| `PATCH` | `/api/v1/health-statuses/{status_id}/` | Clinic staff/admin | Partial update |
+| `DELETE` | `/api/v1/health-statuses/{status_id}/` | Clinic staff/admin | Delete |
 
-### Medicine Dispensation
+### Inventory-backed medicine projection
 
 | Method | Endpoint | Access | Description |
 |---|---|---|---|
-| `GET` | `/api/v1/medicine-dispensations/` | Clinic staff or administrator | List medicine dispensations |
-| `POST` | `/api/v1/medicine-dispensations/` | Clinic staff or administrator | Dispense medicine |
-| `GET` | `/api/v1/medicine-dispensations/{dispensation_id}/` | Clinic staff or administrator | Get medicine dispensation |
-| `POST` | `/api/v1/medicine-dispensations/{dispensation_id}/rollback/` | Clinic staff or administrator | Roll back medicine dispensation |
+| `GET` | `/api/v1/medicines/` | Clinic staff/admin | List medicines |
+| `GET` | `/api/v1/medicines/{medicine_id}/` | Clinic staff/admin | Get medicine |
+
+### Medicine dispensations
+
+| Method | Endpoint | Access | Description |
+|---|---|---|---|
+| `GET` | `/api/v1/medicine-dispensations/` | Clinic staff/admin | List |
+| `POST` | `/api/v1/medicine-dispensations/` | Clinic staff/admin | Dispense medicine |
+| `GET` | `/api/v1/medicine-dispensations/{dispensation_id}/` | Clinic staff/admin | Retrieve |
+| `POST` | `/api/v1/medicine-dispensations/{dispensation_id}/rollback/` | Clinic staff/admin | Roll back |
 
 ### Reports
 
 | Method | Endpoint | Access | Description |
 |---|---|---|---|
-| `GET` | `/api/v1/reports/clinic-visits/` | Clinic staff or administrator | Get clinic visits report |
-| `GET` | `/api/v1/reports/health-records/` | Clinic staff or administrator | Get health records report |
-| `GET` | `/api/v1/reports/medicine-inventory/` | Clinic staff or administrator | Get medicine inventory report |
-| `GET` | `/api/v1/reports/medicine-dispensations/` | Clinic staff or administrator | Get medicine dispensations report |
+| `GET` | `/api/v1/reports/clinic-visits/` | Clinic staff/admin | Clinic visit report |
+| `GET` | `/api/v1/reports/health-records/` | Clinic staff/admin | Health-record report |
+| `GET` | `/api/v1/reports/medicine-inventory/` | Clinic staff/admin | Inventory projection report |
+| `GET` | `/api/v1/reports/medicine-dispensations/` | Clinic staff/admin | Dispensation report |
 
-### External Integration Projections
-
-| Method | Endpoint | Access | Description |
-|---|---|---|---|
-| `GET` | `/api/v1/integrations/faculty/health-status/{student_id}/` | Authenticated | Get student health status for Faculty |
-| `GET` | `/api/v1/integrations/student-portal/health-status/{student_id}/` | Authenticated | Get student health status for Student Portal |
-
-### User Management
+### External health-status projections
 
 | Method | Endpoint | Access | Description |
 |---|---|---|---|
-| `GET` | `/api/v1/users/` | Clinic administrator | List Clinic staff accounts |
-| `POST` | `/api/v1/users/` | Clinic administrator | Create Clinic staff account |
-| `GET` | `/api/v1/users/{user_id}/` | Clinic administrator | Get Clinic staff account |
-| `PUT` | `/api/v1/users/{user_id}/` | Clinic administrator | Update Clinic staff account |
-| `PATCH` | `/api/v1/users/{user_id}/` | Clinic administrator | Partially update Clinic staff account |
-| `POST` | `/api/v1/users/{user_id}/activate/` | Clinic administrator | Activate Clinic staff account |
-| `POST` | `/api/v1/users/{user_id}/deactivate/` | Clinic administrator | Deactivate Clinic staff account |
+| `GET` | `/api/v1/integrations/faculty/health-status/{student_id}/` | Authenticated | Faculty projection |
+| `GET` | `/api/v1/integrations/student-portal/health-status/{student_id}/` | Authenticated | Student Portal projection |
 
+### Clinic user management
+
+| Method | Endpoint | Access | Description |
+|---|---|---|---|
+| `GET` | `/api/v1/users/` | Clinic admin | List accounts |
+| `POST` | `/api/v1/users/` | Clinic admin | Create account |
+| `GET` | `/api/v1/users/{user_id}/` | Clinic admin | Retrieve account |
+| `PUT` | `/api/v1/users/{user_id}/` | Clinic admin | Replace account |
+| `PATCH` | `/api/v1/users/{user_id}/` | Clinic admin | Partial update |
+| `POST` | `/api/v1/users/{user_id}/activate/` | Clinic admin | Activate account |
+| `POST` | `/api/v1/users/{user_id}/deactivate/` | Clinic admin | Deactivate account |
 
 ---
 
+## 13. Problem Details and Validation
 
-## 12. Request and Response Conventions
+The API uses the project's Problem Details representation for standardized errors.
 
+Canonical fields include:
 
-The API uses JSON request and response bodies where applicable.
+- `type`;
+- `title`;
+- `status`;
+- `detail`;
+- `instance`;
+- `code`.
 
+Validated status categories include:
 
-Common conventions include:
+- `400 Bad Request`;
+- `401 Unauthorized`;
+- `403 Forbidden`;
+- `404 Not Found`;
+- `409 Conflict`;
+- `422 Unprocessable Entity`.
 
+Validation and integration errors are translated at the API boundary instead of exposing internal exceptions directly.
 
-- HTTP status codes
+---
 
-- JSON objects
+## 14. OpenAPI Contract
 
-- Explicit resource identifiers
-
-- ISO-formatted dates and timestamps
-
-- Pagination where configured
-
-- Structured validation errors
-
-- Problem Details responses for standardized API errors
-
-
-The authoritative endpoint schemas are defined in:
-
+Static contract:
 
 `openapi.yaml`
 
+Dynamic schema:
+
+`/api/schema/`
+
+Canonical Swagger UI:
+
+`/docs`
+
+Redoc:
+
+`/api/schema/redoc/`
+
+The generated contract uses the canonical local server:
+
+`http://127.0.0.1:8000`
+
+The current verified operation inventory is:
+
+- 29 paths;
+- 45 operations;
+- 3 public operations;
+- 42 protected operations.
+
+The three explicitly public operations are:
+
+- `GET /api/v1/health`;
+- `GET /api/auth/csrf/`;
+- `POST /api/auth/login/`.
+
+Static and dynamic operation inventories were verified to match.
+
+Both static and dynamic contracts passed Redocly validation during the integration verification.
 
 ---
 
+## 15. Automated Test and Postman Evidence
 
-## 13. Validation and Error Handling
+Canonical recorded evidence is in:
 
+`docs/TEST-EVIDENCE.md`
 
-The API supports standard HTTP error categories including:
+Current baseline:
 
-
-- `400 Bad Request`
-
-- `401 Unauthorized`
-
-- `403 Forbidden`
-
-- `404 Not Found`
-
-- `409 Conflict`
-
-- `422 Unprocessable Entity`
-
-
-Problem Details responses use structured fields such as:
-
-
-- `type`
-
-- `title`
-
-- `status`
-
-- `detail`
-
-- `instance`
-
-- `code`
-
-
-Validation errors are returned using structured JSON responses.
-
-
----
-
-
-## 14. CORS and CSRF
-
-
-### CORS
-
-
-The backend supports configured frontend origins.
-
-
-Credentialed cross-origin requests are enabled where configured.
-
-
-### CSRF
-
-
-Django's:
-
-
-`CsrfViewMiddleware`
-
-
-is enabled.
-
-
-Session-based state-changing requests require CSRF protection.
-
-
-The CSRF endpoint is:
-
-
-`GET /api/auth/csrf/`
-
-
----
-
-
-## 15. OpenAPI and API Documentation
-
-
-The API contract is stored in:
-
-
-`openapi.yaml`
-
-
-Current contract baseline:
-
-
-- OpenAPI version is read directly from the contract.
-
-- Documented paths and operations are read directly from the contract.
-
-
-Runtime documentation endpoints:
-
-
-```text
-
-/api/schema/
-
-/api/schema/swagger-ui/
-
-/api/schema/redoc/
-
-```
-
-
-The OpenAPI contract is the reference for API endpoint structure, schemas, parameters, responses, and authentication requirements.
-
-
----
-
-
-## 16. Postman and Automated Testing
-
-
-Current evidence recorded in `docs/TEST-EVIDENCE.md`:
-
-
-| Test Area | Result |
+| Test area | Result |
 |---|---:|
-| Permanent Django tests | 167 |
-| Permanent Django tests passed | 167 |
-| Permanent Django tests failed | 0 |
+| Django tests discovered | 167 |
+| Django tests passed | 167 |
+| Django tests failed | 0 |
 | Postman requests | 45 |
 | Newman requests executed | 45 |
-| Newman failed requests | 0 |
 | Newman assertions | 46 |
-| Newman failed assertions | 0 |
+| Newman failures | 0 |
 
+The Postman collection is:
 
-Test evidence should be updated whenever the implementation or API contract changes.
+`postman/IDSC-Clinic-System.postman_collection.json`
 
-
----
-
-
-## 17. Database Migrations
-
-
-Clinic migrations currently include:
-
-
-- `0001_initial.py`
-
-- `0002_alter_student_student_id.py`
-
-- `0003_canonical_clinic_domain.py`
-
-- `0004_enforce_healthrecord_student_id.py`
-
-- `0005_remove_legacy_healthrecord_height.py`
-
-
-Authentication migrations include:
-
-
-- `0001_create_clinic_roles.py`
-
-
-Migrations must remain version-controlled and must not be manually deleted or rewritten after being applied to shared environments.
-
+Before final merge, the complete automated suite, OpenAPI validation, Redocly lint, runtime Swagger checks, Problem Details checks, and Postman/Newman verification must be run again.
 
 ---
 
+## 16. Development Setup
 
-## 18. Development Setup
+The midterm does **not** require PostgreSQL to run Clinic business endpoints.
 
-Follow [SETUP.md](SETUP.md) for PostgreSQL setup, environment configuration, dependency installation, and initial account creation. The commands below assume you are in `backend`, the database is available, and your local environment is configured. Activate the virtual environment using its actual directory name; this example uses `.venv`.
+### Create/activate a Python environment
 
+Use a project virtual environment appropriate for your operating system.
 
-### Activate the virtual environment
+### Install midterm/backend dependencies
 
-
-From the backend directory:
-
-
-```powershell
-
-.\.venv\Scripts\Activate.ps1
-
-```
-
-
-### Install dependencies
-
+From the repository root:
 
 ```powershell
-
-pip install -r requirements.txt
-
+python -m pip install -r backend/requirements.txt
 ```
 
+### Enter the backend project
+
+```powershell
+Set-Location backend
+```
+
+### Apply Django framework migrations
+
+```powershell
+python manage.py migrate
+```
+
+These migrations support Django framework infrastructure and retain finals-oriented domain migration history. They do not change the fact that the active midterm Clinic business-data backend is `mock`.
 
 ### Run Django checks
 
-
 ```powershell
-
 python manage.py check
-
 ```
 
-
-### Apply migrations
-
+### Run the server
 
 ```powershell
-
-python manage.py migrate
-
-```
-
-
-### Run the development server
-
-
-```powershell
-
 python manage.py runserver 8000
-
 ```
 
+Backend:
 
-The backend is then available at:
+`http://127.0.0.1:8000/`
 
+Swagger:
 
-```text
+`http://127.0.0.1:8000/docs`
 
-http://127.0.0.1:8000/
+### Finals PostgreSQL dependencies
 
+For finals-oriented PostgreSQL work:
+
+```powershell
+python -m pip install -r requirements-finals.txt
 ```
 
+Use the documented database environment configuration only when intentionally switching to the finals database path.
+
+See `SETUP.md` for additional environment/setup information, but treat this README and the architecture decision records as authoritative for the current midterm mock-data policy.
 
 ---
 
+## 17. Frontend Status
 
-## 19. Verification Checklist
+The repository contains a React/Vite frontend scaffold.
 
+The currently committed implementation still contains starter React/Vite content and does **not** represent the final Clinic high-fidelity interface.
 
-Before considering a change complete, verify:
+The final frontend role requires the approved high-fidelity clickable Figma prototype and synchronized implementation.
 
+The repository design evidence currently includes:
 
-- [ ] Django checks pass
+- CSS custom properties;
+- system font stacks;
+- system-driven light/dark values;
+- a `1024px` responsive breakpoint;
+- basic hover/focus-visible interaction styling.
 
-- [ ] Relevant Django tests pass
+Do not present these starter styles as the completed Clinic design system.
 
-- [ ] OpenAPI contract remains valid
+See:
 
-- [ ] Endpoint behavior matches OpenAPI
-
-- [ ] Authentication behavior is verified
-
-- [ ] Permission behavior is verified
-
-- [ ] CSRF behavior is verified for session-based writes
-
-- [ ] CORS behavior is verified where applicable
-
-- [ ] Error responses remain structured
-
-- [ ] Database migrations are correct
-
-- [ ] No virtual-environment files are committed
-
-- [ ] No secrets are committed
-
-- [ ] Git status contains only intended changes
-
+`docs/design-system.md`
 
 ---
 
+## 18. Architecture Documentation
 
-## 20. Security and Data Integrity
+Detailed documentation is maintained under `docs/`.
 
+### Core documents
 
-Security-sensitive configuration must not be committed with real credentials.
+- [`docs/architecture.md`](docs/architecture.md) — backend boundaries, layering, runtime architecture, and midterm/finals separation.
+- [`docs/data-model.md`](docs/data-model.md) — Clinic resource definitions, identifiers, choices, and external references.
+- [`docs/integration.md`](docs/integration.md) — Registrar, Inventory, Faculty, Student Portal, compensation, rollback, and trust boundaries.
+- [`docs/design-system.md`](docs/design-system.md) — verified frontend styling evidence and Figma synchronization contract.
+- [`docs/TEST-EVIDENCE.md`](docs/TEST-EVIDENCE.md) — recorded automated/API validation evidence.
 
+### Architecture Decision Records
 
-Committed repository files must not contain:
-
-
-- Real passwords
-
-- Production secret keys
-
-- Private credentials
-
-- Local virtual environments
-
-- Generated cache files
-
-- Python bytecode
-
-
-Session authentication and CSRF protection must remain enabled for the applicable application flows.
-
-
-External master data must remain owned by its responsible CMS module.
-
+- [`ADR 0001`](docs/decisions/0001-midterm-mock-domain-data.md) — mock in-memory Clinic domain data for the midterm.
+- [`ADR 0002`](docs/decisions/0002-domain-ownership-and-external-identifiers.md) — module ownership and external identifiers.
+- [`ADR 0003`](docs/decisions/0003-service-repository-layering.md) — routes/views to services to data-layer architecture.
+- [`ADR 0004`](docs/decisions/0004-session-authentication-csrf-and-cors.md) — session authentication, CSRF, and credentialed CORS.
+- [`ADR 0005`](docs/decisions/0005-openapi-health-and-documentation-contract.md) — canonical OpenAPI, health, and Swagger contracts.
+- [`ADR 0006`](docs/decisions/0006-clean-integration-and-pr-only-main.md) — clean Phase 7-based integration and PR-only `main`.
 
 ---
 
+## 19. Git and Integration Rules
 
-## 21. Development Rules
+The canonical source branch to preserve is:
 
+`phase7/tests-contract-validation`
 
-### Repository rules
+The clean integration branch is:
 
+`fix/pre-main-integration`
 
-- Work on feature or integration branches.
+Rules:
 
-- Do not merge unfinished work into `main`.
+1. Do not merge legacy feature branches wholesale into `main`.
+2. Do not push directly to `main`.
+3. Do not force-push the integration branch as part of normal workflow.
+4. Preserve meaningful commit history.
+5. Review staged content before committing.
+6. Merge to `main` only through a reviewed Pull Request.
+7. Require final validation gates before merge.
+8. Preserve canonical Phase 7 until the reviewed integration is complete.
 
-- Keep commit history meaningful.
-
-- Review staged content before committing.
-
-
-### API rules
-
-
-- Keep `/api/v1/` as the business API namespace.
-
-- Keep `/api/auth/` for authentication endpoints.
-
-- Update OpenAPI when endpoint behavior changes.
-
-- Do not silently change response contracts.
-
-
-### Domain rules
-
-
-- Registrar owns student identity.
-
-- Inventory owns medicine stock.
-
-- Clinic owns health records, consultations, health statuses, and medicine dispensations.
-
-- Student Portal and Faculty receive read-only health-status projections.
-
-
-### Security rules
-
-
-- Protected operations require authentication.
-
-- Permissions must be explicit.
-
-- CSRF protection must not be bypassed casually.
-
-- CORS must remain explicitly configured.
-
+Legacy feature branches are historical/reference branches according to the integration baseline and should not be treated as current canonical implementations.
 
 ---
 
+## 20. Final Merge Gates
 
-## 22. Current Project Status
+Before the integration Pull Request can merge to `main`, verify all of the following:
 
-
-### API Contract
-
-
-- OpenAPI contract present.
-
-- API paths and operations are derived from the current `openapi.yaml`.
-
-- Public and protected operations are derived from the contract.
-
-
-### Testing Evidence
-
-
-- Permanent Django tests: 167
-
-- Passed: 167
-
-- Failed: 0
-
-- Postman requests: 45
-
-- Newman requests executed: 45
-
-- Newman failures: 0
-
-- Newman assertions: 46
-
-- Newman failed assertions: 0
-
-
-### Documentation State
-
-
-This README is generated from the current OpenAPI contract and test-evidence file.
-
-
-It should be regenerated when the API contract or verification baseline changes.
-
+- [ ] full Django automated tests pass;
+- [ ] `python manage.py check` passes;
+- [ ] migration drift check passes;
+- [ ] static OpenAPI validates;
+- [ ] dynamic OpenAPI generates and validates;
+- [ ] static/dynamic operation inventory matches;
+- [ ] Redocly static lint passes;
+- [ ] Redocly dynamic lint passes;
+- [ ] `/api/v1/health` returns exactly `{ "status": "ok" }`;
+- [ ] Swagger `/docs` works;
+- [ ] Problem Details behavior is verified;
+- [ ] Postman/Newman collection is verified;
+- [ ] documentation is synchronized;
+- [ ] `main` branch protection is enabled as required;
+- [ ] teammate PR approval is obtained.
 
 ---
 
+## 21. Security and Data Integrity Rules
 
-**Source of truth files**
+- Do not commit real passwords or production credentials.
+- Do not commit local virtual environments.
+- Do not commit generated Python cache/bytecode.
+- Keep session authentication enabled for protected browser flows.
+- Keep CSRF protection enabled.
+- Keep credentialed CORS restricted to intentional origins.
+- Keep public operations explicitly public rather than weakening global permissions.
+- Preserve module domain ownership.
+- Do not treat external identifiers as shared-database ownership.
+- Do not bypass `ClinicService` to persist Clinic business data directly from views.
 
+---
+
+## 22. Current Documentation Status
+
+The previously missing integration documentation set is now present in the working integration documentation sequence:
+
+- `docs/architecture.md`;
+- `docs/data-model.md`;
+- `docs/integration.md`;
+- `docs/design-system.md`;
+- `docs/decisions/`.
+
+These files must be validated and committed together only after README synchronization and documentation-quality checks pass.
+
+---
+
+## 23. Source-of-Truth Files
+
+Primary implementation/contract sources:
 
 - `openapi.yaml`
-
+- `redocly.yaml`
+- `backend/config/settings.py`
+- `backend/config/urls.py`
+- `backend/config/schema.py`
+- `backend/clinic/urls.py`
+- `backend/clinic/views.py`
+- `backend/clinic/services/clinic.py`
+- `backend/clinic/services/registrar.py`
+- `backend/clinic/services/inventory.py`
+- `backend/clinic/data/clinic.py`
+- `backend/authentication/`
 - `docs/TEST-EVIDENCE.md`
 
-- `backend/config/settings.py`
+Primary architecture documentation:
 
-- `backend/clinic/models.py`
+- `docs/architecture.md`
+- `docs/data-model.md`
+- `docs/integration.md`
+- `docs/design-system.md`
+- `docs/decisions/`
 
-- `backend/clinic/views.py`
-
-- `backend/authentication/`
+When implementation, API contract, test evidence, or approved frontend design changes materially, synchronize the relevant documentation in the same reviewed workflow.
