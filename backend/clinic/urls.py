@@ -66,10 +66,14 @@ urlpatterns = [
         name="health",
     ),
 
-    # Backward-compatible trailing-slash alias.
+    # Backward-compatible trailing-slash runtime alias.
+    #
+    # The canonical OpenAPI path is /api/v1/health.
+    # schema=None keeps this compatibility route functional
+    # without duplicating the canonical operation in OpenAPI.
     path(
         "health/",
-        HealthView.as_view(),
+        HealthView.as_view(schema=None),
         name="health-slash",
     ),
 

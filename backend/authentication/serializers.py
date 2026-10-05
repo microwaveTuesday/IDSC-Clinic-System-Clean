@@ -12,6 +12,56 @@ ROLE_ADMIN = "ADMIN"
 ROLE_STAFF = "STAFF"
 
 
+# ---------------------------------------------------------------------------
+# Authentication/session API schema serializers
+# ---------------------------------------------------------------------------
+
+
+class CsrfTokenResponseSerializer(serializers.Serializer):
+    csrfToken = serializers.CharField(
+        read_only=True
+    )
+
+
+class LoginRequestSerializer(serializers.Serializer):
+    username = serializers.CharField()
+    password = serializers.CharField(
+        write_only=True,
+        trim_whitespace=False,
+    )
+
+
+class SessionUserSerializer(serializers.Serializer):
+    id = serializers.IntegerField(
+        read_only=True
+    )
+    username = serializers.CharField(
+        read_only=True
+    )
+    email = serializers.EmailField(
+        read_only=True,
+        allow_blank=True,
+    )
+    is_staff = serializers.BooleanField(
+        read_only=True
+    )
+
+
+class LoginResponseSerializer(serializers.Serializer):
+    message = serializers.CharField(
+        read_only=True
+    )
+    user = SessionUserSerializer(
+        read_only=True
+    )
+
+
+class MessageResponseSerializer(serializers.Serializer):
+    message = serializers.CharField(
+        read_only=True
+    )
+
+
 def get_user_role(user):
     if user.is_superuser:
         return ROLE_ADMIN
@@ -46,7 +96,7 @@ class ClinicUserSerializer(serializers.ModelSerializer):
             "is_active",
         ]
 
-    def get_role(self, obj):
+    def get_role(self, obj) -> str | None:
         return get_user_role(obj)
 
 

@@ -261,6 +261,21 @@ SPECTACULAR_SETTINGS = {
     'SERVE_INCLUDE_SCHEMA': False,
     'COMPONENT_SPLIT_REQUEST': True,
     'SCHEMA_PATH_PREFIX': r'/api/',
+
+    # Canonical local development server.
+    'SERVERS': [
+        {
+            'url': 'http://127.0.0.1:8000',
+            'description': 'Local Django development server',
+        },
+    ],
+
+    # Preserve drf-spectacular's enum postprocessing and then
+    # normalize project-level OpenAPI documentation metadata.
+    'POSTPROCESSING_HOOKS': [
+        'drf_spectacular.hooks.postprocess_schema_enums',
+        'config.schema.postprocess_openapi_metadata',
+    ],
 }
 
 

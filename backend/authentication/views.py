@@ -8,6 +8,8 @@ from rest_framework.decorators import api_view, permission_classes
 from rest_framework.permissions import AllowAny, IsAuthenticated
 from rest_framework.response import Response
 from rest_framework.views import APIView
+from drf_spectacular.utils import extend_schema
+
 from clinic.exceptions import ConflictError
 from rest_framework.exceptions import NotFound
 
@@ -15,13 +17,21 @@ from rest_framework.exceptions import NotFound
 
 from .permissions import IsClinicAdmin
 from .serializers import (
+    CLINIC_STAFF,
     ClinicUserSerializer,
+    CsrfTokenResponseSerializer,
+    LoginRequestSerializer,
+    LoginResponseSerializer,
+    MessageResponseSerializer,
+    SessionUserSerializer,
     StaffCreateSerializer,
     StaffUpdateSerializer,
-    CLINIC_STAFF,
 )
 
 
+@extend_schema(
+    responses=CsrfTokenResponseSerializer,
+)
 @api_view(["GET"])
 @permission_classes([AllowAny])
 def csrf_token(request):
@@ -35,6 +45,10 @@ def csrf_token(request):
     })
 
 
+@extend_schema(
+    request=LoginRequestSerializer,
+    responses=LoginResponseSerializer,
+)
 @api_view(["POST"])
 @permission_classes([AllowAny])
 @csrf_protect
@@ -83,6 +97,10 @@ def login_view(request):
     )
 
 
+@extend_schema(
+    request=None,
+    responses=MessageResponseSerializer,
+)
 @api_view(["POST"])
 @permission_classes([IsAuthenticated])
 def logout_view(request):
@@ -99,6 +117,9 @@ def logout_view(request):
     )
 
 
+@extend_schema(
+    responses=SessionUserSerializer,
+)
 @api_view(["GET"])
 @permission_classes([IsAuthenticated])
 def me_view(request):
@@ -194,6 +215,10 @@ class StaffDetailView(RetrieveUpdateAPIView):
 class StaffDeactivateView(APIView):
     permission_classes = [IsClinicAdmin]
 
+    @extend_schema(
+        request=None,
+        responses=ClinicUserSerializer,
+    )
     def post(self, request, user_id):
         try:
             user = User.objects.get(
@@ -221,6 +246,10 @@ class StaffDeactivateView(APIView):
 class StaffActivateView(APIView):
     permission_classes = [IsClinicAdmin]
 
+    @extend_schema(
+        request=None,
+        responses=ClinicUserSerializer,
+    )
     def post(self, request, user_id):
         try:
             user = User.objects.get(

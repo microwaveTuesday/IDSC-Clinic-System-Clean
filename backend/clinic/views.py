@@ -32,15 +32,28 @@ from rest_framework.response import Response
 from rest_framework import status, viewsets
 from rest_framework.views import APIView
 from rest_framework.permissions import IsAuthenticated
+from drf_spectacular.types import OpenApiTypes
+from drf_spectacular.utils import (
+    OpenApiParameter,
+    extend_schema,
+    extend_schema_view,
+)
 
 from .serializers import (
+    ClinicVisitsReportSerializer,
     ConsultationSerializer,
     DashboardSerializer,
+    HealthCheckSerializer,
     HealthRecordSerializer,
+    HealthRecordsReportSerializer,
     HealthStatusProjectionSerializer,
     HealthStatusSerializer,
+    MedicineDispensationReportSerializer,
     MedicineDispensationSerializer,
+    MedicineInventoryReportSerializer,
     MedicineSerializer,
+    PaginatedMedicineSerializer,
+    PaginatedStudentSerializer,
     StudentSerializer,
 )
 from .services.clinic import (
@@ -61,6 +74,34 @@ from .services.registrar import (
     StudentUnavailableError,
     registrar_service,
 )
+
+# ---------------------------------------------------------------------------
+# OpenAPI schema helpers
+# ---------------------------------------------------------------------------
+
+
+def _int64_path_schema(
+    parameter_name,
+    description,
+):
+    """
+    Build a method-level OpenAPI override for a Clinic-owned
+    BigAutoField resource identifier.
+
+    This changes schema metadata only. Runtime routing is unchanged.
+    """
+    return extend_schema(
+        parameters=[
+            OpenApiParameter(
+                name=parameter_name,
+                type=OpenApiTypes.INT64,
+                location=OpenApiParameter.PATH,
+                required=True,
+                description=description,
+            )
+        ]
+    )
+
 
 # HTTP 422 exception for business-rule failures handled by the canonical Problem Details exception handler
 class UnprocessableEntity(APIException):
@@ -134,6 +175,10 @@ class HealthView(APIView):
     authentication_classes = []
     permission_classes = []
 
+    @extend_schema(
+        operation_id="clinic_health_check",
+        responses=HealthCheckSerializer,
+    )
     def get(self, request):
         return Response({"status": "ok"})
 
@@ -155,6 +200,9 @@ class DashboardView(APIView):
 
     RECENT_ACTIVITY_LIMIT = 10
 
+    @extend_schema(
+        responses=DashboardSerializer,
+    )
     def get(self, request):
         students = registrar_service.list_students()
         medicines = inventory_service.list_medicines()
@@ -208,6 +256,9 @@ class ClinicVisitsReportView(APIView):
     Optional date_from and date_to filters are inclusive.
     """
 
+    @extend_schema(
+        responses=ClinicVisitsReportSerializer,
+    )
     def get(self, request):
         date_from_raw = request.query_params.get(
             "date_from",
@@ -266,6 +317,9 @@ class HealthRecordsReportView(APIView):
     Optional date_from and date_to filters are inclusive.
     """
 
+    @extend_schema(
+        responses=HealthRecordsReportSerializer,
+    )
     def get(self, request):
         date_from_raw = request.query_params.get(
             "date_from",
@@ -326,6 +380,9 @@ class MedicineInventoryReportView(APIView):
     by this report.
     """
 
+    @extend_schema(
+        responses=MedicineInventoryReportSerializer,
+    )
     def get(self, request):
         low_stock_raw = request.query_params.get("low_stock")
         status_filter = request.query_params.get("status")
@@ -393,6 +450,9 @@ class MedicineDispensationReportView(APIView):
     Report derived from Clinic-owned medicine-dispensation mock data.
     """
 
+    @extend_schema(
+        responses=MedicineDispensationReportSerializer,
+    )
     def get(self, request):
         date_from_raw = request.query_params.get(
             "date_from",
@@ -473,6 +533,10 @@ class StudentListView(APIView):
     Clinic does not create, update, or delete students.
     """
 
+    @extend_schema(
+        operation_id="clinic_student_list",
+        responses=PaginatedStudentSerializer,
+    )
     def get(self, request):
         search = request.query_params.get("search")
         student_status = request.query_params.get("status")
@@ -497,6 +561,10 @@ class StudentDetailView(APIView):
     permission_classes = [IsClinicStaff]
     """Retrieve one student from the Registrar boundary."""
 
+    @extend_schema(
+        operation_id="clinic_student_retrieve",
+        responses=StudentSerializer,
+    )
     def get(self, request, student_id):
         try:
             student = registrar_service.get_student(student_id)
@@ -509,6 +577,24 @@ class StudentDetailView(APIView):
 # ---------------------------------------------------------------------------
 # Clinic-owned resources
 # ---------------------------------------------------------------------------
+@extend_schema_view(
+    retrieve=_int64_path_schema(
+        "health_record_id",
+        "Clinic-owned health record identifier.",
+    ),
+    update=_int64_path_schema(
+        "health_record_id",
+        "Clinic-owned health record identifier.",
+    ),
+    partial_update=_int64_path_schema(
+        "health_record_id",
+        "Clinic-owned health record identifier.",
+    ),
+    destroy=_int64_path_schema(
+        "health_record_id",
+        "Clinic-owned health record identifier.",
+    ),
+)
 class HealthRecordViewSet(viewsets.ViewSet):
     permission_classes = [IsClinicStaff]
     """
@@ -710,6 +796,24 @@ class HealthRecordViewSet(viewsets.ViewSet):
         )
 
 
+@extend_schema_view(
+    retrieve=_int64_path_schema(
+        "consultation_id",
+        "Clinic-owned consultation identifier.",
+    ),
+    update=_int64_path_schema(
+        "consultation_id",
+        "Clinic-owned consultation identifier.",
+    ),
+    partial_update=_int64_path_schema(
+        "consultation_id",
+        "Clinic-owned consultation identifier.",
+    ),
+    destroy=_int64_path_schema(
+        "consultation_id",
+        "Clinic-owned consultation identifier.",
+    ),
+)
 class ConsultationViewSet(viewsets.ViewSet):
     permission_classes = [IsClinicStaff]
     """CRUD controller for Clinic consultation mock resources."""
@@ -922,6 +1026,24 @@ class ConsultationViewSet(viewsets.ViewSet):
         )
 
 
+@extend_schema_view(
+    retrieve=_int64_path_schema(
+        "status_id",
+        "Clinic-owned health status identifier.",
+    ),
+    update=_int64_path_schema(
+        "status_id",
+        "Clinic-owned health status identifier.",
+    ),
+    partial_update=_int64_path_schema(
+        "status_id",
+        "Clinic-owned health status identifier.",
+    ),
+    destroy=_int64_path_schema(
+        "status_id",
+        "Clinic-owned health status identifier.",
+    ),
+)
 class HealthStatusViewSet(viewsets.ViewSet):
     permission_classes = [IsClinicStaff]
     """CRUD controller for Clinic-owned HealthStatus mock resources."""
@@ -1138,6 +1260,10 @@ class MedicineListView(APIView):
     permission_classes = [IsClinicStaff]
     """Read-only medicine/stock projection backed by Inventory."""
 
+    @extend_schema(
+        operation_id="clinic_medicine_list",
+        responses=PaginatedMedicineSerializer,
+    )
     def get(self, request):
         search = request.query_params.get("search")
         low_stock = request.query_params.get("low_stock")
@@ -1187,6 +1313,10 @@ class MedicineDetailView(APIView):
     permission_classes = [IsClinicStaff]
     """Retrieve one medicine from the Inventory boundary."""
 
+    @extend_schema(
+        operation_id="clinic_medicine_retrieve",
+        responses=MedicineSerializer,
+    )
     def get(self, request, medicine_id):
         try:
             medicine = inventory_service.get_medicine(medicine_id)
@@ -1199,6 +1329,16 @@ class MedicineDetailView(APIView):
 # ---------------------------------------------------------------------------
 # Medicine dispensing
 # ---------------------------------------------------------------------------
+@extend_schema_view(
+    retrieve=_int64_path_schema(
+        "dispensation_id",
+        "Clinic-owned medicine dispensation identifier.",
+    ),
+    rollback=_int64_path_schema(
+        "dispensation_id",
+        "Clinic-owned medicine dispensation identifier.",
+    ),
+)
 class MedicineDispensationViewSet(viewsets.ViewSet):
     permission_classes = [IsClinicStaff]
     """
@@ -1428,6 +1568,9 @@ class HealthStatusIntegrationView(APIView):
     controller. Clinic-owned status data is read through ClinicService.
     """
 
+    @extend_schema(
+        responses=HealthStatusProjectionSerializer,
+    )
     def get(self, request, student_id):
         try:
             health_status = (

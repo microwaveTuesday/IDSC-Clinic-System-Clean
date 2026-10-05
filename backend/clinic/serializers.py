@@ -283,7 +283,10 @@ class HealthStatusProjectionSerializer(serializers.Serializer):
 
     student_id = serializers.CharField(read_only=True)
     status = serializers.CharField(read_only=True)
-    remarks = serializers.CharField(read_only=True)
+    remarks = serializers.CharField(
+        read_only=True,
+        allow_null=True,
+    )
     effective_at = serializers.DateTimeField(
         read_only=True,
         allow_null=True,
@@ -307,6 +310,104 @@ class RecentActivitySerializer(serializers.Serializer):
 class DashboardSerializer(serializers.Serializer):
     summary = DashboardSummarySerializer(read_only=True)
     recent_activity = RecentActivitySerializer(
+        many=True,
+        read_only=True,
+    )
+
+
+# ---------------------------------------------------------------------------
+# Explicit API response-envelope serializers
+# ---------------------------------------------------------------------------
+
+
+class HealthCheckSerializer(serializers.Serializer):
+    status = serializers.CharField(
+        read_only=True
+    )
+
+
+class ClinicVisitsReportSerializer(serializers.Serializer):
+    total_visits = serializers.IntegerField(
+        read_only=True
+    )
+    results = ConsultationSerializer(
+        many=True,
+        read_only=True,
+    )
+
+
+class HealthRecordsReportSerializer(serializers.Serializer):
+    total_health_records = serializers.IntegerField(
+        read_only=True
+    )
+    results = HealthRecordSerializer(
+        many=True,
+        read_only=True,
+    )
+
+
+class MedicineInventoryReportSerializer(serializers.Serializer):
+    total_medicines = serializers.IntegerField(
+        read_only=True
+    )
+    total_stock = serializers.IntegerField(
+        read_only=True
+    )
+    low_stock_medicines = serializers.IntegerField(
+        read_only=True
+    )
+    results = MedicineSerializer(
+        many=True,
+        read_only=True,
+    )
+
+
+class MedicineDispensationReportSerializer(serializers.Serializer):
+    total_dispensations = serializers.IntegerField(
+        read_only=True
+    )
+    total_quantity_dispensed = serializers.IntegerField(
+        read_only=True
+    )
+    results = MedicineDispensationSerializer(
+        many=True,
+        read_only=True,
+    )
+
+
+class PaginatedStudentSerializer(serializers.Serializer):
+    count = serializers.IntegerField(
+        read_only=True
+    )
+    page = serializers.IntegerField(
+        read_only=True
+    )
+    page_size = serializers.IntegerField(
+        read_only=True
+    )
+    total_pages = serializers.IntegerField(
+        read_only=True
+    )
+    results = StudentSerializer(
+        many=True,
+        read_only=True,
+    )
+
+
+class PaginatedMedicineSerializer(serializers.Serializer):
+    count = serializers.IntegerField(
+        read_only=True
+    )
+    page = serializers.IntegerField(
+        read_only=True
+    )
+    page_size = serializers.IntegerField(
+        read_only=True
+    )
+    total_pages = serializers.IntegerField(
+        read_only=True
+    )
+    results = MedicineSerializer(
         many=True,
         read_only=True,
     )
