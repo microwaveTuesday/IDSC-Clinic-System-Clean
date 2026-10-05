@@ -125,18 +125,17 @@ def postprocess_openapi_metadata(
                 "summary"
             ] = summary
 
-            if "security" not in operation:
-
-                if key not in PUBLIC_OPERATIONS:
-                    raise RuntimeError(
-                        "Non-public operation has no "
-                        "OpenAPI security declaration: "
-                        f"{method.upper()} {path}."
-                    )
-
+            if key in PUBLIC_OPERATIONS:
                 operation[
                     "security"
                 ] = []
+
+            elif "security" not in operation:
+                raise RuntimeError(
+                    "Non-public operation has no "
+                    "OpenAPI security declaration: "
+                    f"{method.upper()} {path}."
+                )
 
             seen.add(
                 key
