@@ -56,3 +56,41 @@ class ClinicPagination(PageNumberPagination):
                 "results": data,
             }
         )
+
+    def get_paginated_response_schema(self, schema):
+        """Describe the canonical Clinic pagination response schema."""
+        return {
+            "type": "object",
+            "additionalProperties": False,
+            "required": [
+                "count",
+                "page",
+                "page_size",
+                "total_pages",
+                "results",
+            ],
+            "properties": {
+                "count": {
+                    "type": "integer",
+                    "minimum": 0,
+                    "example": 1,
+                },
+                "page": {
+                    "type": "integer",
+                    "minimum": 1,
+                    "example": 1,
+                },
+                "page_size": {
+                    "type": "integer",
+                    "minimum": 1,
+                    "maximum": 100,
+                    "example": 20,
+                },
+                "total_pages": {
+                    "type": "integer",
+                    "minimum": 0,
+                    "example": 1,
+                },
+                "results": schema,
+            },
+        }

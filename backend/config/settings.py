@@ -258,6 +258,7 @@ SPECTACULAR_SETTINGS = {
         'vital signs, medical histories, and allergies.'
     ),
     'VERSION': '1.0.0',
+    'OAS_VERSION': '3.1.0',
     'SERVE_INCLUDE_SCHEMA': False,
     'COMPONENT_SPLIT_REQUEST': True,
     'SCHEMA_PATH_PREFIX': r'/api/',
