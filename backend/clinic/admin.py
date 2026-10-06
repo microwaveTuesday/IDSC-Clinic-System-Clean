@@ -1,111 +1,110 @@
 """
-Django Admin configuration for IDSC Clinic System.
-Registers Student and HealthRecord models with rich list displays, filters, search, and inlines.
+Django admin configuration for Clinic-owned domain models.
+
+Student and medicine master data are not registered here because they are
+owned by the Registrar and Inventory systems respectively.
 """
 
 from django.contrib import admin
-from .models import Student, HealthRecord
 
-
-class HealthRecordInline(admin.TabularInline):
-    """Inline view of Health Records inside Student admin change page."""
-    model = HealthRecord
-    extra = 0
-    fields = ('health_id', 'visit', 'blood_type', 'weight', 'height', 'allergies', 'consultation')
-    readonly_fields = ('health_id', 'created_at', 'updated_at')
-    ordering = ('-visit',)
-
-
-@admin.register(Student)
-class StudentAdmin(admin.ModelAdmin):
-    """Admin configuration for Student model."""
-    list_display = (
-        'student_id',
-        'first_name',
-        'last_name',
-        'course',
-        'section',
-        'sex',
-        'contact_no',
-        'birth_date',
-        'created_at',
-    )
-    list_filter = (
-        'course',
-        'section',
-        'sex',
-    )
-    search_fields = (
-        'student_id',
-        'first_name',
-        'last_name',
-        'course',
-        'section',
-        'contact_no',
-    )
-    ordering = ('student_id',)
-    inlines = [HealthRecordInline]
-    fieldsets = (
-        ('Student Identity', {
-            'fields': ('student_id', 'first_name', 'last_name')
-        }),
-        ('Academic Details', {
-            'fields': ('course', 'section')
-        }),
-        ('Personal & Contact Information', {
-            'fields': ('birth_date', 'sex', 'contact_no')
-        }),
-        ('Timestamps', {
-            'fields': ('created_at', 'updated_at'),
-            'classes': ('collapse',)
-        }),
-    )
-    readonly_fields = ('student_id', 'created_at', 'updated_at')
+from .models import (
+    Consultation,
+    HealthRecord,
+    HealthStatus,
+    MedicineDispensation,
+)
 
 
 @admin.register(HealthRecord)
 class HealthRecordAdmin(admin.ModelAdmin):
-    """Admin configuration for HealthRecord model."""
     list_display = (
-        'health_id',
-        'student',
-        'blood_type',
-        'visit',
-        'weight',
-        'height',
-        'created_at',
+        "health_record_id",
+        "student_id",
+        "blood_type",
+        "height_cm",
+        "weight_kg",
+        "created_at",
+        "updated_at",
     )
-    list_filter = (
-        'blood_type',
-        'visit',
+    list_filter = ("blood_type",)
+    search_fields = (
+        "student_id",
+        "allergies",
+        "medical_history",
+        "current_medications",
+    )
+    ordering = ("-created_at", "-health_record_id")
+    readonly_fields = ("created_at", "updated_at")
+
+
+@admin.register(Consultation)
+class ConsultationAdmin(admin.ModelAdmin):
+    list_display = (
+        "consultation_id",
+        "student_id",
+        "chief_complaint",
+        "consulted_at",
     )
     search_fields = (
-        'student__student_id',
-        'student__first_name',
-        'student__last_name',
-        'blood_type',
-        'allergies',
-        'medication',
-        'consultation',
+        "student_id",
+        "chief_complaint",
+        "assessment",
+        "treatment",
+        "notes",
     )
-    ordering = ('-visit', '-health_id')
-    raw_id_fields = ('student',)
-    fieldsets = (
-        ('Student Reference', {
-            'fields': ('student',)
-        }),
-        ('Visit Information', {
-            'fields': ('visit',)
-        }),
-        ('Vitals & Physical Stats', {
-            'fields': ('weight', 'height', 'blood_type')
-        }),
-        ('Medical Information', {
-            'fields': ('allergies', 'medical_history', 'medication', 'consultation')
-        }),
-        ('Timestamps', {
-            'fields': ('created_at', 'updated_at'),
-            'classes': ('collapse',)
-        }),
+    ordering = ("-consulted_at", "-consultation_id")
+    readonly_fields = (
+        "consulted_at",
+        "created_at",
+        "updated_at",
     )
-    readonly_fields = ('created_at', 'updated_at')
+
+
+@admin.register(HealthStatus)
+class HealthStatusAdmin(admin.ModelAdmin):
+    list_display = (
+        "status_id",
+        "student_id",
+        "status",
+        "effective_at",
+    )
+    list_filter = ("status",)
+    search_fields = (
+        "student_id",
+        "remarks",
+    )
+    ordering = ("-effective_at", "-status_id")
+    readonly_fields = (
+        "effective_at",
+        "created_at",
+        "updated_at",
+    )
+
+
+@admin.register(MedicineDispensation)
+class MedicineDispensationAdmin(admin.ModelAdmin):
+    list_display = (
+        "dispensation_id",
+        "student_id",
+        "medicine_id",
+        "quantity",
+        "status",
+        "inventory_transaction_id",
+        "dispensed_at",
+    )
+    list_filter = ("status",)
+    search_fields = (
+        "student_id",
+        "medicine_id",
+        "inventory_transaction_id",
+        "rollback_transaction_id",
+        "reason",
+    )
+    ordering = ("-dispensed_at", "-dispensation_id")
+    readonly_fields = (
+        "inventory_transaction_id",
+        "rollback_transaction_id",
+        "dispensed_at",
+        "rolled_back_at",
+        "created_at",
+    )

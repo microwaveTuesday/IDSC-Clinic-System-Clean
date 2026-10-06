@@ -1,581 +1,809 @@
 # IDSC Clinic System
 
-IDSC Clinic System is a web-based system designed to streamline clinic operations by reducing manual work, organizing clinic processes, and making it easier for clinic workers to efficiently manage their daily tasks.
+The **IDSC Clinic System** is the Clinic module of the class College Management System (CMS).
+
+The backend manages Clinic-owned medical data and coordinates API-level integrations with Registrar, Inventory, Faculty, and Student Portal while preserving each module's domain ownership.
+
+This README describes the verified integration state on `fix/pre-main-integration`.
 
 ---
 
-## 1. Project Overview
+## 1. Verified Project Baseline
 
-The **IDSC Clinic System** provides a centralized digital platform for managing student health records, consultations, physical measurements, and clinic visit histories.
+| Item | Verified value |
+|---|---|
+| Business API namespace | `/api/v1/` |
+| Authentication namespace | `/api/auth/` |
+| Canonical health endpoint | `GET /api/v1/health` |
+| Canonical health response | `{ "status": "ok" }` |
+| Dynamic OpenAPI schema | `/api/schema/` |
+| Canonical Swagger UI | `/docs` |
+| ReDoc | `/api/schema/redoc/` |
+| OpenAPI version | `3.1.0` |
+| Documented API paths | `29` |
+| Documented API operations | `45` |
+| Public operations | `3` |
+| Protected operations | `42` |
+| Permanent Django tests | `167` |
+| Permanent Django tests passed | `167` |
+| Permanent Django tests failed | `0` |
+| Postman requests | `45` |
+| Newman requests executed | `45` |
+| Newman assertions | `46` |
+| Newman failures | `0` |
 
-### Core Objectives
-* **Streamline Clinic Operations**: Eliminates paper-based clinic record keeping and manual logs.
-* **Organize Student Medical Data**: Stores student profiles alongside chronological health records, vital stats, allergies, and consultation notes.
-* **Efficient Lookup & History**: Enables clinic staff to search students by name, course, or section, and inspect visit histories instantly.
+The canonical static API contract is `openapi.yaml`.
 
-### Component Responsibilities
-* **Backend (`backend/`)**: Built with Python and Django 6.1, exposing a RESTful JSON API using Django REST Framework (DRF). Handles business logic, input validation, relationship integrity, and database operations via Django ORM.
-* **REST API (`/api/`)**: Provides CRUD endpoints for Students and Health Records, plus nested relationship endpoints for querying and creating records tied to specific students.
-* **PostgreSQL (`clinic_db`)**: The relational database management system running in a Docker container (`clinic-postgres`). Enforces table constraints, foreign keys, database indexes, and auto-incrementing primary keys.
-* **Django Admin (`/admin/`)**: Built-in administrative back-office portal with tabular inlines, multi-field search, and filtering for authorized clinic personnel.
-* **Frontend (`frontend/`)**: Single-page application built with React 19 and Vite, designed to consume the backend REST API over HTTP/CORS.
+The canonical runtime Swagger UI is `/docs`. The older `/api/schema/swagger-ui/` route remains only as a backward-compatible runtime alias.
+
+The canonical health operation is `/api/v1/health` without a trailing slash. A trailing-slash runtime alias may remain for compatibility, but it is intentionally excluded from the canonical OpenAPI operation inventory.
 
 ---
 
-## 2. Technology Stack
+## 2. Midterm Architecture
 
-All technology versions match the project's actual configuration:
+For the midterm, Clinic business data uses mock/in-memory storage.
+
+The active business-data flow is:
+
+```text
+HTTP route
+   |
+   v
+DRF view/controller
+   |
+   v
+ClinicService
+   |
+   v
+MockClinicRepository
+```
+
+The views handle HTTP concerns and delegate Clinic business operations to `ClinicService`.
+
+`ClinicService` handles domain rules and cross-module orchestration.
+
+`MockClinicRepository` stores Clinic-owned business resources in memory for the midterm.
+
+### Django framework database
+
+Django still needs a database for framework infrastructure such as:
+
+- authentication;
+- groups and permissions;
+- sessions;
+- admin support.
+
+The default framework database is SQLite.
+
+This **does not mean Clinic business resources are persisted through Django ORM during the midterm**.
+
+### Finals database direction
+
+PostgreSQL remains available as an opt-in finals configuration.
+
+Finals dependencies are separated in:
+
+`backend/requirements-finals.txt`
+
+A future database-backed Clinic repository can replace the mock repository without changing the public route structure.
+
+---
+
+## 3. Domain Ownership
+
+### Registrar owns
+
+- student identity;
+- student profile;
+- course and section;
+- `student_id`.
+
+Clinic consumes Registrar-owned student data through a Registrar integration boundary.
+
+The current midterm implementation uses deterministic mock Registrar data.
+
+### Clinic owns
+
+- `HealthRecord`;
+- `Consultation`;
+- `HealthStatus`;
+- `MedicineDispensation`.
+
+Clinic also owns Clinic-specific reports and Clinic account-management behavior.
+
+### Inventory owns
+
+- medicine catalog;
+- medicine stock;
+- `medicine_id`;
+- Inventory stock transactions.
+
+Clinic consumes Inventory-owned medicine and stock information through an Inventory integration boundary.
+
+The current midterm implementation uses deterministic in-memory Inventory data and transactions.
+
+### Faculty and Student Portal
+
+Clinic exposes restricted **read-only health-status projections** for:
+
+- Faculty;
+- Student Portal.
+
+These consumers do not own or directly modify Clinic health-status persistence.
+
+---
+
+## 4. External Identifier Contract
+
+Clinic references externally owned data using API-level identifiers:
+
+- `student_id`;
+- `medicine_id`;
+- `inventory_transaction_id`;
+- `rollback_transaction_id` when rollback/compensation occurs.
+
+These are cross-module references, not shared-database foreign keys.
+
+Registrar remains authoritative for student identity.
+
+Inventory remains authoritative for medicine catalog and stock.
+
+---
+
+## 5. Integration Architecture
+
+```text
+                         +----------------------+
+                         |      Registrar       |
+                         | student identity     |
+                         | student profile      |
+                         +----------+-----------+
+                                    |
+                                    | student_id / validation
+                                    v
++------------------+      +---------+----------+      +----------------------+
+| Faculty          |<-----|                    |----->|      Inventory       |
+| read-only health |      |       CLINIC       |      | medicine catalog     |
++------------------+      |                    |      | medicine stock       |
+                          | HealthRecord       |      | stock transactions   |
++------------------+      | Consultation       |      +----------------------+
+| Student Portal   |<-----| HealthStatus       |
+| read-only health |      | Dispensation       |
++------------------+      +---------+----------+
+                                    |
+                                    v
+                          ClinicService
+                                    |
+                                    v
+                          MockClinicRepository
+                          (midterm business data)
+```
+
+### Medicine-dispensation orchestration
+
+Creating a medicine dispensation coordinates three boundaries:
+
+1. validate the student through Registrar;
+2. deduct medicine stock through Inventory;
+3. persist the Clinic-owned dispensation through the Clinic repository.
+
+If Clinic persistence fails after Inventory deduction, the service attempts a compensating stock restore.
+
+Explicit dispensation rollback restores Inventory stock and records the Clinic-owned dispensation as rolled back.
+
+See `docs/integration.md` for full sequence and error behavior.
+
+---
+
+## 6. Technology Stack
 
 ### Backend
-* **Python**: `3.14.x`
-* **Django**: `6.1`
-* **Django REST Framework (DRF)**: `3.18.0`
-* **PostgreSQL Driver (`psycopg`)**: `3.3.4` (using `psycopg[binary]`)
-* **CORS Middleware (`django-cors-headers`)**: `4.9.0`
-* **Environment Configuration (`python-dotenv`)**: `1.2.3`
 
-### Database
-* **PostgreSQL**: `16-alpine` (hosted via Docker container `clinic-postgres`)
+- Python
+- Django
+- Django REST Framework
+- drf-spectacular
+- django-cors-headers
+- python-dotenv
 
-### Frontend
-* **React**: `19.2.8`
-* **React DOM**: `19.2.8`
-* **Vite**: `8.2.0`
-* **Node.js / npm**: Node 18+ runtime environment
+### Midterm data/runtime infrastructure
 
----
+- `MockClinicRepository` for Clinic business-domain data
+- deterministic mock Registrar service
+- deterministic mock Inventory service
+- SQLite for Django framework infrastructure
 
-## 3. System Architecture
+### Finals opt-in
 
-The application follows a clean layered architecture:
+- PostgreSQL through environment configuration
+- `psycopg` through `backend/requirements-finals.txt`
 
-```text
-┌───────────────────────────────────────────────────────────┐
-│                 Frontend (React 19 + Vite)                │
-│                 http://localhost:5173                     │
-└─────────────────────────────┬─────────────────────────────┘
-                              │ HTTP / JSON (CORS Enabled)
-                              ▼
-┌───────────────────────────────────────────────────────────┐
-│             Django REST API (Views & ViewSets)            │
-│         StudentViewSet  │  HealthRecordViewSet            │
-└─────────────────────────────┬─────────────────────────────┘
-                              │ Validated Data / Serializers
-                              ▼
-┌───────────────────────────────────────────────────────────┐
-│               Django ORM (Models & QuerySets)             │
-│            Student Model  │  HealthRecord Model           │
-└─────────────────────────────┬─────────────────────────────┘
-                              │ PostgreSQL Protocol (psycopg 3)
-                              ▼
-┌───────────────────────────────────────────────────────────┐
-│        PostgreSQL Database (Docker: clinic-postgres)      │
-│                     Database: clinic_db                   │
-│          students  │  health_records  │  auth_user        │
-└───────────────────────────────────────────────────────────┘
-```
+### Frontend repository
 
-### Layer Responsibilities
-1. **Frontend**: Renders the UI, collects user inputs, and makes asynchronous JSON API requests to backend endpoints.
-2. **Django REST API**: Authenticates requests, parses JSON payloads, runs serializer validations, handles exceptions gracefully, and returns HTTP status codes.
-3. **Django ORM**: Translates Python model queries into parameterized SQL statements, safeguarding against SQL injection and maintaining relational constraints.
-4. **PostgreSQL**: Persists tables, generates auto-incrementing integer sequence IDs (`student_id`, `health_id`), enforces foreign-key referential integrity (`ON DELETE CASCADE`), and optimizes search via composite B-tree indexes.
+- React
+- Vite
+- JavaScript / JSX
+- CSS
+
+The currently committed frontend is still a React/Vite starter implementation and is **not evidence of the completed Clinic high-fidelity UI**.
+
+See `docs/design-system.md` for the verified repository design baseline and Figma synchronization rules.
+
+### API/testing tooling
+
+- OpenAPI 3.1
+- Swagger UI
+- ReDoc
+- Postman
+- Newman
+- Redocly CLI
+- Git
 
 ---
 
-## 4. Project Structure
+## 7. Repository Structure
 
 ```text
-IDSC Clinic System/
-├── README.md                          # Main technical & developer documentation
-├── SETUP.md                           # Step-by-step installation, setup & troubleshooting guide
-├── main.py                            # Standalone entry script
-├── backend/                           # Django backend application root
-│   ├── manage.py                      # Django CLI management script
-│   ├── requirements.txt               # Backend Python dependencies
-│   ├── .env                           # Local environment credentials (not committed)
-│   ├── .env.example                   # Environment variable template
-│   ├── config/                        # Django project configuration module
-│   │   ├── __init__.py
-│   │   ├── asgi.py                    # ASGI configuration for async deployment
-│   │   ├── settings.py                # Database, DRF, CORS, and app settings
-│   │   ├── urls.py                    # Root URL routing and API endpoint registration
-│   │   └── wsgi.py                    # WSGI configuration for production deployment
-│   └── clinic/                        # Main Clinic Django application
-│       ├── __init__.py
-│       ├── admin.py                   # Django Admin model registrations & inlines
-│       ├── apps.py                    # App configuration (ClinicConfig)
-│       ├── exceptions.py              # Custom API exception handler
-│       ├── models.py                  # Student & HealthRecord database models
-│       ├── serializers.py             # DRF serializers & field validation logic
-│       ├── tests.py                   # 31 automated unit & integration tests
-│       ├── urls.py                    # Clinic API router and route definitions
-│       ├── views.py                   # StudentViewSet & HealthRecordViewSet
-│       └── migrations/                # Database migration history
-│           ├── 0001_initial.py        # Initial table creation
-│           └── 0002_alter_student_student_id.py # Auto-increment student_id migration
-└── frontend/                          # Vite + React single-page frontend
-    ├── index.html                     # HTML entry template
-    ├── package.json                   # Frontend dependencies and npm scripts
-    ├── vite.config.js                 # Vite bundler configuration
-    ├── eslint.config.js               # ESLint configuration
-    └── src/                           # Frontend source code
-        ├── main.jsx                   # React application root mount point
-        ├── App.jsx                    # Root UI component
-        ├── App.css                    # Main application styling
-        ├── index.css                  # Global base stylesheet
-        └── assets/                    # Static UI images and SVG logos
+IDSC-Clinic-System-Clean/
+|
++-- backend/
+|   +-- authentication/
+|   +-- clinic/
+|   |   +-- data/
+|   |   +-- services/
+|   |   +-- tests/
+|   +-- config/
+|   +-- manage.py
+|   +-- requirements.txt
+|   +-- requirements-finals.txt
+|
++-- docs/
+|   +-- architecture.md
+|   +-- data-model.md
+|   +-- integration.md
+|   +-- design-system.md
+|   +-- TEST-EVIDENCE.md
+|   +-- decisions/
+|       +-- 0001-midterm-mock-domain-data.md
+|       +-- 0002-domain-ownership-and-external-identifiers.md
+|       +-- 0003-service-repository-layering.md
+|       +-- 0004-session-authentication-csrf-and-cors.md
+|       +-- 0005-openapi-health-and-documentation-contract.md
+|       +-- 0006-clean-integration-and-pr-only-main.md
+|
++-- frontend/
+|
++-- postman/
+|   +-- IDSC-Clinic-System.postman_collection.json
+|
++-- openapi.yaml
++-- redocly.yaml
++-- API.md
++-- SETUP.md
++-- README.md
 ```
 
 ---
 
-## 5. Database Architecture
+## 8. Backend Configuration
 
-The development database runs in a Docker container named `clinic-postgres`:
+Primary Django configuration:
 
-```text
-Docker Desktop
-└── clinic-postgres (Container: PostgreSQL 16-alpine)
-    └── PostgreSQL Server (Port 5432)
-        └── clinic_db (Database)
-            ├── Django Framework Tables (auth, sessions, admin, contenttypes)
-            ├── students (Student entity table)
-            └── health_records (HealthRecord entity table)
-```
+`backend/config/settings.py`
 
-* **Server & Host**: `localhost:5432`
-* **Database Name**: `clinic_db`
-* **Default User / Password**: `postgres` / `postgres`
-* **Schema Management**: Managed exclusively by Django migrations (`python manage.py migrate`). **Developers should never manually create tables with raw SQL.**
+Important verified configuration includes:
 
----
-
-## 6. Django Built-in Tables
-
-Applying migrations automatically generates the standard Django framework tables:
-
-* `auth_user` — User accounts for administrative access
-* `auth_group` — User permission groups
-* `auth_permission` — Individual model/action permissions
-* `auth_group_permissions` — Group-to-permission mappings
-* `auth_user_groups` — User-to-group mappings
-* `auth_user_user_permissions` — User-to-permission mappings
-* `django_admin_log` — Audit logs of Django admin actions
-* `django_content_type` — Content type definitions for Django models
-* `django_migrations` — Applied migration history ledger
-* `django_session` — HTTP session store
+- `CLINIC_DATA_BACKEND` defaults to `mock`;
+- default framework database is SQLite;
+- PostgreSQL is opt-in through environment configuration;
+- `ClinicSessionAuthentication` is the default DRF authentication class;
+- `IsAuthenticated` is the default DRF permission;
+- custom Problem Details exception handling is configured;
+- CSRF middleware is enabled;
+- credentialed CORS is explicitly configured;
+- drf-spectacular generates the dynamic OpenAPI schema;
+- project-level OpenAPI metadata is normalized through `config.schema.postprocess_openapi_metadata`.
 
 ---
 
-## 7. Student Model
+## 9. Authentication and Authorization
 
-Defined in [`backend/clinic/models.py`](file:///C:/Users/alexa/PycharmProjects/IDSC%20Clinic%20System/backend/clinic/models.py):
+The midterm backend uses Django session authentication.
 
-| Field | Type | Constraints | Description |
-| :--- | :--- | :--- | :--- |
-| `student_id` | `BigAutoField` | `primary_key=True` | Auto-incrementing integer ID generated by the database. |
-| `first_name` | `CharField(max_length=100)` | Non-blank | Student's given first name. |
-| `last_name` | `CharField(max_length=100)` | Non-blank | Student's family last name. |
-| `birth_date` | `DateField` | `null=True, blank=True` | Date of birth (must not be in the future). |
-| `sex` | `CharField(max_length=20)` | `choices=['Male', 'Female', 'Other']`, `blank=True` | Biological sex or gender. |
-| `course` | `CharField(max_length=100)` | Non-blank | Degree program / course (e.g. BSIT, BSN, BSCS). |
-| `section` | `CharField(max_length=50)` | Non-blank | Class section (e.g. 3A, 1-1). |
-| `contact_no` | `CharField(max_length=30)` | `blank=True, default=''` | Contact or mobile phone number. |
-| `created_at` | `DateTimeField` | `auto_now_add=True` | Record creation timestamp. |
-| `updated_at` | `DateTimeField` | `auto_now=True` | Record last-updated timestamp. |
+Authentication routes include:
 
-### Database Metadata
-* **Table Name**: `students`
-* **Default Ordering**: `['student_id']`
-* **Indexes**:
-  * `idx_student_name` on `(last_name, first_name)`
-  * `idx_student_course_sec` on `(course, section)`
+| Method | Endpoint | Access |
+|---|---|---|
+| `GET` | `/api/auth/csrf/` | Public |
+| `POST` | `/api/auth/login/` | Public |
+| `POST` | `/api/auth/logout/` | Authenticated |
+| `GET` | `/api/auth/me/` | Authenticated |
 
-> [!IMPORTANT]
-> `student_id` is an **auto-incrementing integer primary key**. Clients must **NOT** supply `student_id` when creating a student. The database automatically assigns sequential integer IDs (`1, 2, 3, ...`).
+The default authentication class is:
 
----
+`authentication.authentication.ClinicSessionAuthentication`
 
-## 8. Health Record Model
+The default REST permission is:
 
-Defined in [`backend/clinic/models.py`](file:///C:/Users/alexa/PycharmProjects/IDSC%20Clinic%20System/backend/clinic/models.py):
+`rest_framework.permissions.IsAuthenticated`
 
-| Field | Type | Constraints | Description |
-| :--- | :--- | :--- | :--- |
-| `health_id` | `BigAutoField` | `primary_key=True` | Auto-incrementing unique health record ID. |
-| `student` | `ForeignKey(Student)` | `on_delete=CASCADE`, `db_column='student_id'`, `related_name='health_records'` | Relational foreign key referencing `students.student_id`. |
-| `allergies` | `TextField` | `blank=True, default=''` | Known medical, food, or environmental allergies. |
-| `blood_type` | `CharField(max_length=10)` | `choices=['A+', 'A-', 'B+', 'B-', 'AB+', 'AB-', 'O+', 'O-', 'Unknown']`, `blank=True` | Student blood group. |
-| `medical_history` | `TextField` | `blank=True, default=''` | Chronic illnesses or past medical history. |
-| `medication` | `TextField` | `blank=True, default=''` | Current medications and prescriptions. |
-| `weight` | `DecimalField(5, 2)` | `null=True, blank=True`, `min=0.0, max=500.0` | Weight in kilograms (kg). |
-| `height` | `DecimalField(5, 2)` | `null=True, blank=True`, `min=0.0, max=300.0` | Height in centimeters (cm). |
-| `visit` | `DateTimeField` | `default=timezone.now` | Date and time of the clinic visit. |
-| `consultation` | `TextField` | `blank=True, default=''` | Clinical consultation notes and diagnosis. |
-| `created_at` | `DateTimeField` | `auto_now_add=True` | Record creation timestamp. |
-| `updated_at` | `DateTimeField` | `auto_now=True` | Record last-updated timestamp. |
+Clinic role permissions include:
 
-### Database Metadata
-* **Table Name**: `health_records`
-* **Default Ordering**: `['-visit', '-health_id']`
-* **Indexes**:
-  * `idx_hr_student_visit` on `(student_id, -visit)`
-  * `idx_hr_visit` on `(-visit)`
+- `IsClinicStaff`;
+- `IsClinicAdmin`.
+
+Protected business endpoints require authentication and the appropriate role.
+
+The Faculty and Student Portal integration projections require authentication but are not Clinic-staff write operations.
 
 ---
 
-## 9. Student ↔ Health Record Relationship
+## 10. CSRF and CORS
 
-The data model implements a strict **One-to-Many** relationship:
+Django's `CsrfViewMiddleware` remains enabled.
 
-```text
-Student (student_id = 1)
-  ├── HealthRecord (health_id = 1, visit = 2026-08-20)
-  ├── HealthRecord (health_id = 2, visit = 2026-08-22)
-  └── HealthRecord (health_id = 5, visit = 2026-08-25)
-```
+Unsafe session-authenticated requests require CSRF protection.
 
-* **Relational Key**: `health_records.student_id` references `students.student_id`.
-* **Reverse Lookup**: Access all visits for a student via `student.health_records.all()`.
-* **Cascade Behavior (`on_delete=models.CASCADE`)**: When a student is deleted, all associated health records and visit histories are automatically deleted from PostgreSQL to prevent orphan records.
+The frontend can obtain a CSRF token through:
 
----
+`GET /api/auth/csrf/`
 
-## 10. API Documentation
+Credentialed CORS is enabled only for the approved local Vite origins:
 
-Base URL: `http://127.0.0.1:8000`
+- `http://localhost:5173`
+- `http://127.0.0.1:5173`
 
-### Discovery Endpoint
-* **`GET /`**: Returns API metadata, status, and endpoint directory.
+The same local origins are configured as trusted CSRF origins.
+
+Do not disable CSRF or enable wildcard credentialed CORS to simplify frontend development.
 
 ---
 
-### Student Endpoints (`/api/students/`)
+## 11. Canonical API and Documentation Routes
 
-| Method | Endpoint | Description | Status Codes |
-| :--- | :--- | :--- | :--- |
-| `GET` | `/api/students/` | List all students (supports search and filtering). | `200 OK` |
-| `POST` | `/api/students/` | Create a new student (do not provide `student_id`). | `201 Created`, `400 Bad Request` |
-| `GET` | `/api/students/<student_id>/` | Retrieve a single student and their consultation history. | `200 OK`, `404 Not Found` |
-| `PUT` | `/api/students/<student_id>/` | Fully update a student record. | `200 OK`, `400 Bad Request`, `404 Not Found` |
-| `PATCH` | `/api/students/<student_id>/` | Partially update a student record. | `200 OK`, `400 Bad Request`, `404 Not Found` |
-| `DELETE` | `/api/students/<student_id>/` | Delete student and cascade all their health records. | `204 No Content`, `404 Not Found` |
+| Purpose | Route |
+|---|---|
+| Backend discovery | `/` |
+| Authentication | `/api/auth/` |
+| Business API | `/api/v1/` |
+| Dynamic OpenAPI | `/api/schema/` |
+| Swagger UI | `/docs` |
+| ReDoc | `/api/schema/redoc/` |
+| Django Admin | `/admin/` |
 
----
+### Health contract
 
-### Health Record Endpoints (`/api/health-records/`)
+Canonical request:
 
-| Method | Endpoint | Description | Status Codes |
-| :--- | :--- | :--- | :--- |
-| `GET` | `/api/health-records/` | List all health records across all students. | `200 OK` |
-| `POST` | `/api/health-records/` | Create a health record (supply integer `student_id`). | `201 Created`, `400 Bad Request` |
-| `GET` | `/api/health-records/<health_id>/` | Retrieve a specific health record. | `200 OK`, `404 Not Found` |
-| `PUT` | `/api/health-records/<health_id>/` | Fully update a health record. | `200 OK`, `400 Bad Request`, `404 Not Found` |
-| `PATCH` | `/api/health-records/<health_id>/` | Partially update a health record. | `200 OK`, `400 Bad Request`, `404 Not Found` |
-| `DELETE` | `/api/health-records/<health_id>/` | Delete a health record. | `204 No Content`, `404 Not Found` |
-
----
-
-### Nested Student Health Record Endpoints
-
-| Method | Endpoint | Description | Status Codes |
-| :--- | :--- | :--- | :--- |
-| `GET` | `/api/students/<student_id>/health-records/` | Retrieve all health records for a specific student. | `200 OK`, `404 Not Found` |
-| `POST` | `/api/students/<student_id>/health-records/` | Create a health record directly linked to the student. | `201 Created`, `400 Bad Request`, `404 Not Found` |
-
----
-
-## 11. API Search and Filtering
-
-### Student Search & Filtering
-Query parameters supported on `GET /api/students/`:
-* `?search=<text>`: Case-insensitive search matching `first_name`, `last_name`, `course`, `section`, or exact numeric `student_id`.
-* `?course=<course_name>`: Exact case-insensitive filter by course (e.g. `?course=BSIT`).
-* `?section=<section_name>`: Exact case-insensitive filter by section (e.g. `?section=3A`).
-* `?sex=<sex_value>`: Exact filter by sex (e.g. `?sex=Male`).
-
-**Examples:**
 ```http
-GET /api/students/?search=Juan
-GET /api/students/?search=1
-GET /api/students/?course=BS%20Information%20Technology&section=3A
+GET /api/v1/health
 ```
 
-### Health Record Search & Filtering
-Query parameters supported on `GET /api/health-records/`:
-* `?student_id=<id>`: Filter health records by integer student ID (e.g. `?student_id=1`).
-* `?blood_type=<type>`: Filter health records by blood type (e.g. `?blood_type=O+`).
-* `?search=<text>`: Case-insensitive search across student name, student ID, allergies, medical history, or consultation notes.
+Exact response:
 
-**Examples:**
-```http
-GET /api/health-records/?student_id=1
-GET /api/health-records/?blood_type=O+
-GET /api/health-records/?search=Asthma
-```
-
----
-
-## 12. API Request and Response Examples
-
-### 1. Create a Student (`POST /api/students/`)
-**Request:**
-```http
-POST /api/students/
-Content-Type: application/json
-
-{
-  "first_name": "Juan",
-  "last_name": "Dela Cruz",
-  "birth_date": "2003-05-15",
-  "sex": "Male",
-  "course": "BS Information Technology",
-  "section": "3A",
-  "contact_no": "09123456789"
-}
-```
-
-**Response (`201 Created`):**
 ```json
 {
-  "student_id": 1,
-  "first_name": "Juan",
-  "last_name": "Dela Cruz",
-  "birth_date": "2003-05-15",
-  "sex": "Male",
-  "course": "BS Information Technology",
-  "section": "3A",
-  "contact_no": "09123456789",
-  "health_records_count": 0,
-  "created_at": "2026-08-22T14:47:00.000000Z",
-  "updated_at": "2026-08-22T14:47:00.000000Z"
+  "status": "ok"
 }
 ```
 
+The health operation is public.
+
 ---
 
-### 2. Create a Health Record (`POST /api/health-records/`)
-Supply the generated integer `student_id`:
+## 12. API Endpoint Reference
 
-**Request:**
-```http
-POST /api/health-records/
-Content-Type: application/json
+The authoritative schemas, request bodies, response bodies, examples, and security metadata are defined in `openapi.yaml`.
 
-{
-  "student_id": 1,
-  "allergies": "Penicillin",
-  "blood_type": "O+",
-  "medical_history": "Mild asthma diagnosed in 2018",
-  "medication": "Salbutamol 100mcg inhaler",
-  "weight": "58.50",
-  "height": "168.00",
-  "consultation": "Routine consultation for mild cough and allergy review."
-}
+The current contract contains **45 operations**.
+
+### Authentication
+
+| Method | Endpoint | Access | Description |
+|---|---|---|---|
+| `GET` | `/api/auth/csrf/` | Public | Get CSRF token |
+| `POST` | `/api/auth/login/` | Public | Log in |
+| `POST` | `/api/auth/logout/` | Authenticated | Log out |
+| `GET` | `/api/auth/me/` | Authenticated | Get current user |
+
+### Health and dashboard
+
+| Method | Endpoint | Access | Description |
+|---|---|---|---|
+| `GET` | `/api/v1/health` | Public | Health check |
+| `GET` | `/api/v1/dashboard/` | Clinic staff/admin | Dashboard summary |
+
+### Registrar-backed student projection
+
+| Method | Endpoint | Access | Description |
+|---|---|---|---|
+| `GET` | `/api/v1/students/` | Clinic staff/admin | List students |
+| `GET` | `/api/v1/students/{student_id}/` | Clinic staff/admin | Get student |
+
+### Health records
+
+| Method | Endpoint | Access | Description |
+|---|---|---|---|
+| `GET` | `/api/v1/health-records/` | Clinic staff/admin | List |
+| `POST` | `/api/v1/health-records/` | Clinic staff/admin | Create |
+| `GET` | `/api/v1/health-records/{health_record_id}/` | Clinic staff/admin | Retrieve |
+| `PUT` | `/api/v1/health-records/{health_record_id}/` | Clinic staff/admin | Replace |
+| `PATCH` | `/api/v1/health-records/{health_record_id}/` | Clinic staff/admin | Partial update |
+| `DELETE` | `/api/v1/health-records/{health_record_id}/` | Clinic staff/admin | Delete |
+
+### Consultations
+
+| Method | Endpoint | Access | Description |
+|---|---|---|---|
+| `GET` | `/api/v1/consultations/` | Clinic staff/admin | List |
+| `POST` | `/api/v1/consultations/` | Clinic staff/admin | Create |
+| `GET` | `/api/v1/consultations/{consultation_id}/` | Clinic staff/admin | Retrieve |
+| `PUT` | `/api/v1/consultations/{consultation_id}/` | Clinic staff/admin | Replace |
+| `PATCH` | `/api/v1/consultations/{consultation_id}/` | Clinic staff/admin | Partial update |
+| `DELETE` | `/api/v1/consultations/{consultation_id}/` | Clinic staff/admin | Delete |
+
+### Health statuses
+
+| Method | Endpoint | Access | Description |
+|---|---|---|---|
+| `GET` | `/api/v1/health-statuses/` | Clinic staff/admin | List |
+| `POST` | `/api/v1/health-statuses/` | Clinic staff/admin | Create |
+| `GET` | `/api/v1/health-statuses/{status_id}/` | Clinic staff/admin | Retrieve |
+| `PUT` | `/api/v1/health-statuses/{status_id}/` | Clinic staff/admin | Replace |
+| `PATCH` | `/api/v1/health-statuses/{status_id}/` | Clinic staff/admin | Partial update |
+| `DELETE` | `/api/v1/health-statuses/{status_id}/` | Clinic staff/admin | Delete |
+
+### Inventory-backed medicine projection
+
+| Method | Endpoint | Access | Description |
+|---|---|---|---|
+| `GET` | `/api/v1/medicines/` | Clinic staff/admin | List medicines |
+| `GET` | `/api/v1/medicines/{medicine_id}/` | Clinic staff/admin | Get medicine |
+
+### Medicine dispensations
+
+| Method | Endpoint | Access | Description |
+|---|---|---|---|
+| `GET` | `/api/v1/medicine-dispensations/` | Clinic staff/admin | List |
+| `POST` | `/api/v1/medicine-dispensations/` | Clinic staff/admin | Dispense medicine |
+| `GET` | `/api/v1/medicine-dispensations/{dispensation_id}/` | Clinic staff/admin | Retrieve |
+| `POST` | `/api/v1/medicine-dispensations/{dispensation_id}/rollback/` | Clinic staff/admin | Roll back |
+
+### Reports
+
+| Method | Endpoint | Access | Description |
+|---|---|---|---|
+| `GET` | `/api/v1/reports/clinic-visits/` | Clinic staff/admin | Clinic visit report |
+| `GET` | `/api/v1/reports/health-records/` | Clinic staff/admin | Health-record report |
+| `GET` | `/api/v1/reports/medicine-inventory/` | Clinic staff/admin | Inventory projection report |
+| `GET` | `/api/v1/reports/medicine-dispensations/` | Clinic staff/admin | Dispensation report |
+
+### External health-status projections
+
+| Method | Endpoint | Access | Description |
+|---|---|---|---|
+| `GET` | `/api/v1/integrations/faculty/health-status/{student_id}/` | Authenticated | Faculty projection |
+| `GET` | `/api/v1/integrations/student-portal/health-status/{student_id}/` | Authenticated | Student Portal projection |
+
+### Clinic user management
+
+| Method | Endpoint | Access | Description |
+|---|---|---|---|
+| `GET` | `/api/v1/users/` | Clinic admin | List accounts |
+| `POST` | `/api/v1/users/` | Clinic admin | Create account |
+| `GET` | `/api/v1/users/{user_id}/` | Clinic admin | Retrieve account |
+| `PUT` | `/api/v1/users/{user_id}/` | Clinic admin | Replace account |
+| `PATCH` | `/api/v1/users/{user_id}/` | Clinic admin | Partial update |
+| `POST` | `/api/v1/users/{user_id}/activate/` | Clinic admin | Activate account |
+| `POST` | `/api/v1/users/{user_id}/deactivate/` | Clinic admin | Deactivate account |
+
+---
+
+## 13. Problem Details and Validation
+
+The API uses the project's Problem Details representation for standardized errors.
+
+Canonical fields include:
+
+- `type`;
+- `title`;
+- `status`;
+- `detail`;
+- `instance`;
+- `code`.
+
+Validated status categories include:
+
+- `400 Bad Request`;
+- `401 Unauthorized`;
+- `403 Forbidden`;
+- `404 Not Found`;
+- `409 Conflict`;
+- `422 Unprocessable Entity`.
+
+Validation and integration errors are translated at the API boundary instead of exposing internal exceptions directly.
+
+---
+
+## 14. OpenAPI Contract
+
+Static contract:
+
+`openapi.yaml`
+
+Dynamic schema:
+
+`/api/schema/`
+
+Canonical Swagger UI:
+
+`/docs`
+
+Redoc:
+
+`/api/schema/redoc/`
+
+The generated contract uses the canonical local server:
+
+`http://127.0.0.1:8000`
+
+The current verified operation inventory is:
+
+- 29 paths;
+- 45 operations;
+- 3 public operations;
+- 42 protected operations.
+
+The three explicitly public operations are:
+
+- `GET /api/v1/health`;
+- `GET /api/auth/csrf/`;
+- `POST /api/auth/login/`.
+
+Static and dynamic operation inventories were verified to match.
+
+Both static and dynamic contracts passed Redocly validation during the integration verification.
+
+---
+
+## 15. Automated Test and Postman Evidence
+
+Canonical recorded evidence is in:
+
+`docs/TEST-EVIDENCE.md`
+
+Current baseline:
+
+| Test area | Result |
+|---|---:|
+| Django tests discovered | 167 |
+| Django tests passed | 167 |
+| Django tests failed | 0 |
+| Postman requests | 45 |
+| Newman requests executed | 45 |
+| Newman assertions | 46 |
+| Newman failures | 0 |
+
+The Postman collection is:
+
+`postman/IDSC-Clinic-System.postman_collection.json`
+
+Before final merge, the complete automated suite, OpenAPI validation, Redocly lint, runtime Swagger checks, Problem Details checks, and Postman/Newman verification must be run again.
+
+---
+
+## 16. Development Setup
+
+The midterm does **not** require PostgreSQL to run Clinic business endpoints.
+
+### Create/activate a Python environment
+
+Use a project virtual environment appropriate for your operating system.
+
+### Install midterm/backend dependencies
+
+From the repository root:
+
+```powershell
+python -m pip install -r backend/requirements.txt
 ```
 
-**Response (`201 Created`):**
-```json
-{
-  "health_id": 1,
-  "student_id": 1,
-  "student_name": "Juan Dela Cruz",
-  "allergies": "Penicillin",
-  "blood_type": "O+",
-  "medical_history": "Mild asthma diagnosed in 2018",
-  "medication": "Salbutamol 100mcg inhaler",
-  "weight": "58.50",
-  "height": "168.00",
-  "visit": "2026-08-22T14:47:00.000000Z",
-  "consultation": "Routine consultation for mild cough and allergy review.",
-  "created_at": "2026-08-22T14:47:00.000000Z",
-  "updated_at": "2026-08-22T14:47:00.000000Z"
-}
+### Enter the backend project
+
+```powershell
+Set-Location backend
 ```
 
----
+### Apply Django framework migrations
 
-### 3. Retrieve Student Details with Records (`GET /api/students/1/`)
-**Response (`200 OK`):**
-```json
-{
-  "student_id": 1,
-  "first_name": "Juan",
-  "last_name": "Dela Cruz",
-  "birth_date": "2003-05-15",
-  "sex": "Male",
-  "course": "BS Information Technology",
-  "section": "3A",
-  "contact_no": "09123456789",
-  "health_records_count": 1,
-  "health_records": [
-    {
-      "health_id": 1,
-      "student_id": 1,
-      "student_name": "Juan Dela Cruz",
-      "allergies": "Penicillin",
-      "blood_type": "O+",
-      "medical_history": "Mild asthma diagnosed in 2018",
-      "medication": "Salbutamol 100mcg inhaler",
-      "weight": "58.50",
-      "height": "168.00",
-      "visit": "2026-08-22T14:47:00.000000Z",
-      "consultation": "Routine consultation for mild cough and allergy review.",
-      "created_at": "2026-08-22T14:47:00.000000Z",
-      "updated_at": "2026-08-22T14:47:00.000000Z"
-    }
-  ],
-  "created_at": "2026-08-22T14:47:00.000000Z",
-  "updated_at": "2026-08-22T14:47:00.000000Z"
-}
+```powershell
+python manage.py migrate
 ```
 
----
+These migrations support Django framework infrastructure and retain finals-oriented domain migration history. They do not change the fact that the active midterm Clinic business-data backend is `mock`.
 
-## 13. Serializers and Validation
+### Run Django checks
 
-Implemented in [`backend/clinic/serializers.py`](file:///C:/Users/alexa/PycharmProjects/IDSC%20Clinic%20System/backend/clinic/serializers.py):
-
-### [`StudentSerializer`](file:///C:/Users/alexa/PycharmProjects/IDSC%20Clinic%20System/backend/clinic/serializers.py#L71-L135)
-* **Required Fields**: `first_name`, `last_name`, `course`, `section`
-* **Optional Fields**: `birth_date`, `sex`, `contact_no`
-* **Read-Only Fields**: `student_id`, `health_records_count`, `created_at`, `updated_at`
-* **Field Validations**:
-  * `first_name` & `last_name`: Stripped and validated to ensure non-empty strings.
-  * `course` & `section`: Stripped and validated to ensure non-empty strings.
-  * `birth_date`: Rejects dates in the future (`birth_date > date.today()`).
-  * `sex`: Validates against permitted choices (`Male`, `Female`, `Other`).
-
-### [`HealthRecordSerializer`](file:///C:/Users/alexa/PycharmProjects/IDSC%20Clinic%20System/backend/clinic/serializers.py#L11-L68)
-* **Required Fields**: `student_id` (foreign key)
-* **Optional Fields**: `allergies`, `blood_type`, `medical_history`, `medication`, `weight`, `height`, `visit`, `consultation`
-* **Read-Only Fields**: `health_id`, `student_name`, `created_at`, `updated_at`
-* **Field Validations**:
-  * `student_id`: Validated against active `Student` records in PostgreSQL (returns `400 Bad Request` if invalid).
-  * `weight`: Must be `> 0 kg` and `<= 500 kg`.
-  * `height`: Must be `> 0 cm` and `<= 300 cm`.
-  * `blood_type`: Validated against choices (`A+`, `A-`, `B+`, `B-`, `AB+`, `AB-`, `O+`, `O-`, `Unknown`).
-
----
-
-## 14. Views and ViewSets
-
-Implemented in [`backend/clinic/views.py`](file:///C:/Users/alexa/PycharmProjects/IDSC%20Clinic%20System/backend/clinic/views.py):
-
-* **[`StudentViewSet`](file:///C:/Users/alexa/PycharmProjects/IDSC%20Clinic%20System/backend/clinic/views.py#L21-L95)**:
-  * Inherits from `rest_framework.viewsets.ModelViewSet`.
-  * Uses `lookup_field = 'student_id'`.
-  * Dynamically swaps serializer: returns [`StudentDetailSerializer`](file:///C:/Users/alexa/PycharmProjects/IDSC%20Clinic%20System/backend/clinic/serializers.py#L136-L144) for single-student detail views (including full visit history) and [`StudentSerializer`](file:///C:/Users/alexa/PycharmProjects/IDSC%20Clinic%20System/backend/clinic/serializers.py#L71-L135) for list views.
-  * Implements `@action(detail=True, methods=['get', 'post'], url_path='health-records')` for nested operations.
-* **[`HealthRecordViewSet`](file:///C:/Users/alexa/PycharmProjects/IDSC%20Clinic%20System/backend/clinic/views.py#L96-L137)**:
-  * Inherits from `rest_framework.viewsets.ModelViewSet`.
-  * Uses `lookup_field = 'health_id'`.
-  * Uses `select_related('student')` to prevent N+1 database queries.
-
----
-
-## 15. Authentication, Permissions, CORS, and CSRF
-
-### Authentication & Permissions
-* **REST API (`/api/`)**: Configured with `AllowAny` permissions (`rest_framework.permissions.AllowAny`). Endpoints are accessible for clinic client integration without token/session barriers.
-* **Django Admin (`/admin/`)**: Enforces session-based authentication with `django.contrib.auth`. Access requires active staff credentials (`is_staff=True`, `is_superuser=True`).
-
-### CORS (Cross-Origin Resource Sharing)
-* Handled via `corsheaders.middleware.CorsMiddleware`.
-* Permitted development origins configured in `backend/config/settings.py` / `.env`:
-  * `http://localhost:5173`, `http://127.0.0.1:5173` (Vite development server)
-  * `http://localhost:3000`, `http://127.0.0.1:3000`
-* `CORS_ALLOW_CREDENTIALS = True`
-
-### CSRF Protection
-* Django's `CsrfViewMiddleware` is active for admin session views. DRF REST views parse JSON payloads and operate cleanly with API clients.
-
----
-
-## 16. Django Admin Portal
-
-Configured in [`backend/clinic/admin.py`](file:///C:/Users/alexa/PycharmProjects/IDSC%20Clinic%20System/backend/clinic/admin.py):
-
-* **[`StudentAdmin`](file:///C:/Users/alexa/PycharmProjects/IDSC%20Clinic%20System/backend/clinic/admin.py#L19-L64)**:
-  * **List Display**: `student_id`, `first_name`, `last_name`, `course`, `section`, `sex`, `contact_no`, `birth_date`, `created_at`.
-  * **Filters**: `course`, `section`, `sex`.
-  * **Search**: `student_id`, `first_name`, `last_name`, `course`, `section`, `contact_no`.
-  * **Inline**: Includes [`HealthRecordInline`](file:///C:/Users/alexa/PycharmProjects/IDSC%20Clinic%20System/backend/clinic/admin.py#L10-L16) allowing clinic staff to view and log health records directly from the student's page.
-  * **Read-Only**: `student_id`, `created_at`, `updated_at`.
-* **[`HealthRecordAdmin`](file:///C:/Users/alexa/PycharmProjects/IDSC%20Clinic%20System/backend/clinic/admin.py#L66-L112)**:
-  * **List Display**: `health_id`, `student`, `blood_type`, `visit`, `weight`, `height`, `created_at`.
-  * **Filters**: `blood_type`, `visit`.
-  * **Search**: `student__student_id`, `student__first_name`, `student__last_name`, `blood_type`, `allergies`, `medication`, `consultation`.
-  * **Raw ID Fields**: `student`.
-
----
-
-## 17. Migrations
-
-Database schema changes are tracked in `backend/clinic/migrations/`:
-
-* **`0001_initial.py`**: Created the initial `students` and `health_records` tables with relationships, checks, and indexes.
-* **`0002_alter_student_student_id.py`**: Updated `Student.student_id` to an auto-incrementing `BigAutoField`.
-
-### Migration Commands
-* `python manage.py makemigrations`: Scans model files and generates new migration scripts.
-* `python manage.py migrate`: Applies pending migration scripts to PostgreSQL.
-
----
-
-## 18. Automated Test Suite
-
-The test suite is located in [`backend/clinic/tests.py`](file:///C:/Users/alexa/PycharmProjects/IDSC%20Clinic%20System/backend/clinic/tests.py) using DRF's `APITestCase`:
-
-### Test Coverage Breakdown (**31 Tests Total**)
-* **`StudentModelTests`** (2 tests): Model instantiation, auto-increment integer ID generation, full name property, `__str__` format.
-* **`HealthRecordModelTests`** (2 tests): Model instantiation, FK association, Decimal vitals precision, `ON DELETE CASCADE` deletion test.
-* **`StudentAPITests`** (9 tests): `GET` list, search by name/ID, filter by course, `POST` create without `student_id`, ignoring client-provided `student_id`, future birth date rejection, `GET` single student, `GET` 404 handler, `PUT` full update, `PATCH` partial update, `DELETE` student.
-* **`HealthRecordAPITests`** (8 tests): `GET` list, `POST` create with integer `student_id`, non-existent student 400 rejection, negative weight rejection, `GET` single record, `PUT` full update, `PATCH` partial update, `DELETE` record.
-* **`StudentHealthRecordRelationshipEndpointTests`** (4 tests): `GET` student records, `GET` 404 for missing student, `POST` create record via nested URL, `POST` 404 for missing student.
-* **`ErrorHandlingAndValidationTests`** (5 tests): Blank student name validation, invalid sex choice rejection, invalid blood type rejection, excessive weight/height rejection (>500kg / >300cm), API root discovery check.
-
-### Verified Test Run
-```text
-Ran 31 tests in 0.687s
-OK
-Destroying test database for alias 'default'...
-System check identified no issues (0 silenced).
+```powershell
+python manage.py check
 ```
 
----
+### Run the server
 
-## 19. Security and Data Integrity
-
-* **ORM Parameterization**: All queries use Django ORM filter expressions and parameterized lookups; no raw SQL string concatenation is used.
-* **Referential Integrity**: PostgreSQL enforces foreign keys (`FOREIGN KEY (student_id) REFERENCES students(student_id) ON DELETE CASCADE`).
-* **Input Sanitization**: Serializers strip whitespace, enforce numeric limits on medical vitals, validate controlled choice lists, and verify calendar constraints.
-* **Centralized Exception Handling**: Implemented in [`backend/clinic/exceptions.py`](file:///C:/Users/alexa/PycharmProjects/IDSC%20Clinic%20System/backend/clinic/exceptions.py) to intercept `IntegrityError` and `ValidationError`, returning clean JSON error responses rather than leaking database internals or stack traces.
-* **Secrets Separation**: Sensitive settings (`SECRET_KEY`, database passwords) are loaded via environment variables rather than hardcoded in source code.
-
----
-
-## 20. Environment Variables
-
-Template provided in [`backend/.env.example`](file:///C:/Users/alexa/PycharmProjects/IDSC%20Clinic%20System/backend/.env.example):
-
-```ini
-# Django Configuration
-SECRET_KEY=django-insecure-4uipb%r-hr+7aq+2g7xtu(a6gnf=0s-^ql!b6^=q=vi8g+2kz4
-DEBUG=True
-ALLOWED_HOSTS=localhost,127.0.0.1
-
-# PostgreSQL Database Configuration
-DB_ENGINE=django.db.backends.postgresql
-DB_NAME=clinic_db
-DB_USER=postgres
-DB_PASSWORD=postgres
-DB_HOST=localhost
-DB_PORT=5432
-
-# CORS Configuration
-CORS_ALLOWED_ORIGINS=http://localhost:5173,http://127.0.0.1:5173,http://localhost:3000,http://127.0.0.1:3000
+```powershell
+python manage.py runserver 8000
 ```
 
-> [!CAUTION]
-> The `.env` file contains sensitive local credentials and should never be committed to public version control repositories.
+Backend:
+
+`http://127.0.0.1:8000/`
+
+Swagger:
+
+`http://127.0.0.1:8000/docs`
+
+### Finals PostgreSQL dependencies
+
+For finals-oriented PostgreSQL work:
+
+```powershell
+python -m pip install -r requirements-finals.txt
+```
+
+Use the documented database environment configuration only when intentionally switching to the finals database path.
+
+See `SETUP.md` for additional environment/setup information, but treat this README and the architecture decision records as authoritative for the current midterm mock-data policy.
+
+---
+
+## 17. Frontend Status
+
+The repository contains a React/Vite frontend scaffold.
+
+The currently committed implementation still contains starter React/Vite content and does **not** represent the final Clinic high-fidelity interface.
+
+The final frontend role requires the approved high-fidelity clickable Figma prototype and synchronized implementation.
+
+The repository design evidence currently includes:
+
+- CSS custom properties;
+- system font stacks;
+- system-driven light/dark values;
+- a `1024px` responsive breakpoint;
+- basic hover/focus-visible interaction styling.
+
+Do not present these starter styles as the completed Clinic design system.
+
+See:
+
+`docs/design-system.md`
+
+---
+
+## 18. Architecture Documentation
+
+Detailed documentation is maintained under `docs/`.
+
+### Core documents
+
+- [`docs/architecture.md`](docs/architecture.md) — backend boundaries, layering, runtime architecture, and midterm/finals separation.
+- [`docs/data-model.md`](docs/data-model.md) — Clinic resource definitions, identifiers, choices, and external references.
+- [`docs/integration.md`](docs/integration.md) — Registrar, Inventory, Faculty, Student Portal, compensation, rollback, and trust boundaries.
+- [`docs/design-system.md`](docs/design-system.md) — verified frontend styling evidence and Figma synchronization contract.
+- [`docs/TEST-EVIDENCE.md`](docs/TEST-EVIDENCE.md) — recorded automated/API validation evidence.
+
+### Architecture Decision Records
+
+- [`ADR 0001`](docs/decisions/0001-midterm-mock-domain-data.md) — mock in-memory Clinic domain data for the midterm.
+- [`ADR 0002`](docs/decisions/0002-domain-ownership-and-external-identifiers.md) — module ownership and external identifiers.
+- [`ADR 0003`](docs/decisions/0003-service-repository-layering.md) — routes/views to services to data-layer architecture.
+- [`ADR 0004`](docs/decisions/0004-session-authentication-csrf-and-cors.md) — session authentication, CSRF, and credentialed CORS.
+- [`ADR 0005`](docs/decisions/0005-openapi-health-and-documentation-contract.md) — canonical OpenAPI, health, and Swagger contracts.
+- [`ADR 0006`](docs/decisions/0006-clean-integration-and-pr-only-main.md) — clean Phase 7-based integration and PR-only `main`.
+
+---
+
+## 19. Git and Integration Rules
+
+The canonical source branch to preserve is:
+
+`phase7/tests-contract-validation`
+
+The clean integration branch is:
+
+`fix/pre-main-integration`
+
+Rules:
+
+1. Do not merge legacy feature branches wholesale into `main`.
+2. Do not push directly to `main`.
+3. Do not force-push the integration branch as part of normal workflow.
+4. Preserve meaningful commit history.
+5. Review staged content before committing.
+6. Merge to `main` only through a reviewed Pull Request.
+7. Require final validation gates before merge.
+8. Preserve canonical Phase 7 until the reviewed integration is complete.
+
+Legacy feature branches are historical/reference branches according to the integration baseline and should not be treated as current canonical implementations.
+
+---
+
+## 20. Final Merge Gates
+
+Before the integration Pull Request can merge to `main`, verify all of the following:
+
+- [ ] full Django automated tests pass;
+- [ ] `python manage.py check` passes;
+- [ ] migration drift check passes;
+- [ ] static OpenAPI validates;
+- [ ] dynamic OpenAPI generates and validates;
+- [ ] static/dynamic operation inventory matches;
+- [ ] Redocly static lint passes;
+- [ ] Redocly dynamic lint passes;
+- [ ] `/api/v1/health` returns exactly `{ "status": "ok" }`;
+- [ ] Swagger `/docs` works;
+- [ ] Problem Details behavior is verified;
+- [ ] Postman/Newman collection is verified;
+- [ ] documentation is synchronized;
+- [ ] `main` branch protection is enabled as required;
+- [ ] teammate PR approval is obtained.
+
+---
+
+## 21. Security and Data Integrity Rules
+
+- Do not commit real passwords or production credentials.
+- Do not commit local virtual environments.
+- Do not commit generated Python cache/bytecode.
+- Keep session authentication enabled for protected browser flows.
+- Keep CSRF protection enabled.
+- Keep credentialed CORS restricted to intentional origins.
+- Keep public operations explicitly public rather than weakening global permissions.
+- Preserve module domain ownership.
+- Do not treat external identifiers as shared-database ownership.
+- Do not bypass `ClinicService` to persist Clinic business data directly from views.
+
+---
+
+## 22. Current Documentation Status
+
+The previously missing integration documentation set is now present in the working integration documentation sequence:
+
+- `docs/architecture.md`;
+- `docs/data-model.md`;
+- `docs/integration.md`;
+- `docs/design-system.md`;
+- `docs/decisions/`.
+
+These files must be validated and committed together only after README synchronization and documentation-quality checks pass.
+
+---
+
+## 23. Source-of-Truth Files
+
+Primary implementation/contract sources:
+
+- `openapi.yaml`
+- `redocly.yaml`
+- `backend/config/settings.py`
+- `backend/config/urls.py`
+- `backend/config/schema.py`
+- `backend/clinic/urls.py`
+- `backend/clinic/views.py`
+- `backend/clinic/services/clinic.py`
+- `backend/clinic/services/registrar.py`
+- `backend/clinic/services/inventory.py`
+- `backend/clinic/data/clinic.py`
+- `backend/authentication/`
+- `docs/TEST-EVIDENCE.md`
+
+Primary architecture documentation:
+
+- `docs/architecture.md`
+- `docs/data-model.md`
+- `docs/integration.md`
+- `docs/design-system.md`
+- `docs/decisions/`
+
+When implementation, API contract, test evidence, or approved frontend design changes materially, synchronize the relevant documentation in the same reviewed workflow.

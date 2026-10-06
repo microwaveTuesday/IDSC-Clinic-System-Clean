@@ -1,6 +1,5 @@
 Django>=6.1,<6.2
 djangorestframework>=3.18.0,<3.19
 django-cors-headers>=4.9.0,<4.10
-psycopg[binary]>=3.3.4
 python-dotenv>=1.2.3
 drf-spectacular>=0.30.0
