@@ -9,10 +9,15 @@ from clinic.services.clinic import clinic_service
 
 class ReliabilityTests(TestCase):
     def setUp(self):
+        from copy import deepcopy
+        self.inventory_state=deepcopy(inventory_service.__dict__)
         self.user=get_user_model().objects.create_user(username='safe_staff',password='WinterGarden!49183')
         self.user.groups.add(Group.objects.get(name='CLINIC_STAFF'))
         self.client=APIClient();self.client.force_authenticate(self.user)
         clinic_service.clear_mock_data()
+    def tearDown(self):
+        inventory_service.__dict__.clear()
+        inventory_service.__dict__.update(self.inventory_state)
     def test_idempotent_dispense_deducts_once_and_payload_conflicts(self):
         path='/api/v1/medicine-dispensations/'
         data={'student_id':'2026-0001','medicine_id':'MED-0001','quantity':1,'reason':'test'}
@@ -51,3 +56,32 @@ class ReliabilityTests(TestCase):
         cache.clear();self.client.force_authenticate(None)
         statuses=[self.client.post('/api/auth/login/',{'username':'none','password':'wrong'},format='json').status_code for _ in range(11)]
         self.assertEqual(statuses[-1],429);cache.clear()
+
+    def test_failed_compensation_records_private_reconciliation_incident(self):
+        from unittest.mock import patch
+        from clinic.models import IntegrationIncident
+        with patch.object(clinic_service.repository,'create_dispensation',side_effect=RuntimeError('persistence')), patch.object(inventory_service,'restore_stock',side_effect=RuntimeError('unavailable')):
+            response=self.client.post('/api/v1/medicine-dispensations/',{'student_id':'2026-0001','medicine_id':'MED-0001','quantity':1,'reason':'test'},format='json')
+        self.assertEqual(response.status_code,503)
+        self.assertEqual(IntegrationIncident.objects.get().operation,'COMPENSATION_FAILED')
+        self.assertNotIn('transaction_id',response.data)
+
+    def test_idempotency_is_scoped_to_actor(self):
+        data={'student_id':'2026-0001','blood_type':'O+'}
+        self.client.post('/api/v1/health-records/',data,format='json',HTTP_IDEMPOTENCY_KEY='shared-key')
+        other=get_user_model().objects.create_user(username='other')
+        self.client.force_authenticate(other)
+        self.assertEqual(self.client.post('/api/v1/health-records/',data,format='json',HTTP_IDEMPOTENCY_KEY='shared-key').status_code,403)
+
+    def test_invalid_version_header_returns_validation_error(self):
+        response=self.client.post('/api/v1/health-records/',{'student_id':'2026-0001'},format='json',HTTP_X_RECORD_VERSION='invalid')
+        self.assertEqual(response.status_code,400)
+
+    def test_idempotent_delete_preserves_empty_response(self):
+        self.user.groups.add(Group.objects.get(name='CLINIC_ADMIN'))
+        row=clinic_service.create_health_record({'student_id':'2026-0001'})
+        path=f"/api/v1/health-records/{row['health_record_id']}/"
+        first=self.client.delete(path,HTTP_IDEMPOTENCY_KEY='delete-one')
+        again=self.client.delete(path,HTTP_IDEMPOTENCY_KEY='delete-one')
+        self.assertEqual(first.status_code,204,first.data);self.assertEqual(again.status_code,204)
+        self.assertIsNone(again.data)

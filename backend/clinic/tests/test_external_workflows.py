@@ -169,6 +169,6 @@ class ExternalWorkflowTests(TestCase):
         for path in ['students/import/','mock/registrar/students/','mock/inventory/medicines/','restock-requests/','inventory-notifications/']:
             self.assertEqual(client.post('/api/v1/'+path,{},content_type='application/json').status_code,403)
 
-    @override_settings(CLINIC_DATA_BACKEND='database')
-    def test_demo_routes_disabled_outside_mock_mode(self):
+    @override_settings(MOCK_WORKSPACES_ENABLED=False)
+    def test_demo_routes_can_be_explicitly_disabled(self):
         self.assertEqual(self.client.get('/api/v1/mock/registrar/students/').status_code,404)

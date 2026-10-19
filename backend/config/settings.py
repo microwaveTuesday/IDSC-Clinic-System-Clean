@@ -7,6 +7,7 @@ Configured for the IDSC Clinic System midterm mock API with Django REST Framewor
 
 import os
 from pathlib import Path
+from django.core.exceptions import ImproperlyConfigured
 from dotenv import load_dotenv
 
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
@@ -337,3 +338,15 @@ CORS_ALLOWED_ORIGINS=[x for x in os.environ.get('CORS_ALLOWED_ORIGINS',','.join(
 CSRF_TRUSTED_ORIGINS=[x for x in os.environ.get('CSRF_TRUSTED_ORIGINS',','.join(CSRF_TRUSTED_ORIGINS)).split(',') if x]
 
 LOGIN_THROTTLE_ENABLED = not DEBUG
+
+if not DEBUG:
+    MAILERS={'default':{'BACKEND':'django.core.mail.backends.smtp.EmailBackend','HOST':os.environ.get('EMAIL_HOST','localhost')}}
+
+# Domain persistence and external mock workspaces are independent choices.
+MOCK_WORKSPACES_ENABLED = os.environ.get('MOCK_WORKSPACES_ENABLED','True').lower() in ('true','1','yes')
+REGISTRAR_BACKEND=os.environ.get('REGISTRAR_BACKEND','mock')
+INVENTORY_BACKEND=os.environ.get('INVENTORY_BACKEND','mock')
+if REGISTRAR_BACKEND!='mock' or INVENTORY_BACKEND!='mock':
+    raise ImproperlyConfigured('Only verified mock external adapters are currently implemented. Real contracts are required.')
+
+REST_FRAMEWORK['NUM_PROXIES']=0  # Do not trust arbitrary X-Forwarded-For for login limiting.

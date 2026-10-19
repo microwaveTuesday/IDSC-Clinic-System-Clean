@@ -1271,6 +1271,7 @@ components:
           format: password
           writeOnly: true
           example: TemporaryPassword123!
+          maxLength: 1024
     StaffUpdate:
       type: object
       additionalProperties: false
@@ -2574,6 +2575,15 @@ paths:
           $ref: '#/components/responses/InternalServerError'
         '403':
           $ref: '#/components/responses/Forbidden'
+      parameters:
+      - name: Idempotency-Key
+        in: header
+        required: false
+        description: Optional actor/path scoped replay key. Reuse identical key/body
+          after a network failure; changed body returns 409.
+        schema:
+          type: string
+          maxLength: 128
   /api/v1/health-records/{health_record_id}/:
     parameters:
     - $ref: '#/components/parameters/HealthRecordIdPath'
@@ -2640,6 +2650,30 @@ paths:
           $ref: '#/components/responses/InternalServerError'
         '403':
           $ref: '#/components/responses/Forbidden'
+      parameters:
+      - name: Idempotency-Key
+        in: header
+        required: false
+        description: Optional actor/path scoped replay key. Reuse identical key/body
+          after a network failure; changed body returns 409.
+        schema:
+          type: string
+          maxLength: 128
+      - name: If-Match
+        in: header
+        required: false
+        description: ETag from latest detail response. Database mode rejects stale
+          writes with 409.
+        schema:
+          type: string
+      - name: X-Record-Version
+        in: header
+        required: false
+        description: Original updated_at ISO datetime; database mode rejects stale
+          edits with 409.
+        schema:
+          type: string
+          format: date-time
     patch:
       tags:
       - Health Records
@@ -2677,6 +2711,30 @@ paths:
           $ref: '#/components/responses/InternalServerError'
         '403':
           $ref: '#/components/responses/Forbidden'
+      parameters:
+      - name: Idempotency-Key
+        in: header
+        required: false
+        description: Optional actor/path scoped replay key. Reuse identical key/body
+          after a network failure; changed body returns 409.
+        schema:
+          type: string
+          maxLength: 128
+      - name: If-Match
+        in: header
+        required: false
+        description: ETag from latest detail response. Database mode rejects stale
+          writes with 409.
+        schema:
+          type: string
+      - name: X-Record-Version
+        in: header
+        required: false
+        description: Original updated_at ISO datetime; database mode rejects stale
+          edits with 409.
+        schema:
+          type: string
+          format: date-time
     delete:
       tags:
       - Health Records
@@ -2696,6 +2754,30 @@ paths:
           $ref: '#/components/responses/InternalServerError'
         '403':
           $ref: '#/components/responses/Forbidden'
+      parameters:
+      - name: Idempotency-Key
+        in: header
+        required: false
+        description: Optional actor/path scoped replay key. Reuse identical key/body
+          after a network failure; changed body returns 409.
+        schema:
+          type: string
+          maxLength: 128
+      - name: If-Match
+        in: header
+        required: false
+        description: ETag from latest detail response. Database mode rejects stale
+          writes with 409.
+        schema:
+          type: string
+      - name: X-Record-Version
+        in: header
+        required: false
+        description: Original updated_at ISO datetime; database mode rejects stale
+          edits with 409.
+        schema:
+          type: string
+          format: date-time
   /api/v1/consultations/:
     get:
       tags:
@@ -2815,6 +2897,15 @@ paths:
           $ref: '#/components/responses/InternalServerError'
         '403':
           $ref: '#/components/responses/Forbidden'
+      parameters:
+      - name: Idempotency-Key
+        in: header
+        required: false
+        description: Optional actor/path scoped replay key. Reuse identical key/body
+          after a network failure; changed body returns 409.
+        schema:
+          type: string
+          maxLength: 128
   /api/v1/consultations/{consultation_id}/:
     parameters:
     - $ref: '#/components/parameters/ConsultationIdPath'
@@ -2878,6 +2969,30 @@ paths:
           $ref: '#/components/responses/InternalServerError'
         '403':
           $ref: '#/components/responses/Forbidden'
+      parameters:
+      - name: Idempotency-Key
+        in: header
+        required: false
+        description: Optional actor/path scoped replay key. Reuse identical key/body
+          after a network failure; changed body returns 409.
+        schema:
+          type: string
+          maxLength: 128
+      - name: If-Match
+        in: header
+        required: false
+        description: ETag from latest detail response. Database mode rejects stale
+          writes with 409.
+        schema:
+          type: string
+      - name: X-Record-Version
+        in: header
+        required: false
+        description: Original updated_at ISO datetime; database mode rejects stale
+          edits with 409.
+        schema:
+          type: string
+          format: date-time
     patch:
       tags:
       - Consultations
@@ -2915,6 +3030,30 @@ paths:
           $ref: '#/components/responses/InternalServerError'
         '403':
           $ref: '#/components/responses/Forbidden'
+      parameters:
+      - name: Idempotency-Key
+        in: header
+        required: false
+        description: Optional actor/path scoped replay key. Reuse identical key/body
+          after a network failure; changed body returns 409.
+        schema:
+          type: string
+          maxLength: 128
+      - name: If-Match
+        in: header
+        required: false
+        description: ETag from latest detail response. Database mode rejects stale
+          writes with 409.
+        schema:
+          type: string
+      - name: X-Record-Version
+        in: header
+        required: false
+        description: Original updated_at ISO datetime; database mode rejects stale
+          edits with 409.
+        schema:
+          type: string
+          format: date-time
     delete:
       tags:
       - Consultations
@@ -2934,6 +3073,30 @@ paths:
           $ref: '#/components/responses/InternalServerError'
         '403':
           $ref: '#/components/responses/Forbidden'
+      parameters:
+      - name: Idempotency-Key
+        in: header
+        required: false
+        description: Optional actor/path scoped replay key. Reuse identical key/body
+          after a network failure; changed body returns 409.
+        schema:
+          type: string
+          maxLength: 128
+      - name: If-Match
+        in: header
+        required: false
+        description: ETag from latest detail response. Database mode rejects stale
+          writes with 409.
+        schema:
+          type: string
+      - name: X-Record-Version
+        in: header
+        required: false
+        description: Original updated_at ISO datetime; database mode rejects stale
+          edits with 409.
+        schema:
+          type: string
+          format: date-time
   /api/v1/health-statuses/:
     get:
       tags:
@@ -3048,6 +3211,15 @@ paths:
           $ref: '#/components/responses/InternalServerError'
         '403':
           $ref: '#/components/responses/Forbidden'
+      parameters:
+      - name: Idempotency-Key
+        in: header
+        required: false
+        description: Optional actor/path scoped replay key. Reuse identical key/body
+          after a network failure; changed body returns 409.
+        schema:
+          type: string
+          maxLength: 128
   /api/v1/health-statuses/{status_id}/:
     parameters:
     - $ref: '#/components/parameters/StatusIdPath'
@@ -3110,6 +3282,30 @@ paths:
           $ref: '#/components/responses/InternalServerError'
         '403':
           $ref: '#/components/responses/Forbidden'
+      parameters:
+      - name: Idempotency-Key
+        in: header
+        required: false
+        description: Optional actor/path scoped replay key. Reuse identical key/body
+          after a network failure; changed body returns 409.
+        schema:
+          type: string
+          maxLength: 128
+      - name: If-Match
+        in: header
+        required: false
+        description: ETag from latest detail response. Database mode rejects stale
+          writes with 409.
+        schema:
+          type: string
+      - name: X-Record-Version
+        in: header
+        required: false
+        description: Original updated_at ISO datetime; database mode rejects stale
+          edits with 409.
+        schema:
+          type: string
+          format: date-time
     patch:
       tags:
       - Health Statuses
@@ -3147,6 +3343,30 @@ paths:
           $ref: '#/components/responses/InternalServerError'
         '403':
           $ref: '#/components/responses/Forbidden'
+      parameters:
+      - name: Idempotency-Key
+        in: header
+        required: false
+        description: Optional actor/path scoped replay key. Reuse identical key/body
+          after a network failure; changed body returns 409.
+        schema:
+          type: string
+          maxLength: 128
+      - name: If-Match
+        in: header
+        required: false
+        description: ETag from latest detail response. Database mode rejects stale
+          writes with 409.
+        schema:
+          type: string
+      - name: X-Record-Version
+        in: header
+        required: false
+        description: Original updated_at ISO datetime; database mode rejects stale
+          edits with 409.
+        schema:
+          type: string
+          format: date-time
     delete:
       tags:
       - Health Statuses
@@ -3166,6 +3386,30 @@ paths:
           $ref: '#/components/responses/InternalServerError'
         '403':
           $ref: '#/components/responses/Forbidden'
+      parameters:
+      - name: Idempotency-Key
+        in: header
+        required: false
+        description: Optional actor/path scoped replay key. Reuse identical key/body
+          after a network failure; changed body returns 409.
+        schema:
+          type: string
+          maxLength: 128
+      - name: If-Match
+        in: header
+        required: false
+        description: ETag from latest detail response. Database mode rejects stale
+          writes with 409.
+        schema:
+          type: string
+      - name: X-Record-Version
+        in: header
+        required: false
+        description: Original updated_at ISO datetime; database mode rejects stale
+          edits with 409.
+        schema:
+          type: string
+          format: date-time
   /api/v1/medicines/:
     get:
       tags:
@@ -3429,6 +3673,15 @@ paths:
           $ref: '#/components/responses/InternalServerError'
         '403':
           $ref: '#/components/responses/Forbidden'
+      parameters:
+      - name: Idempotency-Key
+        in: header
+        required: false
+        description: Optional actor/path scoped replay key. Reuse identical key/body
+          after a network failure; changed body returns 409.
+        schema:
+          type: string
+          maxLength: 128
   /api/v1/medicine-dispensations/{dispensation_id}/:
     get:
       tags:
@@ -3468,6 +3721,14 @@ paths:
         schema:
           type: string
         description: CSRF token obtained from /api/auth/csrf/.
+      - name: Idempotency-Key
+        in: header
+        required: false
+        description: Optional actor/path scoped replay key. Reuse identical key/body
+          after a network failure; changed body returns 409.
+        schema:
+          type: string
+          maxLength: 128
       tags:
       - Clinic Integrations
       security:
@@ -3503,6 +3764,14 @@ paths:
       operationId: rollbackMedicineDispensation
       parameters:
       - $ref: '#/components/parameters/DispensationIdPath'
+      - name: Idempotency-Key
+        in: header
+        required: false
+        description: Optional actor/path scoped replay key. Reuse identical key/body
+          after a network failure; changed body returns 409.
+        schema:
+          type: string
+          maxLength: 128
       responses:
         '200':
           description: Medicine dispensation rolled back successfully.
@@ -3802,15 +4071,8 @@ paths:
       tags:
       - Integrations
       summary: Get student health status for Faculty
-      description: 'Returns the latest permitted Clinic health status for a student
-        to an authorized Faculty System consumer. This endpoint exposes only the limited
-        health-status projection and does not expose health records, consultations,
-        or medicine dispensation history.
-
-        If the student exists in Registrar but has no Clinic health status record,
-        the response uses NOT_AVAILABLE as an integration response state.
-
-        '
+      description: Clinic-role-only demonstration projection. Real provider/student
+        identity binding is unavailable.
       operationId: getFacultyStudentHealthStatus
       parameters:
       - $ref: '#/components/parameters/StudentIdPath'
@@ -3847,15 +4109,8 @@ paths:
       tags:
       - Integrations
       summary: Get student health status for Student Portal
-      description: 'Returns the latest permitted Clinic health status for a student
-        to an authorized Student Portal consumer. This endpoint exposes only the limited
-        health-status projection and does not expose health records, consultations,
-        or medicine dispensation history.
-
-        If the student exists in Registrar but has no Clinic health status record,
-        the response uses NOT_AVAILABLE as an integration response state.
-
-        '
+      description: Clinic-role-only demonstration projection. Real provider/student
+        identity binding is unavailable.
       operationId: getStudentPortalHealthStatus
       parameters:
       - $ref: '#/components/parameters/StudentIdPath'
@@ -4449,6 +4704,14 @@ paths:
         schema:
           type: string
         description: CSRF token obtained from /api/auth/csrf/.
+      - name: Idempotency-Key
+        in: header
+        required: false
+        description: Optional actor/path scoped replay key. Reuse identical key/body
+          after a network failure; changed body returns 409.
+        schema:
+          type: string
+          maxLength: 128
   /api/v1/mock/inventory/medicines/:
     get:
       operationId: v1_mock_inventory_medicines_list
@@ -4524,6 +4787,14 @@ paths:
         schema:
           type: string
         description: CSRF token obtained from /api/auth/csrf/.
+      - name: Idempotency-Key
+        in: header
+        required: false
+        description: Optional actor/path scoped replay key. Reuse identical key/body
+          after a network failure; changed body returns 409.
+        schema:
+          type: string
+          maxLength: 128
   /api/v1/mock/inventory/medicines/{medicine_id}/:
     patch:
       operationId: v1_mock_inventory_medicines_partial_update
@@ -4539,6 +4810,14 @@ paths:
         schema:
           type: string
         description: CSRF token obtained from /api/auth/csrf/.
+      - name: Idempotency-Key
+        in: header
+        required: false
+        description: Optional actor/path scoped replay key. Reuse identical key/body
+          after a network failure; changed body returns 409.
+        schema:
+          type: string
+          maxLength: 128
       tags:
       - Mock External Systems
       requestBody:
@@ -4589,6 +4868,14 @@ paths:
         schema:
           type: string
         description: CSRF token obtained from /api/auth/csrf/.
+      - name: Idempotency-Key
+        in: header
+        required: false
+        description: Optional actor/path scoped replay key. Reuse identical key/body
+          after a network failure; changed body returns 409.
+        schema:
+          type: string
+          maxLength: 128
       tags:
       - Mock External Systems
       security:
@@ -4625,6 +4912,14 @@ paths:
         schema:
           type: string
         description: CSRF token obtained from /api/auth/csrf/.
+      - name: Idempotency-Key
+        in: header
+        required: false
+        description: Optional actor/path scoped replay key. Reuse identical key/body
+          after a network failure; changed body returns 409.
+        schema:
+          type: string
+          maxLength: 128
       tags:
       - Mock External Systems
       security:
@@ -4725,6 +5020,14 @@ paths:
         schema:
           type: string
         description: CSRF token obtained from /api/auth/csrf/.
+      - name: Idempotency-Key
+        in: header
+        required: false
+        description: Optional actor/path scoped replay key. Reuse identical key/body
+          after a network failure; changed body returns 409.
+        schema:
+          type: string
+          maxLength: 128
   /api/v1/mock/registrar/students/{student_id}/:
     patch:
       operationId: v1_mock_registrar_students_partial_update
@@ -4740,6 +5043,14 @@ paths:
         schema:
           type: string
         description: CSRF token obtained from /api/auth/csrf/.
+      - name: Idempotency-Key
+        in: header
+        required: false
+        description: Optional actor/path scoped replay key. Reuse identical key/body
+          after a network failure; changed body returns 409.
+        schema:
+          type: string
+          maxLength: 128
       tags:
       - Mock External Systems
       requestBody:
@@ -4851,6 +5162,14 @@ paths:
         schema:
           type: string
         description: CSRF token obtained from /api/auth/csrf/.
+      - name: Idempotency-Key
+        in: header
+        required: false
+        description: Optional actor/path scoped replay key. Reuse identical key/body
+          after a network failure; changed body returns 409.
+        schema:
+          type: string
+          maxLength: 128
   /api/v1/students/import/:
     post:
       operationId: v1_students_import_create
@@ -4898,6 +5217,14 @@ paths:
         schema:
           type: string
         description: CSRF token obtained from /api/auth/csrf/.
+      - name: Idempotency-Key
+        in: header
+        required: false
+        description: Optional actor/path scoped replay key. Reuse identical key/body
+          after a network failure; changed body returns 409.
+        schema:
+          type: string
+          maxLength: 128
   /api/auth/setup/:
     get:
       operationId: auth_setup_retrieve

@@ -94,7 +94,7 @@ class DemoBase(APIView):
 
     def initial(self, request, *args, **kwargs):
         super().initial(request, *args, **kwargs)
-        if settings.CLINIC_DATA_BACKEND != "mock":
+        if not settings.MOCK_WORKSPACES_ENABLED:
             raise NotFound("These demonstration integrations are available in mock mode only.")
 
 

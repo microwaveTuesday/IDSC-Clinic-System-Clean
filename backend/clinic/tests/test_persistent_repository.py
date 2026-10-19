@@ -38,3 +38,24 @@ class PersistentRepositoryTests(TestCase):
         self.repo.create_health_status({'student_id':'s','status':'CLEARED'})
         self.assertEqual(self.repo.get_latest_health_status_for_student('s')['status'],'CLEARED')
         self.assertIsNone(self.repo.get_health_record(999))
+
+    def test_configured_api_create_update_delete_uses_database(self):
+        from unittest.mock import patch
+        from rest_framework.test import APIClient
+        from django.contrib.auth import get_user_model
+        from django.contrib.auth.models import Group
+        from clinic.services.clinic import clinic_service
+        user=get_user_model().objects.create_user(username='persistent_api')
+        group,_=Group.objects.get_or_create(name='CLINIC_ADMIN');user.groups.add(group)
+        client=APIClient();client.force_authenticate(user)
+        with patch.object(clinic_service,'repository',self.repo):
+            created=client.post('/api/v1/health-records/',{'student_id':'2026-0001','blood_type':'O+'},format='json')
+            self.assertEqual(created.status_code,201,created.data)
+            key=created.data['health_record_id'];url=f'/api/v1/health-records/{key}/'
+            latest=client.get(url)
+            updated=client.patch(url,{'allergies':'Updated'},format='json',HTTP_IF_MATCH=latest['ETag'])
+            self.assertEqual(updated.status_code,200,updated.data)
+            stale=client.patch(url,{'allergies':'Lost'},format='json',HTTP_IF_MATCH=latest['ETag'])
+            self.assertEqual(stale.status_code,409)
+            self.assertEqual(client.delete(url).status_code,204)
+            self.assertEqual(HealthRecord.objects.count(),0)

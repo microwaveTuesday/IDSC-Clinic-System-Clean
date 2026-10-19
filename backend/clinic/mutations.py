@@ -11,9 +11,21 @@ from clinic.models import MutationLock
 process_lock = RLock()
 expected_etag = ContextVar('expected_etag', default=None)
 expected_version = ContextVar('expected_version', default=None)
+pending_incidents = ContextVar('pending_incidents', default=None)
 
 def record_etag(record):
-    encoded=json.dumps(record,cls=DjangoJSONEncoder,sort_keys=True,separators=(',',':'))
+    from datetime import datetime
+    from django.utils.dateparse import parse_datetime
+    def normalize(value):
+        if isinstance(value,dict):return {key:normalize(item) for key,item in value.items()}
+        if isinstance(value,list):return [normalize(item) for item in value]
+        if isinstance(value,str) and 'T' in value:
+            try: parsed=parse_datetime(value)
+            except ValueError: parsed=None
+            if parsed:value=parsed
+        if isinstance(value,datetime):return value.isoformat(timespec='microseconds').replace('+00:00','Z')
+        return value
+    encoded=json.dumps(normalize(record),cls=DjangoJSONEncoder,sort_keys=True,separators=(',',':'))
     return '"'+hashlib.sha256(encoded.encode()).hexdigest()+'"'
 
 @contextmanager
@@ -41,6 +53,12 @@ def guarded(method):
             raise ValidationError('Idempotency-Key must be ASCII and at most 128 characters.')
         scope=hashlib.sha256(f'{request.user.pk}:{request.method}:{request.path}'.encode()).hexdigest()
         fingerprint=hashlib.sha256(json.dumps(request.data,sort_keys=True,cls=DjangoJSONEncoder).encode()).hexdigest()
+        version=request.headers.get('X-Record-Version')
+        if version:
+            from django.utils.dateparse import parse_datetime
+            try: parsed=parse_datetime(version) if len(version)<=64 else None
+            except ValueError: parsed=None
+            if parsed is None:raise ValidationError('X-Record-Version must be an ISO datetime.')
         token=expected_etag.set(request.headers.get('If-Match'))
         version_token=expected_version.set(request.headers.get('X-Record-Version'))
         try:

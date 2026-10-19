@@ -23,7 +23,17 @@ from .inventory import (
 
 from ..data.clinic import mock_clinic_repository
 from django.conf import settings
-from clinic.mutations import mutation_lock
+from clinic.mutations import mutation_lock, pending_incidents
+from rest_framework.exceptions import APIException
+
+class ReconciliationRequired(APIException):
+    status_code=503
+    default_detail="Inventory reconciliation is required. Contact the Owner before retrying."
+    default_code="reconciliation_required"
+
+def incident(transaction_id,operation):
+    queue=pending_incidents.get()
+    if queue is not None:queue.append({"transaction_id":transaction_id,"operation":operation})
 from functools import wraps
 
 def coordinated(method):
@@ -671,10 +681,9 @@ class ClinicService:
                 inventory_service.restore_stock(
                     inventory_transaction_id
                 )
-            except Exception:
-                # Preserve the original Clinic persistence
-                # failure as the primary exception.
-                pass
+            except Exception as exc:
+                incident(inventory_transaction_id,'COMPENSATION_FAILED')
+                raise ReconciliationRequired() from exc
 
             raise
 
@@ -731,11 +740,9 @@ class ClinicService:
                     rollback_transaction_id,
                 )
             )
-        except Exception:
-            # Inventory has already restored the stock.
-            # Surface the Clinic data-layer failure instead of
-            # pretending the external action was reverted.
-            raise
+        except Exception as exc:
+            incident(inventory_transaction_id,'ROLLBACK_RECORD_FAILED')
+            raise ReconciliationRequired() from exc
 
         if updated is None:
             raise ClinicResourceNotFoundError(

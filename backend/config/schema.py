@@ -191,4 +191,11 @@ def postprocess_openapi_metadata(
             + formatted
         )
 
+    for path, item in result.get('paths',{}).items():
+        for method, operation in item.items():
+            if method in ('post','put','patch','delete') and path.startswith('/api/v1/') and '/users/' not in path and '/admins/' not in path:
+                operation.setdefault('parameters',[]).append({'name':'Idempotency-Key','in':'header','required':False,'description':'Optional actor/path scoped replay key. Reuse identical key/body after a network failure; changed body returns 409.','schema':{'type':'string','maxLength':128}})
+            if method in ('put','patch','delete') and any(resource in path for resource in ('health-records/','consultations/','health-statuses/')):
+                operation.setdefault('parameters',[]).append({'name':'If-Match','in':'header','required':False,'description':'ETag from latest detail response. Database mode rejects stale writes with 409.','schema':{'type':'string'}})
+                operation['parameters'].append({'name':'X-Record-Version','in':'header','required':False,'description':'Original updated_at ISO datetime; database mode rejects stale edits with 409.','schema':{'type':'string','format':'date-time'}})
     return result

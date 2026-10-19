@@ -221,6 +221,7 @@ export function MockWorkspace({ kind, onRefresh }) {
     };
   }, [base, registrar]);
   async function act(action) {
+    if (pending) return false;
     setPending(true);
     setError("");
     try {
@@ -253,6 +254,7 @@ export function MockWorkspace({ kind, onRefresh }) {
         </div>
         <button
           className="button primary"
+          disabled={pending}
           onClick={() => {
             setError("");
             setEdit({});
@@ -398,6 +400,7 @@ export function MockWorkspace({ kind, onRefresh }) {
                     <div className="row-actions">
                       <button
                         className="text-link"
+                        disabled={pending}
                         onClick={() => {
                           setError("");
                           setEdit(row);
@@ -408,6 +411,7 @@ export function MockWorkspace({ kind, onRefresh }) {
                       {!registrar && (
                         <button
                           className="text-link danger-link"
+                          disabled={pending}
                           onClick={() => setRemoving(row)}
                         >
                           Delete

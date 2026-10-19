@@ -295,7 +295,7 @@ class OperationReceipt(models.Model):
     scope = models.CharField(max_length=64)
     key = models.CharField(max_length=128)
     fingerprint = models.CharField(max_length=64)
-    response = models.JSONField(default=dict)
+    response = models.JSONField(default=dict, null=True)
     status_code = models.PositiveSmallIntegerField(default=0)
     created_at = models.DateTimeField(auto_now_add=True)
 
@@ -310,3 +310,11 @@ class AuditEvent(models.Model):
     path = models.CharField(max_length=256)
     status_code = models.PositiveSmallIntegerField()
     created_at = models.DateTimeField(auto_now_add=True, db_index=True)
+
+
+class IntegrationIncident(models.Model):
+    """Durable queue for operator reconciliation; never silently retry stock writes."""
+    transaction_id = models.CharField(max_length=100)
+    operation = models.CharField(max_length=40)
+    created_at = models.DateTimeField(auto_now_add=True)
+    resolved = models.BooleanField(default=False)
