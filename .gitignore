@@ -35,3 +35,5 @@ newman-results.json
 .validation-server.log
 
 .validation-regression.log
+
+.runtime/
