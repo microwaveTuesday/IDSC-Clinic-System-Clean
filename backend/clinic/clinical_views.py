@@ -1,4 +1,5 @@
 """Focused Clinic HTTP controllers; business rules remain in ClinicService."""
+
 from .view_support import (
     ClinicPagination,
     ClinicResourceNotFoundError,
@@ -19,6 +20,7 @@ from .view_support import (
     parse_optional_report_date,
     status,
 )
+
 
 @extend_schema_view(
     retrieve=_int64_path_schema(
@@ -41,7 +43,6 @@ from .view_support import (
 class HealthRecordViewSet(ClinicResourceViewSet):
     permission_classes = [IsClinicStaff]
 
-
     """
     CRUD controller for Clinic-owned HealthRecord mock resources.
 
@@ -57,16 +58,11 @@ class HealthRecordViewSet(ClinicResourceViewSet):
     pagination_class = ClinicPagination
     lookup_field = "health_record_id"
 
-
     def _get_record(self, health_record_id):
         try:
-            return clinic_service.get_health_record(
-                health_record_id
-            )
+            return clinic_service.get_health_record(health_record_id)
         except ClinicResourceNotFoundError as exc:
-            raise NotFound(
-                detail=str(exc)
-            ) from exc
+            raise NotFound(detail=str(exc)) from exc
 
     def list(self, request):
         records = clinic_service.list_health_records(
@@ -101,48 +97,29 @@ class HealthRecordViewSet(ClinicResourceViewSet):
             many=True,
         )
 
-        return paginator.get_paginated_response(
-            serializer.data
-        )
+        return paginator.get_paginated_response(serializer.data)
 
     def retrieve(
         self,
         request,
         health_record_id=None,
     ):
-        record = self._get_record(
-            health_record_id
-        )
+        record = self._get_record(health_record_id)
 
-        return Response(
-            self._serialize(record).data
-        )
+        return Response(self._serialize(record).data)
 
     @guarded
     def create(self, request):
-        serializer = self.serializer_class(
-            data=request.data
-        )
+        serializer = self.serializer_class(data=request.data)
 
-        serializer.is_valid(
-            raise_exception=True
-        )
+        serializer.is_valid(raise_exception=True)
 
         try:
-            record = (
-                clinic_service
-                .create_health_record(
-                    serializer.validated_data
-                )
-            )
+            record = clinic_service.create_health_record(serializer.validated_data)
         except StudentNotFoundError as exc:
-            raise NotFound(
-                detail=str(exc)
-            ) from exc
+            raise NotFound(detail=str(exc)) from exc
         except StudentUnavailableError as exc:
-            raise UnprocessableEntity(
-                detail=str(exc)
-            ) from exc
+            raise UnprocessableEntity(detail=str(exc)) from exc
 
         output = self._serialize(record)
 
@@ -181,9 +158,7 @@ class HealthRecordViewSet(ClinicResourceViewSet):
         health_record_id,
         partial,
     ):
-        current = self._get_record(
-            health_record_id
-        )
+        current = self._get_record(health_record_id)
 
         serializer = self.serializer_class(
             instance=current,
@@ -191,34 +166,21 @@ class HealthRecordViewSet(ClinicResourceViewSet):
             partial=partial,
         )
 
-        serializer.is_valid(
-            raise_exception=True
-        )
+        serializer.is_valid(raise_exception=True)
 
         try:
-            record = (
-                clinic_service
-                .update_health_record(
-                    health_record_id,
-                    serializer.validated_data,
-                )
+            record = clinic_service.update_health_record(
+                health_record_id,
+                serializer.validated_data,
             )
         except ClinicResourceNotFoundError as exc:
-            raise NotFound(
-                detail=str(exc)
-            ) from exc
+            raise NotFound(detail=str(exc)) from exc
         except StudentNotFoundError as exc:
-            raise NotFound(
-                detail=str(exc)
-            ) from exc
+            raise NotFound(detail=str(exc)) from exc
         except StudentUnavailableError as exc:
-            raise UnprocessableEntity(
-                detail=str(exc)
-            ) from exc
+            raise UnprocessableEntity(detail=str(exc)) from exc
 
-        return Response(
-            self._serialize(record).data
-        )
+        return Response(self._serialize(record).data)
 
     @guarded
     def destroy(
@@ -227,17 +189,11 @@ class HealthRecordViewSet(ClinicResourceViewSet):
         health_record_id=None,
     ):
         try:
-            clinic_service.delete_health_record(
-                health_record_id
-            )
+            clinic_service.delete_health_record(health_record_id)
         except ClinicResourceNotFoundError as exc:
-            raise NotFound(
-                detail=str(exc)
-            ) from exc
+            raise NotFound(detail=str(exc)) from exc
 
-        return Response(
-            status=status.HTTP_204_NO_CONTENT
-        )
+        return Response(status=status.HTTP_204_NO_CONTENT)
 
 
 @extend_schema_view(
@@ -261,38 +217,28 @@ class HealthRecordViewSet(ClinicResourceViewSet):
 class ConsultationViewSet(ClinicResourceViewSet):
     permission_classes = [IsClinicStaff]
 
-
     """CRUD controller for Clinic consultation mock resources."""
 
     serializer_class = ConsultationSerializer
     pagination_class = ClinicPagination
     lookup_field = "consultation_id"
 
-
     def _get_record(self, consultation_id):
         try:
-            return clinic_service.get_consultation(
-                consultation_id
-            )
+            return clinic_service.get_consultation(consultation_id)
         except ClinicResourceNotFoundError as exc:
-            raise NotFound(
-                detail=str(exc)
-            ) from exc
+            raise NotFound(detail=str(exc)) from exc
 
     def list(self, request):
-        date_from_raw = (
-            request.query_params.get(
-                "date_from",
-                "",
-            ).strip()
-        )
+        date_from_raw = request.query_params.get(
+            "date_from",
+            "",
+        ).strip()
 
-        date_to_raw = (
-            request.query_params.get(
-                "date_to",
-                "",
-            ).strip()
-        )
+        date_to_raw = request.query_params.get(
+            "date_to",
+            "",
+        ).strip()
 
         date_from = parse_optional_report_date(
             date_from_raw,
@@ -334,48 +280,29 @@ class ConsultationViewSet(ClinicResourceViewSet):
             many=True,
         )
 
-        return paginator.get_paginated_response(
-            serializer.data
-        )
+        return paginator.get_paginated_response(serializer.data)
 
     def retrieve(
         self,
         request,
         consultation_id=None,
     ):
-        record = self._get_record(
-            consultation_id
-        )
+        record = self._get_record(consultation_id)
 
-        return Response(
-            self._serialize(record).data
-        )
+        return Response(self._serialize(record).data)
 
     @guarded
     def create(self, request):
-        serializer = self.serializer_class(
-            data=request.data
-        )
+        serializer = self.serializer_class(data=request.data)
 
-        serializer.is_valid(
-            raise_exception=True
-        )
+        serializer.is_valid(raise_exception=True)
 
         try:
-            record = (
-                clinic_service
-                .create_consultation(
-                    serializer.validated_data
-                )
-            )
+            record = clinic_service.create_consultation(serializer.validated_data)
         except StudentNotFoundError as exc:
-            raise NotFound(
-                detail=str(exc)
-            ) from exc
+            raise NotFound(detail=str(exc)) from exc
         except StudentUnavailableError as exc:
-            raise UnprocessableEntity(
-                detail=str(exc)
-            ) from exc
+            raise UnprocessableEntity(detail=str(exc)) from exc
 
         return Response(
             self._serialize(record).data,
@@ -412,9 +339,7 @@ class ConsultationViewSet(ClinicResourceViewSet):
         consultation_id,
         partial,
     ):
-        current = self._get_record(
-            consultation_id
-        )
+        current = self._get_record(consultation_id)
 
         serializer = self.serializer_class(
             instance=current,
@@ -422,34 +347,21 @@ class ConsultationViewSet(ClinicResourceViewSet):
             partial=partial,
         )
 
-        serializer.is_valid(
-            raise_exception=True
-        )
+        serializer.is_valid(raise_exception=True)
 
         try:
-            record = (
-                clinic_service
-                .update_consultation(
-                    consultation_id,
-                    serializer.validated_data,
-                )
+            record = clinic_service.update_consultation(
+                consultation_id,
+                serializer.validated_data,
             )
         except ClinicResourceNotFoundError as exc:
-            raise NotFound(
-                detail=str(exc)
-            ) from exc
+            raise NotFound(detail=str(exc)) from exc
         except StudentNotFoundError as exc:
-            raise NotFound(
-                detail=str(exc)
-            ) from exc
+            raise NotFound(detail=str(exc)) from exc
         except StudentUnavailableError as exc:
-            raise UnprocessableEntity(
-                detail=str(exc)
-            ) from exc
+            raise UnprocessableEntity(detail=str(exc)) from exc
 
-        return Response(
-            self._serialize(record).data
-        )
+        return Response(self._serialize(record).data)
 
     @guarded
     def destroy(
@@ -458,17 +370,11 @@ class ConsultationViewSet(ClinicResourceViewSet):
         consultation_id=None,
     ):
         try:
-            clinic_service.delete_consultation(
-                consultation_id
-            )
+            clinic_service.delete_consultation(consultation_id)
         except ClinicResourceNotFoundError as exc:
-            raise NotFound(
-                detail=str(exc)
-            ) from exc
+            raise NotFound(detail=str(exc)) from exc
 
-        return Response(
-            status=status.HTTP_204_NO_CONTENT
-        )
+        return Response(status=status.HTTP_204_NO_CONTENT)
 
 
 @extend_schema_view(
@@ -492,38 +398,28 @@ class ConsultationViewSet(ClinicResourceViewSet):
 class HealthStatusViewSet(ClinicResourceViewSet):
     permission_classes = [IsClinicStaff]
 
-
     """CRUD controller for Clinic-owned HealthStatus mock resources."""
 
     serializer_class = HealthStatusSerializer
     pagination_class = ClinicPagination
     lookup_field = "status_id"
 
-
     def _get_record(self, status_id):
         try:
-            return clinic_service.get_health_status(
-                status_id
-            )
+            return clinic_service.get_health_status(status_id)
         except ClinicResourceNotFoundError as exc:
-            raise NotFound(
-                detail=str(exc)
-            ) from exc
+            raise NotFound(detail=str(exc)) from exc
 
     def list(self, request):
-        date_from_raw = (
-            request.query_params.get(
-                "date_from",
-                "",
-            ).strip()
-        )
+        date_from_raw = request.query_params.get(
+            "date_from",
+            "",
+        ).strip()
 
-        date_to_raw = (
-            request.query_params.get(
-                "date_to",
-                "",
-            ).strip()
-        )
+        date_to_raw = request.query_params.get(
+            "date_to",
+            "",
+        ).strip()
 
         date_from = parse_optional_report_date(
             date_from_raw,
@@ -565,48 +461,29 @@ class HealthStatusViewSet(ClinicResourceViewSet):
             many=True,
         )
 
-        return paginator.get_paginated_response(
-            serializer.data
-        )
+        return paginator.get_paginated_response(serializer.data)
 
     def retrieve(
         self,
         request,
         status_id=None,
     ):
-        record = self._get_record(
-            status_id
-        )
+        record = self._get_record(status_id)
 
-        return Response(
-            self._serialize(record).data
-        )
+        return Response(self._serialize(record).data)
 
     @guarded
     def create(self, request):
-        serializer = self.serializer_class(
-            data=request.data
-        )
+        serializer = self.serializer_class(data=request.data)
 
-        serializer.is_valid(
-            raise_exception=True
-        )
+        serializer.is_valid(raise_exception=True)
 
         try:
-            record = (
-                clinic_service
-                .create_health_status(
-                    serializer.validated_data
-                )
-            )
+            record = clinic_service.create_health_status(serializer.validated_data)
         except StudentNotFoundError as exc:
-            raise NotFound(
-                detail=str(exc)
-            ) from exc
+            raise NotFound(detail=str(exc)) from exc
         except StudentUnavailableError as exc:
-            raise UnprocessableEntity(
-                detail=str(exc)
-            ) from exc
+            raise UnprocessableEntity(detail=str(exc)) from exc
 
         return Response(
             self._serialize(record).data,
@@ -643,9 +520,7 @@ class HealthStatusViewSet(ClinicResourceViewSet):
         status_id,
         partial,
     ):
-        current = self._get_record(
-            status_id
-        )
+        current = self._get_record(status_id)
 
         serializer = self.serializer_class(
             instance=current,
@@ -653,34 +528,21 @@ class HealthStatusViewSet(ClinicResourceViewSet):
             partial=partial,
         )
 
-        serializer.is_valid(
-            raise_exception=True
-        )
+        serializer.is_valid(raise_exception=True)
 
         try:
-            record = (
-                clinic_service
-                .update_health_status(
-                    status_id,
-                    serializer.validated_data,
-                )
+            record = clinic_service.update_health_status(
+                status_id,
+                serializer.validated_data,
             )
         except ClinicResourceNotFoundError as exc:
-            raise NotFound(
-                detail=str(exc)
-            ) from exc
+            raise NotFound(detail=str(exc)) from exc
         except StudentNotFoundError as exc:
-            raise NotFound(
-                detail=str(exc)
-            ) from exc
+            raise NotFound(detail=str(exc)) from exc
         except StudentUnavailableError as exc:
-            raise UnprocessableEntity(
-                detail=str(exc)
-            ) from exc
+            raise UnprocessableEntity(detail=str(exc)) from exc
 
-        return Response(
-            self._serialize(record).data
-        )
+        return Response(self._serialize(record).data)
 
     @guarded
     def destroy(
@@ -689,16 +551,8 @@ class HealthStatusViewSet(ClinicResourceViewSet):
         status_id=None,
     ):
         try:
-            clinic_service.delete_health_status(
-                status_id
-            )
+            clinic_service.delete_health_status(status_id)
         except ClinicResourceNotFoundError as exc:
-            raise NotFound(
-                detail=str(exc)
-            ) from exc
+            raise NotFound(detail=str(exc)) from exc
 
-        return Response(
-            status=status.HTTP_204_NO_CONTENT
-        )
-
-
+        return Response(status=status.HTTP_204_NO_CONTENT)

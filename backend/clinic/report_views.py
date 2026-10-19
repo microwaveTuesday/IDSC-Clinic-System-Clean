@@ -1,4 +1,5 @@
 """Focused Clinic HTTP controllers; business rules remain in ClinicService."""
+
 from .view_support import (
     APIView,
     ClinicPagination,
@@ -26,6 +27,7 @@ from .view_support import (
     registrar_service,
     status,
 )
+
 
 class HealthView(APIView):
     """Basic Clinic API health endpoint."""
@@ -67,24 +69,17 @@ class DashboardView(APIView):
 
         total_students = len(students)
 
-        total_health_records = (
-            clinic_service.total_health_records()
-        )
+        total_health_records = clinic_service.total_health_records()
 
         total_medicine_stock = sum(
-            medicine["quantity_in_stock"]
-            for medicine in medicines
+            medicine["quantity_in_stock"] for medicine in medicines
         )
 
         low_stock_medicines = sum(
-            1
-            for medicine in medicines
-            if medicine["is_low_stock"]
+            1 for medicine in medicines if medicine["is_low_stock"]
         )
 
-        recent_activity = clinic_service.recent_activity(
-            self.RECENT_ACTIVITY_LIMIT
-        )
+        recent_activity = clinic_service.recent_activity(self.RECENT_ACTIVITY_LIMIT)
 
         data = {
             "summary": {
@@ -96,9 +91,7 @@ class DashboardView(APIView):
             "recent_activity": recent_activity,
         }
 
-        serializer = DashboardSerializer(
-            instance=data
-        )
+        serializer = DashboardSerializer(instance=data)
 
         return Response(
             serializer.data,
@@ -142,8 +135,7 @@ class ClinicVisitsReportView(APIView):
             raise ValidationError(
                 {
                     "date_range": (
-                        "date_from must be earlier than or equal "
-                        "to date_to."
+                        "date_from must be earlier than or equal " "to date_to."
                     )
                 }
             )
@@ -203,8 +195,7 @@ class HealthRecordsReportView(APIView):
             raise ValidationError(
                 {
                     "date_range": (
-                        "date_from must be earlier than or equal "
-                        "to date_to."
+                        "date_from must be earlier than or equal " "to date_to."
                     )
                 }
             )
@@ -264,13 +255,10 @@ class MedicineInventoryReportView(APIView):
             {
                 "total_medicines": len(medicines),
                 "total_stock": sum(
-                    medicine["quantity_in_stock"]
-                    for medicine in medicines
+                    medicine["quantity_in_stock"] for medicine in medicines
                 ),
                 "low_stock_medicines": sum(
-                    1
-                    for medicine in medicines
-                    if medicine["is_low_stock"]
+                    1 for medicine in medicines if medicine["is_low_stock"]
                 ),
                 "results": serializer.data,
             },
@@ -290,13 +278,7 @@ class MedicineInventoryReportView(APIView):
         if normalized == "false":
             return False
 
-        raise ValidationError(
-            {
-                field_name: (
-                    "Value must be either true or false."
-                )
-            }
-        )
+        raise ValidationError({field_name: ("Value must be either true or false.")})
 
 
 # ---------------------------------------------------------------------------
@@ -351,8 +333,7 @@ class MedicineDispensationReportView(APIView):
             raise ValidationError(
                 {
                     "date_range": (
-                        "date_from must be earlier than or equal "
-                        "to date_to."
+                        "date_from must be earlier than or equal " "to date_to."
                     )
                 }
             )
@@ -373,10 +354,7 @@ class MedicineDispensationReportView(APIView):
         return Response(
             {
                 "total_dispensations": len(records),
-                "total_quantity_dispensed": sum(
-                    row["quantity"]
-                    for row in records
-                ),
+                "total_quantity_dispensed": sum(row["quantity"] for row in records),
                 "results": serializer.data,
             },
             status=status.HTTP_200_OK,

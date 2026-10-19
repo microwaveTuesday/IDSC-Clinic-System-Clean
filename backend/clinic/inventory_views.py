@@ -1,4 +1,5 @@
 """Focused Clinic HTTP controllers; business rules remain in ClinicService."""
+
 from .view_support import (
     APIView,
     ClinicDispensationAlreadyRolledBackError,
@@ -34,6 +35,7 @@ from .view_support import (
     status,
 )
 
+
 class MedicineListView(APIView):
     permission_classes = [IsClinicStaff]
     """Read-only medicine/stock projection backed by Inventory."""
@@ -59,11 +61,7 @@ class MedicineListView(APIView):
                 parsed_low_stock = False
             else:
                 raise ValidationError(
-                    {
-                        "low_stock": [
-                            "low_stock must be either true or false."
-                        ]
-                    }
+                    {"low_stock": ["low_stock must be either true or false."]}
                 )
 
         medicines = inventory_service.list_medicines(
@@ -120,7 +118,6 @@ class MedicineDetailView(APIView):
 class MedicineDispensationViewSet(ClinicResourceViewSet):
     permission_classes = [IsClinicStaff]
 
-
     """
     Clinic-owned medicine-dispensation controller.
 
@@ -143,7 +140,17 @@ class MedicineDispensationViewSet(ClinicResourceViewSet):
         "delete",
     ]
 
-    @extend_schema(request=None, responses={204: None}, parameters=[OpenApiParameter(name="dispensation_id", type=OpenApiTypes.INT64, location=OpenApiParameter.PATH)])
+    @extend_schema(
+        request=None,
+        responses={204: None},
+        parameters=[
+            OpenApiParameter(
+                name="dispensation_id",
+                type=OpenApiTypes.INT64,
+                location=OpenApiParameter.PATH,
+            )
+        ],
+    )
     @guarded
     def destroy(self, request, dispensation_id=None):
         record = clinic_service.repository.get_dispensation(dispensation_id)
@@ -153,34 +160,25 @@ class MedicineDispensationViewSet(ClinicResourceViewSet):
         clinic_service.repository.delete_dispensation(dispensation_id)
         return Response(status=204)
 
-
     def _get_record(
         self,
         dispensation_id,
     ):
         try:
-            return clinic_service.get_dispensation(
-                dispensation_id
-            )
+            return clinic_service.get_dispensation(dispensation_id)
         except ClinicResourceNotFoundError as exc:
-            raise NotFound(
-                detail=str(exc)
-            ) from exc
+            raise NotFound(detail=str(exc)) from exc
 
     def list(self, request):
-        date_from_raw = (
-            request.query_params.get(
-                "date_from",
-                "",
-            ).strip()
-        )
+        date_from_raw = request.query_params.get(
+            "date_from",
+            "",
+        ).strip()
 
-        date_to_raw = (
-            request.query_params.get(
-                "date_to",
-                "",
-            ).strip()
-        )
+        date_to_raw = request.query_params.get(
+            "date_to",
+            "",
+        ).strip()
 
         date_from = parse_optional_report_date(
             date_from_raw,
@@ -230,59 +228,39 @@ class MedicineDispensationViewSet(ClinicResourceViewSet):
             many=True,
         )
 
-        return paginator.get_paginated_response(
-            serializer.data
-        )
+        return paginator.get_paginated_response(serializer.data)
 
     def retrieve(
         self,
         request,
         dispensation_id=None,
     ):
-        record = self._get_record(
-            dispensation_id
-        )
+        record = self._get_record(dispensation_id)
 
-        return Response(
-            self._serialize(record).data
-        )
+        return Response(self._serialize(record).data)
 
     @guarded
     def create(
         self,
         request,
     ):
-        serializer = self.serializer_class(
-            data=request.data
-        )
+        serializer = self.serializer_class(data=request.data)
 
-        serializer.is_valid(
-            raise_exception=True
-        )
+        serializer.is_valid(raise_exception=True)
 
         try:
-            record = clinic_service.create_dispensation(
-                serializer.validated_data
-            )
+            record = clinic_service.create_dispensation(serializer.validated_data)
         except StudentNotFoundError as exc:
-            raise NotFound(
-                detail=str(exc)
-            ) from exc
+            raise NotFound(detail=str(exc)) from exc
         except StudentUnavailableError as exc:
-            raise UnprocessableEntity(
-                detail=str(exc)
-            ) from exc
+            raise UnprocessableEntity(detail=str(exc)) from exc
         except MedicineNotFoundError as exc:
-            raise NotFound(
-                detail=str(exc)
-            ) from exc
+            raise NotFound(detail=str(exc)) from exc
         except (
             MedicineUnavailableError,
             InsufficientStockError,
         ) as exc:
-            raise UnprocessableEntity(
-                detail=str(exc)
-            ) from exc
+            raise UnprocessableEntity(detail=str(exc)) from exc
 
         return Response(
             self._serialize(record).data,
@@ -301,39 +279,20 @@ class MedicineDispensationViewSet(ClinicResourceViewSet):
         dispensation_id=None,
     ):
         try:
-            record = (
-                clinic_service
-                .rollback_dispensation(
-                    dispensation_id
-                )
-            )
+            record = clinic_service.rollback_dispensation(dispensation_id)
         except ClinicResourceNotFoundError as exc:
-            raise NotFound(
-                detail=str(exc)
-            ) from exc
-        except (
-            ClinicDispensationAlreadyRolledBackError
-        ) as exc:
-            raise Conflict(
-                detail=str(exc)
-            ) from exc
-        except (
-            ClinicDispensationRollbackUnavailableError
-        ) as exc:
-            raise UnprocessableEntity(
-                detail=str(exc)
-            ) from exc
+            raise NotFound(detail=str(exc)) from exc
+        except ClinicDispensationAlreadyRolledBackError as exc:
+            raise Conflict(detail=str(exc)) from exc
+        except ClinicDispensationRollbackUnavailableError as exc:
+            raise UnprocessableEntity(detail=str(exc)) from exc
         except (
             InventoryTransactionNotFoundError,
             MedicineNotFoundError,
         ) as exc:
-            raise UnprocessableEntity(
-                detail=str(exc)
-            ) from exc
+            raise UnprocessableEntity(detail=str(exc)) from exc
         except ValueError as exc:
-            raise Conflict(
-                detail=str(exc)
-            ) from exc
+            raise Conflict(detail=str(exc)) from exc
 
         return Response(
             self._serialize(record).data,

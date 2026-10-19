@@ -18,7 +18,6 @@ from rest_framework.exceptions import ValidationError as DRFValidationError
 from rest_framework.response import Response
 from rest_framework.views import exception_handler
 
-
 logger = logging.getLogger(__name__)
 
 
@@ -189,7 +188,9 @@ def custom_exception_handler(exc, context):
 
     # Database constraint violations.
     if isinstance(exc, IntegrityError):
-        logger.warning("Database integrity constraint violated; inspect protected database diagnostics.")
+        logger.warning(
+            "Database integrity constraint violated; inspect protected database diagnostics."
+        )
 
         return _problem_response(
             request,

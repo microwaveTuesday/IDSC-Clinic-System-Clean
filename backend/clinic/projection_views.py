@@ -1,4 +1,5 @@
 """Focused Clinic HTTP controllers; business rules remain in ClinicService."""
+
 from .view_support import (
     APIView,
     HealthStatusProjectionSerializer,
@@ -9,6 +10,7 @@ from .view_support import (
     clinic_service,
     extend_schema,
 )
+
 
 class HealthStatusIntegrationView(APIView):
     """
@@ -23,15 +25,9 @@ class HealthStatusIntegrationView(APIView):
     )
     def get(self, request, student_id):
         try:
-            health_status = (
-                clinic_service.latest_health_status_for_student(
-                    student_id
-                )
-            )
+            health_status = clinic_service.latest_health_status_for_student(student_id)
         except StudentNotFoundError as exc:
-            raise NotFound(
-                detail=str(exc)
-            ) from exc
+            raise NotFound(detail=str(exc)) from exc
 
         if health_status is None:
             return Response(
@@ -43,9 +39,7 @@ class HealthStatusIntegrationView(APIView):
                 }
             )
 
-        serializer = HealthStatusProjectionSerializer(
-            health_status
-        )
+        serializer = HealthStatusProjectionSerializer(health_status)
 
         return Response(serializer.data)
 
@@ -61,6 +55,7 @@ class FacultyHealthStatusIntegrationView(HealthStatusIntegrationView):
 
     permission_classes = [IsClinicStaff]
 
+
 class StudentPortalHealthStatusIntegrationView(HealthStatusIntegrationView):
     """
     Read-only health-status projection for the Student Portal module.
@@ -71,5 +66,3 @@ class StudentPortalHealthStatusIntegrationView(HealthStatusIntegrationView):
     """
 
     permission_classes = [IsClinicStaff]
-
-

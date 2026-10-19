@@ -132,8 +132,6 @@ class Conflict(APIException):
     default_code = "conflict"
 
 
-
-
 # ---------------------------------------------------------------------------
 # System
 # ---------------------------------------------------------------------------
@@ -161,8 +159,7 @@ def parse_optional_report_date(value, field_name):
         raise ValidationError(
             {
                 field_name: (
-                    "Date must be a valid calendar date "
-                    "using YYYY-MM-DD format."
+                    "Date must be a valid calendar date " "using YYYY-MM-DD format."
                 )
             }
         )
@@ -170,11 +167,15 @@ def parse_optional_report_date(value, field_name):
     return parsed
 
 
-
 class ClinicResourceViewSet(viewsets.ViewSet):
     """Shared serialization and elevated clinical-deletion permission."""
-    permission_classes=[IsClinicStaff]
+
+    permission_classes = [IsClinicStaff]
+
     def get_permissions(self):
-        return [IsClinicAdmin()] if self.action=='destroy' else super().get_permissions()
-    def _serialize(self,instance,many=False):
-        return self.serializer_class(instance=instance,many=many)
+        return (
+            [IsClinicAdmin()] if self.action == "destroy" else super().get_permissions()
+        )
+
+    def _serialize(self, instance, many=False):
+        return self.serializer_class(instance=instance, many=many)

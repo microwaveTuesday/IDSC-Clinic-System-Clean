@@ -1,6 +1,12 @@
 from rest_framework.decorators import throttle_classes
 from .throttles import LoginThrottle
-from django.contrib.auth import authenticate, get_user_model, login, logout, update_session_auth_hash
+from django.contrib.auth import (
+    authenticate,
+    get_user_model,
+    login,
+    logout,
+    update_session_auth_hash,
+)
 from django.db import IntegrityError, transaction
 from django.views.decorators.debug import sensitive_post_parameters
 from django.middleware.csrf import get_token
@@ -15,7 +21,6 @@ from rest_framework.views import APIView
 from drf_spectacular.utils import extend_schema, extend_schema_view, OpenApiResponse
 
 from rest_framework.exceptions import ValidationError
-
 
 
 from .permissions import IsClinicAdmin, IsOwner
@@ -51,9 +56,7 @@ def csrf_token(request):
     """
     token = get_token(request)
 
-    return Response({
-        "csrfToken": token
-    })
+    return Response({"csrfToken": token})
 
 
 @extend_schema(
@@ -73,9 +76,7 @@ def login_view(request):
 
     if not username or not password:
         return Response(
-            {
-                "detail": "Username and password are required."
-            },
+            {"detail": "Username and password are required."},
             status=status.HTTP_400_BAD_REQUEST,
         )
 
@@ -87,9 +88,7 @@ def login_view(request):
 
     if user is None:
         return Response(
-            {
-                "detail": "Invalid username or password."
-            },
+            {"detail": "Invalid username or password."},
             status=status.HTTP_401_UNAUTHORIZED,
         )
 
@@ -117,9 +116,7 @@ def logout_view(request):
     logout(request)
 
     return Response(
-        {
-            "message": "Logout successful."
-        },
+        {"message": "Logout successful."},
         status=status.HTTP_200_OK,
     )
 
@@ -140,6 +137,7 @@ def me_view(request):
         status=status.HTTP_200_OK,
     )
 
+
 @sensitive_post_parameters("current_password", "new_password", "confirm_password")
 @extend_schema(
     request=PasswordChangeRequestSerializer,
@@ -157,7 +155,9 @@ def password_change_view(request):
     # Re-read and lock this account so validation uses its latest password.
     with transaction.atomic():
         user = get_user_model().objects.select_for_update().get(pk=request.user.pk)
-        serializer = PasswordChangeRequestSerializer(data=request.data, context={"user": user})
+        serializer = PasswordChangeRequestSerializer(
+            data=request.data, context={"user": user}
+        )
         serializer.is_valid(raise_exception=True)
         user.set_password(serializer.validated_data["new_password"])
         user.save(update_fields=["password"])
@@ -181,12 +181,16 @@ def username_change_view(request):
     try:
         with transaction.atomic():
             user = User.objects.select_for_update().get(pk=request.user.pk)
-            serializer = UsernameChangeRequestSerializer(data=request.data, context={"user": user})
+            serializer = UsernameChangeRequestSerializer(
+                data=request.data, context={"user": user}
+            )
             serializer.is_valid(raise_exception=True)
             user.username = serializer.validated_data["new_username"]
             user.save(update_fields=["username"])
     except IntegrityError as exc:
-        raise ValidationError({"new_username": "This username is already in use."}) from exc
+        raise ValidationError(
+            {"new_username": "This username is already in use."}
+        ) from exc
     return Response(SessionUserSerializer(user).data)
 
 
@@ -195,12 +199,29 @@ class AdminListCreateView(ListCreateAPIView):
     pagination_class = None
 
     def get_queryset(self):
-        return User.objects.filter(groups__name=CLINIC_ADMIN, is_superuser=False).distinct().order_by("username")
+        return (
+            User.objects.filter(groups__name=CLINIC_ADMIN, is_superuser=False)
+            .distinct()
+            .order_by("username")
+        )
 
     def get_serializer_class(self):
-        return AdminCreateSerializer if self.request.method == "POST" else AdminAccountSerializer
+        return (
+            AdminCreateSerializer
+            if self.request.method == "POST"
+            else AdminAccountSerializer
+        )
 
-    @extend_schema(request=AdminCreateSerializer, responses={201: ClinicUserSerializer, 409: OpenApiResponse(description="Maximum 5 administrators, including inactive accounts. Delete an administrator to free a slot.")}, description="Owner only. Maximum five regular administrators, including inactive accounts; owners do not count. At capacity returns 409. Requires owner current password, CSRF and a validated new password.")
+    @extend_schema(
+        request=AdminCreateSerializer,
+        responses={
+            201: ClinicUserSerializer,
+            409: OpenApiResponse(
+                description="Maximum 5 administrators, including inactive accounts. Delete an administrator to free a slot."
+            ),
+        },
+        description="Owner only. Maximum five regular administrators, including inactive accounts; owners do not count. At capacity returns 409. Requires owner current password, CSRF and a validated new password.",
+    )
     def post(self, request, *args, **kwargs):
         return self.create(request, *args, **kwargs)
 
@@ -218,8 +239,7 @@ class StaffListView(ListCreateAPIView):
 
     def get_queryset(self):
         return (
-            User.objects
-            .filter(groups__name=CLINIC_STAFF, is_superuser=False)
+            User.objects.filter(groups__name=CLINIC_STAFF, is_superuser=False)
             .exclude(groups__name=CLINIC_ADMIN)
             .order_by("username")
         )
@@ -246,16 +266,23 @@ class StaffListView(ListCreateAPIView):
             status=status.HTTP_201_CREATED,
         )
 
+
 @extend_schema_view(
-    put=extend_schema(request=ManagedAccountUpdateSerializer, responses=ClinicUserSerializer),
-    patch=extend_schema(request=ManagedAccountUpdateSerializer, responses=ClinicUserSerializer),
+    put=extend_schema(
+        request=ManagedAccountUpdateSerializer, responses=ClinicUserSerializer
+    ),
+    patch=extend_schema(
+        request=ManagedAccountUpdateSerializer, responses=ClinicUserSerializer
+    ),
 )
 class StaffDetailView(RetrieveUpdateAPIView):
     permission_classes = [IsClinicAdmin]
     lookup_url_kwarg = "user_id"
 
     def get_queryset(self):
-        return User.objects.filter(groups__name=CLINIC_STAFF, is_superuser=False).exclude(groups__name=CLINIC_ADMIN)
+        return User.objects.filter(
+            groups__name=CLINIC_STAFF, is_superuser=False
+        ).exclude(groups__name=CLINIC_ADMIN)
 
     def get_serializer_class(self):
         if self.request.method in ("PUT", "PATCH"):
@@ -291,6 +318,7 @@ class StaffDetailView(RetrieveUpdateAPIView):
         change_account_access(request.user, user_id, "staff", "delete", request.data)
         return Response(status=status.HTTP_204_NO_CONTENT)
 
+
 class StaffDeactivateView(APIView):
     permission_classes = [IsClinicAdmin]
 
@@ -305,6 +333,7 @@ class StaffDeactivateView(APIView):
             ClinicUserSerializer(user).data,
             status=status.HTTP_200_OK,
         )
+
 
 class StaffActivateView(APIView):
     permission_classes = [IsClinicAdmin]
@@ -329,7 +358,11 @@ class AdminDetailView(StaffDetailView):
         return User.objects.filter(groups__name=CLINIC_ADMIN, is_superuser=False)
 
     def get_serializer_class(self):
-        return ManagedAccountUpdateSerializer if self.request.method in ("PUT", "PATCH") else AdminAccountSerializer
+        return (
+            ManagedAccountUpdateSerializer
+            if self.request.method in ("PUT", "PATCH")
+            else AdminAccountSerializer
+        )
 
     @extend_schema(request=AccountDeleteRequestSerializer, responses={204: None})
     def delete(self, request, user_id):
@@ -353,24 +386,34 @@ from .serializers import OwnerRegisterSerializer, OwnerSetupStatusSerializer
 from clinic.exceptions import ConflictError
 
 
-@extend_schema(responses=OwnerSetupStatusSerializer, description="Public first-run status only. Inactive or previously registered Owners keep registration closed.")
-@api_view(['GET'])
+@extend_schema(
+    responses=OwnerSetupStatusSerializer,
+    description="Public first-run status only. Inactive or previously registered Owners keep registration closed.",
+)
+@api_view(["GET"])
 @permission_classes([AllowAny])
 def owner_setup_status(request):
-    response = Response({'owner_registration_available': registration_available()})
-    response['Cache-Control'] = 'no-store'
+    response = Response({"owner_registration_available": registration_available()})
+    response["Cache-Control"] = "no-store"
     return response
 
 
-@sensitive_post_parameters('password', 'confirm_password')
-@extend_schema(request=OwnerRegisterSerializer, responses={201: LoginResponseSerializer, 409: OpenApiResponse(description="Owner registration is already complete.")}, description="One-time first Owner registration. Requires CSRF even without a session. Creates exactly one Owner, starts a Django session, and permanently closes registration.")
-@api_view(['POST'])
+@sensitive_post_parameters("password", "confirm_password")
+@extend_schema(
+    request=OwnerRegisterSerializer,
+    responses={
+        201: LoginResponseSerializer,
+        409: OpenApiResponse(description="Owner registration is already complete."),
+    },
+    description="One-time first Owner registration. Requires CSRF even without a session. Creates exactly one Owner, starts a Django session, and permanently closes registration.",
+)
+@api_view(["POST"])
 @permission_classes([AllowAny])
 @csrf_protect
 def owner_register(request):
     # Check before validation to avoid offering a usable registration endpoint once claimed.
     if not registration_available():
-        raise ConflictError('Owner registration is already complete. Please log in.')
+        raise ConflictError("Owner registration is already complete. Please log in.")
     serializer = OwnerRegisterSerializer(data=request.data)
     serializer.is_valid(raise_exception=True)
     try:
@@ -381,15 +424,22 @@ def owner_register(request):
                 OwnerRegistration.objects.create(pk=1)
             state = OwnerRegistration.objects.select_for_update().get(pk=1)
             if state.owner_id is not None or not registration_available():
-                raise ConflictError('Owner registration is already complete. Please log in.')
+                raise ConflictError(
+                    "Owner registration is already complete. Please log in."
+                )
             data = dict(serializer.validated_data)
-            data.pop('confirm_password')
+            data.pop("confirm_password")
             user = User.objects.create_superuser(**data)
             state.owner = user
-            state.save(update_fields=['owner'])
+            state.save(update_fields=["owner"])
     except IntegrityError as exc:
-        raise ConflictError('Owner registration is no longer available or the username is already in use. Please reload.') from exc
-    login(request, user, backend='django.contrib.auth.backends.ModelBackend')
-    response = Response({'message': 'Owner account created.', 'user': SessionUserSerializer(user).data}, status=201)
-    response['Cache-Control'] = 'no-store'
+        raise ConflictError(
+            "Owner registration is no longer available or the username is already in use. Please reload."
+        ) from exc
+    login(request, user, backend="django.contrib.auth.backends.ModelBackend")
+    response = Response(
+        {"message": "Owner account created.", "user": SessionUserSerializer(user).data},
+        status=201,
+    )
+    response["Cache-Control"] = "no-store"
     return response

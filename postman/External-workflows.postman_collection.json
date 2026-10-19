@@ -1,1014 +1,1014 @@
 {
-    "info": {
-        "name": "Registrar Inventory and Clinic workflows",
-        "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json",
-        "description": "Run with disposable Owner credentials on a mock backend. Profile updates, status gating, catalog notifications, selected/all restock, idempotent delivery and stock-preserving history deletion."
+  "info": {
+    "name": "Registrar Inventory and Clinic workflows",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json",
+    "description": "Run with disposable Owner credentials on a mock backend. Profile updates, status gating, catalog notifications, selected/all restock, idempotent delivery and stock-preserving history deletion."
+  },
+  "variable": [
+    {
+      "key": "baseUrl",
+      "value": "http://127.0.0.1:8002"
     },
-    "variable": [
+    {
+      "key": "username",
+      "value": ""
+    },
+    {
+      "key": "password",
+      "value": ""
+    },
+    {
+      "key": "csrfToken",
+      "value": ""
+    }
+  ],
+  "item": [
+    {
+      "name": "Get CSRF",
+      "request": {
+        "method": "GET",
+        "url": "{{baseUrl}}/api/auth/csrf/",
+        "header": []
+      },
+      "event": [
         {
-            "key": "baseUrl",
-            "value": "http://127.0.0.1:8002"
-        },
-        {
-            "key": "username",
-            "value": ""
-        },
-        {
-            "key": "password",
-            "value": ""
-        },
-        {
-            "key": "csrfToken",
-            "value": ""
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test(\"HTTP 200\",()=>pm.response.to.have.status(200));",
+              "pm.collectionVariables.set(\"csrfToken\",pm.response.json().csrfToken);"
+            ]
+          }
         }
-    ],
-    "item": [
-        {
-            "name": "Get CSRF",
-            "request": {
-                "method": "GET",
-                "url": "{{baseUrl}}/api/auth/csrf/",
-                "header": []
-            },
-            "event": [
-                {
-                    "listen": "test",
-                    "script": {
-                        "type": "text/javascript",
-                        "exec": [
-                            "pm.test(\"HTTP 200\",()=>pm.response.to.have.status(200));",
-                            "pm.collectionVariables.set(\"csrfToken\",pm.response.json().csrfToken);"
-                        ]
-                    }
-                }
-            ]
-        },
-        {
-            "name": "Owner login",
-            "request": {
-                "method": "POST",
-                "url": "{{baseUrl}}/api/auth/login/",
-                "header": [
-                    {
-                        "key": "X-CSRFToken",
-                        "value": "{{csrfToken}}"
-                    },
-                    {
-                        "key": "Content-Type",
-                        "value": "application/json"
-                    }
-                ],
-                "body": {
-                    "mode": "raw",
-                    "raw": "{\"username\": \"{{username}}\", \"password\": \"{{password}}\"}",
-                    "options": {
-                        "raw": {
-                            "language": "json"
-                        }
-                    }
-                }
-            },
-            "event": [
-                {
-                    "listen": "test",
-                    "script": {
-                        "type": "text/javascript",
-                        "exec": [
-                            "pm.test(\"HTTP 200\",()=>pm.response.to.have.status(200));"
-                        ]
-                    }
-                }
-            ]
-        },
-        {
-            "name": "Get CSRF",
-            "request": {
-                "method": "GET",
-                "url": "{{baseUrl}}/api/auth/csrf/",
-                "header": []
-            },
-            "event": [
-                {
-                    "listen": "test",
-                    "script": {
-                        "type": "text/javascript",
-                        "exec": [
-                            "pm.test(\"HTTP 200\",()=>pm.response.to.have.status(200));",
-                            "pm.collectionVariables.set(\"csrfToken\",pm.response.json().csrfToken);"
-                        ]
-                    }
-                }
-            ]
-        },
-        {
-            "name": "Initialize unique IDs",
-            "request": {
-                "method": "GET",
-                "url": "{{baseUrl}}/api/auth/me/",
-                "header": []
-            },
-            "event": [
-                {
-                    "listen": "test",
-                    "script": {
-                        "type": "text/javascript",
-                        "exec": [
-                            "pm.test(\"HTTP 200\",()=>pm.response.to.have.status(200));",
-                            "pm.collectionVariables.set(\"studentId\",\"API-DEMO-\"+Date.now());pm.collectionVariables.set(\"medicineId\",\"API-MED-\"+Date.now());pm.collectionVariables.set(\"unusedId\",\"API-UNUSED-\"+Date.now());"
-                        ]
-                    }
-                }
-            ]
-        },
-        {
-            "name": "Add Registrar student",
-            "request": {
-                "method": "POST",
-                "url": "{{baseUrl}}/api/v1/mock/registrar/students/",
-                "header": [
-                    {
-                        "key": "X-CSRFToken",
-                        "value": "{{csrfToken}}"
-                    },
-                    {
-                        "key": "Content-Type",
-                        "value": "application/json"
-                    }
-                ],
-                "body": {
-                    "mode": "raw",
-                    "raw": "{\"student_id\": \"{{studentId}}\", \"first_name\": \"API\", \"last_name\": \"Student\", \"course\": \"BSIT\", \"section\": \"1A\", \"status\": \"ACTIVE\"}",
-                    "options": {
-                        "raw": {
-                            "language": "json"
-                        }
-                    }
-                }
-            },
-            "event": [
-                {
-                    "listen": "test",
-                    "script": {
-                        "type": "text/javascript",
-                        "exec": [
-                            "pm.test(\"HTTP 201\",()=>pm.response.to.have.status(201));"
-                        ]
-                    }
-                }
-            ]
-        },
-        {
-            "name": "Get student by ID",
-            "request": {
-                "method": "POST",
-                "url": "{{baseUrl}}/api/v1/students/import/",
-                "header": [
-                    {
-                        "key": "X-CSRFToken",
-                        "value": "{{csrfToken}}"
-                    },
-                    {
-                        "key": "Content-Type",
-                        "value": "application/json"
-                    }
-                ],
-                "body": {
-                    "mode": "raw",
-                    "raw": "{\"student_id\": \"{{studentId}}\"}",
-                    "options": {
-                        "raw": {
-                            "language": "json"
-                        }
-                    }
-                }
-            },
-            "event": [
-                {
-                    "listen": "test",
-                    "script": {
-                        "type": "text/javascript",
-                        "exec": [
-                            "pm.test(\"HTTP 200\",()=>pm.response.to.have.status(200));",
-                            "pm.test(\"Registrar-owned identity\",()=>pm.expect(pm.response.json().student_id).to.eql(pm.collectionVariables.get(\"studentId\")));"
-                        ]
-                    }
-                }
-            ]
-        },
-        {
-            "name": "Update and graduate Registrar student",
-            "request": {
-                "method": "PATCH",
-                "url": "{{baseUrl}}/api/v1/mock/registrar/students/{{studentId}}/",
-                "header": [
-                    {
-                        "key": "X-CSRFToken",
-                        "value": "{{csrfToken}}"
-                    },
-                    {
-                        "key": "Content-Type",
-                        "value": "application/json"
-                    }
-                ],
-                "body": {
-                    "mode": "raw",
-                    "raw": "{\"first_name\": \"Updated\", \"status\": \"GRADUATED\"}",
-                    "options": {
-                        "raw": {
-                            "language": "json"
-                        }
-                    }
-                }
-            },
-            "event": [
-                {
-                    "listen": "test",
-                    "script": {
-                        "type": "text/javascript",
-                        "exec": [
-                            "pm.test(\"HTTP 200\",()=>pm.response.to.have.status(200));"
-                        ]
-                    }
-                }
-            ]
-        },
-        {
-            "name": "Clinic reads updated Registrar profile",
-            "request": {
-                "method": "GET",
-                "url": "{{baseUrl}}/api/v1/students/{{studentId}}/",
-                "header": []
-            },
-            "event": [
-                {
-                    "listen": "test",
-                    "script": {
-                        "type": "text/javascript",
-                        "exec": [
-                            "pm.test(\"HTTP 200\",()=>pm.response.to.have.status(200));",
-                            "pm.test(\"Live profile\",()=>{pm.expect(pm.response.json().first_name).to.eql(\"Updated\");pm.expect(pm.response.json().status).to.eql(\"GRADUATED\");});"
-                        ]
-                    }
-                }
-            ]
-        },
-        {
-            "name": "Graduated health create rejected",
-            "request": {
-                "method": "POST",
-                "url": "{{baseUrl}}/api/v1/health-records/",
-                "header": [
-                    {
-                        "key": "X-CSRFToken",
-                        "value": "{{csrfToken}}"
-                    },
-                    {
-                        "key": "Content-Type",
-                        "value": "application/json"
-                    }
-                ],
-                "body": {
-                    "mode": "raw",
-                    "raw": "{\"student_id\": \"{{studentId}}\", \"blood_type\": \"O+\"}",
-                    "options": {
-                        "raw": {
-                            "language": "json"
-                        }
-                    }
-                }
-            },
-            "event": [
-                {
-                    "listen": "test",
-                    "script": {
-                        "type": "text/javascript",
-                        "exec": [
-                            "pm.test(\"HTTP 422\",()=>pm.response.to.have.status(422));"
-                        ]
-                    }
-                }
-            ]
-        },
-        {
-            "name": "Mark dropped out",
-            "request": {
-                "method": "PATCH",
-                "url": "{{baseUrl}}/api/v1/mock/registrar/students/{{studentId}}/",
-                "header": [
-                    {
-                        "key": "X-CSRFToken",
-                        "value": "{{csrfToken}}"
-                    },
-                    {
-                        "key": "Content-Type",
-                        "value": "application/json"
-                    }
-                ],
-                "body": {
-                    "mode": "raw",
-                    "raw": "{\"status\": \"DROPPED_OUT\"}",
-                    "options": {
-                        "raw": {
-                            "language": "json"
-                        }
-                    }
-                }
-            },
-            "event": [
-                {
-                    "listen": "test",
-                    "script": {
-                        "type": "text/javascript",
-                        "exec": [
-                            "pm.test(\"HTTP 200\",()=>pm.response.to.have.status(200));"
-                        ]
-                    }
-                }
-            ]
-        },
-        {
-            "name": "Dropped consultation create rejected",
-            "request": {
-                "method": "POST",
-                "url": "{{baseUrl}}/api/v1/consultations/",
-                "header": [
-                    {
-                        "key": "X-CSRFToken",
-                        "value": "{{csrfToken}}"
-                    },
-                    {
-                        "key": "Content-Type",
-                        "value": "application/json"
-                    }
-                ],
-                "body": {
-                    "mode": "raw",
-                    "raw": "{\"student_id\": \"{{studentId}}\", \"chief_complaint\": \"Blocked\"}",
-                    "options": {
-                        "raw": {
-                            "language": "json"
-                        }
-                    }
-                }
-            },
-            "event": [
-                {
-                    "listen": "test",
-                    "script": {
-                        "type": "text/javascript",
-                        "exec": [
-                            "pm.test(\"HTTP 422\",()=>pm.response.to.have.status(422));"
-                        ]
-                    }
-                }
-            ]
-        },
-        {
-            "name": "Reactivate student",
-            "request": {
-                "method": "PATCH",
-                "url": "{{baseUrl}}/api/v1/mock/registrar/students/{{studentId}}/",
-                "header": [
-                    {
-                        "key": "X-CSRFToken",
-                        "value": "{{csrfToken}}"
-                    },
-                    {
-                        "key": "Content-Type",
-                        "value": "application/json"
-                    }
-                ],
-                "body": {
-                    "mode": "raw",
-                    "raw": "{\"status\": \"ACTIVE\"}",
-                    "options": {
-                        "raw": {
-                            "language": "json"
-                        }
-                    }
-                }
-            },
-            "event": [
-                {
-                    "listen": "test",
-                    "script": {
-                        "type": "text/javascript",
-                        "exec": [
-                            "pm.test(\"HTTP 200\",()=>pm.response.to.have.status(200));"
-                        ]
-                    }
-                }
-            ]
-        },
-        {
-            "name": "Create clinic health record",
-            "request": {
-                "method": "POST",
-                "url": "{{baseUrl}}/api/v1/health-records/",
-                "header": [
-                    {
-                        "key": "X-CSRFToken",
-                        "value": "{{csrfToken}}"
-                    },
-                    {
-                        "key": "Content-Type",
-                        "value": "application/json"
-                    }
-                ],
-                "body": {
-                    "mode": "raw",
-                    "raw": "{\"student_id\": \"{{studentId}}\", \"blood_type\": \"O+\"}",
-                    "options": {
-                        "raw": {
-                            "language": "json"
-                        }
-                    }
-                }
-            },
-            "event": [
-                {
-                    "listen": "test",
-                    "script": {
-                        "type": "text/javascript",
-                        "exec": [
-                            "pm.test(\"HTTP 201\",()=>pm.response.to.have.status(201));",
-                            "pm.collectionVariables.set(\"recordId\",pm.response.json().health_record_id);"
-                        ]
-                    }
-                }
-            ]
-        },
-        {
-            "name": "Owner deletes health record",
-            "request": {
-                "method": "DELETE",
-                "url": "{{baseUrl}}/api/v1/health-records/{{recordId}}/",
-                "header": [
-                    {
-                        "key": "X-CSRFToken",
-                        "value": "{{csrfToken}}"
-                    }
-                ]
-            },
-            "event": [
-                {
-                    "listen": "test",
-                    "script": {
-                        "type": "text/javascript",
-                        "exec": [
-                            "pm.test(\"HTTP 204\",()=>pm.response.to.have.status(204));"
-                        ]
-                    }
-                }
-            ]
-        },
-        {
-            "name": "Add Inventory medicine",
-            "request": {
-                "method": "POST",
-                "url": "{{baseUrl}}/api/v1/mock/inventory/medicines/",
-                "header": [
-                    {
-                        "key": "X-CSRFToken",
-                        "value": "{{csrfToken}}"
-                    },
-                    {
-                        "key": "Content-Type",
-                        "value": "application/json"
-                    }
-                ],
-                "body": {
-                    "mode": "raw",
-                    "raw": "{\"medicine_id\": \"{{medicineId}}\", \"name\": \"API Medicine\", \"generic_name\": \"Test\", \"unit\": \"tablet\", \"quantity_in_stock\": 10, \"reorder_level\": 5, \"status\": \"ACTIVE\"}",
-                    "options": {
-                        "raw": {
-                            "language": "json"
-                        }
-                    }
-                }
-            },
-            "event": [
-                {
-                    "listen": "test",
-                    "script": {
-                        "type": "text/javascript",
-                        "exec": [
-                            "pm.test(\"HTTP 201\",()=>pm.response.to.have.status(201));"
-                        ]
-                    }
-                }
-            ]
-        },
-        {
-            "name": "New medicine visible in Clinic",
-            "request": {
-                "method": "GET",
-                "url": "{{baseUrl}}/api/v1/medicines/{{medicineId}}/",
-                "header": []
-            },
-            "event": [
-                {
-                    "listen": "test",
-                    "script": {
-                        "type": "text/javascript",
-                        "exec": [
-                            "pm.test(\"HTTP 200\",()=>pm.response.to.have.status(200));"
-                        ]
-                    }
-                }
-            ]
-        },
-        {
-            "name": "Inventory notifications available",
-            "request": {
-                "method": "GET",
-                "url": "{{baseUrl}}/api/v1/inventory-notifications/",
-                "header": []
-            },
-            "event": [
-                {
-                    "listen": "test",
-                    "script": {
-                        "type": "text/javascript",
-                        "exec": [
-                            "pm.test(\"HTTP 200\",()=>pm.response.to.have.status(200));",
-                            "pm.test(\"New medicine notification\",()=>pm.expect(pm.response.json().some(n=>n.message.includes(pm.collectionVariables.get(\"medicineId\")))).to.eql(true));"
-                        ]
-                    }
-                }
-            ]
-        },
-        {
-            "name": "Edit Inventory medicine",
-            "request": {
-                "method": "PATCH",
-                "url": "{{baseUrl}}/api/v1/mock/inventory/medicines/{{medicineId}}/",
-                "header": [
-                    {
-                        "key": "X-CSRFToken",
-                        "value": "{{csrfToken}}"
-                    },
-                    {
-                        "key": "Content-Type",
-                        "value": "application/json"
-                    }
-                ],
-                "body": {
-                    "mode": "raw",
-                    "raw": "{\"name\": \"API Updated Medicine\"}",
-                    "options": {
-                        "raw": {
-                            "language": "json"
-                        }
-                    }
-                }
-            },
-            "event": [
-                {
-                    "listen": "test",
-                    "script": {
-                        "type": "text/javascript",
-                        "exec": [
-                            "pm.test(\"HTTP 200\",()=>pm.response.to.have.status(200));"
-                        ]
-                    }
-                }
-            ]
-        },
-        {
-            "name": "Request selected medicine",
-            "request": {
-                "method": "POST",
-                "url": "{{baseUrl}}/api/v1/restock-requests/",
-                "header": [
-                    {
-                        "key": "X-CSRFToken",
-                        "value": "{{csrfToken}}"
-                    },
-                    {
-                        "key": "Content-Type",
-                        "value": "application/json"
-                    }
-                ],
-                "body": {
-                    "mode": "raw",
-                    "raw": "{\"mode\": \"SELECTED\", \"items\": [{\"medicine_id\": \"{{medicineId}}\", \"quantity\": 7}]}",
-                    "options": {
-                        "raw": {
-                            "language": "json"
-                        }
-                    }
-                }
-            },
-            "event": [
-                {
-                    "listen": "test",
-                    "script": {
-                        "type": "text/javascript",
-                        "exec": [
-                            "pm.test(\"HTTP 201\",()=>pm.response.to.have.status(201));",
-                            "pm.collectionVariables.set(\"requestId\",pm.response.json().request_id);"
-                        ]
-                    }
-                }
-            ]
-        },
-        {
-            "name": "Pending request does not change stock",
-            "request": {
-                "method": "GET",
-                "url": "{{baseUrl}}/api/v1/medicines/{{medicineId}}/",
-                "header": []
-            },
-            "event": [
-                {
-                    "listen": "test",
-                    "script": {
-                        "type": "text/javascript",
-                        "exec": [
-                            "pm.test(\"HTTP 200\",()=>pm.response.to.have.status(200));",
-                            "pm.test(\"Awaiting Inventory\",()=>pm.expect(pm.response.json().quantity_in_stock).to.eql(10));"
-                        ]
-                    }
-                }
-            ]
-        },
-        {
-            "name": "Inventory fulfills request",
-            "request": {
-                "method": "POST",
-                "url": "{{baseUrl}}/api/v1/mock/inventory/restock-requests/{{requestId}}/fulfill/",
-                "header": [
-                    {
-                        "key": "X-CSRFToken",
-                        "value": "{{csrfToken}}"
-                    }
-                ]
-            },
-            "event": [
-                {
-                    "listen": "test",
-                    "script": {
-                        "type": "text/javascript",
-                        "exec": [
-                            "pm.test(\"HTTP 200\",()=>pm.response.to.have.status(200));"
-                        ]
-                    }
-                }
-            ]
-        },
-        {
-            "name": "Fulfilled stock credited exactly once",
-            "request": {
-                "method": "GET",
-                "url": "{{baseUrl}}/api/v1/medicines/{{medicineId}}/",
-                "header": []
-            },
-            "event": [
-                {
-                    "listen": "test",
-                    "script": {
-                        "type": "text/javascript",
-                        "exec": [
-                            "pm.test(\"HTTP 200\",()=>pm.response.to.have.status(200));",
-                            "pm.test(\"Received 7\",()=>pm.expect(pm.response.json().quantity_in_stock).to.eql(17));"
-                        ]
-                    }
-                }
-            ]
-        },
-        {
-            "name": "Duplicate fulfillment blocked",
-            "request": {
-                "method": "POST",
-                "url": "{{baseUrl}}/api/v1/mock/inventory/restock-requests/{{requestId}}/fulfill/",
-                "header": [
-                    {
-                        "key": "X-CSRFToken",
-                        "value": "{{csrfToken}}"
-                    }
-                ]
-            },
-            "event": [
-                {
-                    "listen": "test",
-                    "script": {
-                        "type": "text/javascript",
-                        "exec": [
-                            "pm.test(\"HTTP 409\",()=>pm.response.to.have.status(409));"
-                        ]
-                    }
-                }
-            ]
-        },
-        {
-            "name": "Request all medicines",
-            "request": {
-                "method": "POST",
-                "url": "{{baseUrl}}/api/v1/restock-requests/",
-                "header": [
-                    {
-                        "key": "X-CSRFToken",
-                        "value": "{{csrfToken}}"
-                    },
-                    {
-                        "key": "Content-Type",
-                        "value": "application/json"
-                    }
-                ],
-                "body": {
-                    "mode": "raw",
-                    "raw": "{\"mode\": \"ALL\", \"quantity\": 2}",
-                    "options": {
-                        "raw": {
-                            "language": "json"
-                        }
-                    }
-                }
-            },
-            "event": [
-                {
-                    "listen": "test",
-                    "script": {
-                        "type": "text/javascript",
-                        "exec": [
-                            "pm.test(\"HTTP 201\",()=>pm.response.to.have.status(201));",
-                            "pm.collectionVariables.set(\"allRequestId\",pm.response.json().request_id);"
-                        ]
-                    }
-                }
-            ]
-        },
-        {
-            "name": "Inventory fulfills all medicines",
-            "request": {
-                "method": "POST",
-                "url": "{{baseUrl}}/api/v1/mock/inventory/restock-requests/{{allRequestId}}/fulfill/",
-                "header": [
-                    {
-                        "key": "X-CSRFToken",
-                        "value": "{{csrfToken}}"
-                    }
-                ]
-            },
-            "event": [
-                {
-                    "listen": "test",
-                    "script": {
-                        "type": "text/javascript",
-                        "exec": [
-                            "pm.test(\"HTTP 200\",()=>pm.response.to.have.status(200));"
-                        ]
-                    }
-                }
-            ]
-        },
-        {
-            "name": "Dispense medicine",
-            "request": {
-                "method": "POST",
-                "url": "{{baseUrl}}/api/v1/medicine-dispensations/",
-                "header": [
-                    {
-                        "key": "X-CSRFToken",
-                        "value": "{{csrfToken}}"
-                    },
-                    {
-                        "key": "Content-Type",
-                        "value": "application/json"
-                    }
-                ],
-                "body": {
-                    "mode": "raw",
-                    "raw": "{\"student_id\": \"{{studentId}}\", \"medicine_id\": \"{{medicineId}}\", \"quantity\": 1, \"reason\": \"API history test\"}",
-                    "options": {
-                        "raw": {
-                            "language": "json"
-                        }
-                    }
-                }
-            },
-            "event": [
-                {
-                    "listen": "test",
-                    "script": {
-                        "type": "text/javascript",
-                        "exec": [
-                            "pm.test(\"HTTP 201\",()=>pm.response.to.have.status(201));",
-                            "pm.collectionVariables.set(\"dispensationId\",pm.response.json().dispensation_id);"
-                        ]
-                    }
-                }
-            ]
-        },
-        {
-            "name": "Owner deletes dispensing history",
-            "request": {
-                "method": "DELETE",
-                "url": "{{baseUrl}}/api/v1/medicine-dispensations/{{dispensationId}}/",
-                "header": [
-                    {
-                        "key": "X-CSRFToken",
-                        "value": "{{csrfToken}}"
-                    }
-                ]
-            },
-            "event": [
-                {
-                    "listen": "test",
-                    "script": {
-                        "type": "text/javascript",
-                        "exec": [
-                            "pm.test(\"HTTP 204\",()=>pm.response.to.have.status(204));"
-                        ]
-                    }
-                }
-            ]
-        },
-        {
-            "name": "History deletion does not restore stock",
-            "request": {
-                "method": "GET",
-                "url": "{{baseUrl}}/api/v1/medicines/{{medicineId}}/",
-                "header": []
-            },
-            "event": [
-                {
-                    "listen": "test",
-                    "script": {
-                        "type": "text/javascript",
-                        "exec": [
-                            "pm.test(\"HTTP 200\",()=>pm.response.to.have.status(200));",
-                            "pm.test(\"Stock remains 18\",()=>pm.expect(pm.response.json().quantity_in_stock).to.eql(18));"
-                        ]
-                    }
-                }
-            ]
-        },
-        {
-            "name": "Catalog with transactions cannot be deleted",
-            "request": {
-                "method": "DELETE",
-                "url": "{{baseUrl}}/api/v1/mock/inventory/medicines/{{medicineId}}/",
-                "header": [
-                    {
-                        "key": "X-CSRFToken",
-                        "value": "{{csrfToken}}"
-                    }
-                ]
-            },
-            "event": [
-                {
-                    "listen": "test",
-                    "script": {
-                        "type": "text/javascript",
-                        "exec": [
-                            "pm.test(\"HTTP 409\",()=>pm.response.to.have.status(409));"
-                        ]
-                    }
-                }
-            ]
-        },
-        {
-            "name": "Retire used medicine",
-            "request": {
-                "method": "PATCH",
-                "url": "{{baseUrl}}/api/v1/mock/inventory/medicines/{{medicineId}}/",
-                "header": [
-                    {
-                        "key": "X-CSRFToken",
-                        "value": "{{csrfToken}}"
-                    },
-                    {
-                        "key": "Content-Type",
-                        "value": "application/json"
-                    }
-                ],
-                "body": {
-                    "mode": "raw",
-                    "raw": "{\"status\": \"INACTIVE\"}",
-                    "options": {
-                        "raw": {
-                            "language": "json"
-                        }
-                    }
-                }
-            },
-            "event": [
-                {
-                    "listen": "test",
-                    "script": {
-                        "type": "text/javascript",
-                        "exec": [
-                            "pm.test(\"HTTP 200\",()=>pm.response.to.have.status(200));"
-                        ]
-                    }
-                }
-            ]
-        },
-        {
-            "name": "Create unused medicine",
-            "request": {
-                "method": "POST",
-                "url": "{{baseUrl}}/api/v1/mock/inventory/medicines/",
-                "header": [
-                    {
-                        "key": "X-CSRFToken",
-                        "value": "{{csrfToken}}"
-                    },
-                    {
-                        "key": "Content-Type",
-                        "value": "application/json"
-                    }
-                ],
-                "body": {
-                    "mode": "raw",
-                    "raw": "{\"medicine_id\": \"{{unusedId}}\", \"name\": \"API Medicine\", \"generic_name\": \"Test\", \"unit\": \"tablet\", \"quantity_in_stock\": 0, \"reorder_level\": 5, \"status\": \"ACTIVE\"}",
-                    "options": {
-                        "raw": {
-                            "language": "json"
-                        }
-                    }
-                }
-            },
-            "event": [
-                {
-                    "listen": "test",
-                    "script": {
-                        "type": "text/javascript",
-                        "exec": [
-                            "pm.test(\"HTTP 201\",()=>pm.response.to.have.status(201));"
-                        ]
-                    }
-                }
-            ]
-        },
-        {
-            "name": "Delete unused medicine",
-            "request": {
-                "method": "DELETE",
-                "url": "{{baseUrl}}/api/v1/mock/inventory/medicines/{{unusedId}}/",
-                "header": [
-                    {
-                        "key": "X-CSRFToken",
-                        "value": "{{csrfToken}}"
-                    }
-                ]
-            },
-            "event": [
-                {
-                    "listen": "test",
-                    "script": {
-                        "type": "text/javascript",
-                        "exec": [
-                            "pm.test(\"HTTP 204\",()=>pm.response.to.have.status(204));"
-                        ]
-                    }
-                }
-            ]
-        },
-        {
-            "name": "Deleted medicine absent in Clinic",
-            "request": {
-                "method": "GET",
-                "url": "{{baseUrl}}/api/v1/medicines/{{unusedId}}/",
-                "header": []
-            },
-            "event": [
-                {
-                    "listen": "test",
-                    "script": {
-                        "type": "text/javascript",
-                        "exec": [
-                            "pm.test(\"HTTP 404\",()=>pm.response.to.have.status(404));"
-                        ]
-                    }
-                }
-            ]
-        },
-        {
-            "name": "Owner logout",
-            "request": {
-                "method": "POST",
-                "url": "{{baseUrl}}/api/auth/logout/",
-                "header": [
-                    {
-                        "key": "X-CSRFToken",
-                        "value": "{{csrfToken}}"
-                    }
-                ]
-            },
-            "event": [
-                {
-                    "listen": "test",
-                    "script": {
-                        "type": "text/javascript",
-                        "exec": [
-                            "pm.test(\"HTTP 200\",()=>pm.response.to.have.status(200));"
-                        ]
-                    }
-                }
-            ]
+      ]
+    },
+    {
+      "name": "Owner login",
+      "request": {
+        "method": "POST",
+        "url": "{{baseUrl}}/api/auth/login/",
+        "header": [
+          {
+            "key": "X-CSRFToken",
+            "value": "{{csrfToken}}"
+          },
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\"username\": \"{{username}}\", \"password\": \"{{password}}\"}",
+          "options": {
+            "raw": {
+              "language": "json"
+            }
+          }
         }
-    ]
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test(\"HTTP 200\",()=>pm.response.to.have.status(200));"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "Get CSRF",
+      "request": {
+        "method": "GET",
+        "url": "{{baseUrl}}/api/auth/csrf/",
+        "header": []
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test(\"HTTP 200\",()=>pm.response.to.have.status(200));",
+              "pm.collectionVariables.set(\"csrfToken\",pm.response.json().csrfToken);"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "Initialize unique IDs",
+      "request": {
+        "method": "GET",
+        "url": "{{baseUrl}}/api/auth/me/",
+        "header": []
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test(\"HTTP 200\",()=>pm.response.to.have.status(200));",
+              "pm.collectionVariables.set(\"studentId\",\"API-DEMO-\"+Date.now());pm.collectionVariables.set(\"medicineId\",\"API-MED-\"+Date.now());pm.collectionVariables.set(\"unusedId\",\"API-UNUSED-\"+Date.now());"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "Add Registrar student",
+      "request": {
+        "method": "POST",
+        "url": "{{baseUrl}}/api/v1/mock/registrar/students/",
+        "header": [
+          {
+            "key": "X-CSRFToken",
+            "value": "{{csrfToken}}"
+          },
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\"student_id\": \"{{studentId}}\", \"first_name\": \"API\", \"last_name\": \"Student\", \"course\": \"BSIT\", \"section\": \"1A\", \"status\": \"ACTIVE\"}",
+          "options": {
+            "raw": {
+              "language": "json"
+            }
+          }
+        }
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test(\"HTTP 201\",()=>pm.response.to.have.status(201));"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "Get student by ID",
+      "request": {
+        "method": "POST",
+        "url": "{{baseUrl}}/api/v1/students/import/",
+        "header": [
+          {
+            "key": "X-CSRFToken",
+            "value": "{{csrfToken}}"
+          },
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\"student_id\": \"{{studentId}}\"}",
+          "options": {
+            "raw": {
+              "language": "json"
+            }
+          }
+        }
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test(\"HTTP 200\",()=>pm.response.to.have.status(200));",
+              "pm.test(\"Registrar-owned identity\",()=>pm.expect(pm.response.json().student_id).to.eql(pm.collectionVariables.get(\"studentId\")));"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "Update and graduate Registrar student",
+      "request": {
+        "method": "PATCH",
+        "url": "{{baseUrl}}/api/v1/mock/registrar/students/{{studentId}}/",
+        "header": [
+          {
+            "key": "X-CSRFToken",
+            "value": "{{csrfToken}}"
+          },
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\"first_name\": \"Updated\", \"status\": \"GRADUATED\"}",
+          "options": {
+            "raw": {
+              "language": "json"
+            }
+          }
+        }
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test(\"HTTP 200\",()=>pm.response.to.have.status(200));"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "Clinic reads updated Registrar profile",
+      "request": {
+        "method": "GET",
+        "url": "{{baseUrl}}/api/v1/students/{{studentId}}/",
+        "header": []
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test(\"HTTP 200\",()=>pm.response.to.have.status(200));",
+              "pm.test(\"Live profile\",()=>{pm.expect(pm.response.json().first_name).to.eql(\"Updated\");pm.expect(pm.response.json().status).to.eql(\"GRADUATED\");});"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "Graduated health create rejected",
+      "request": {
+        "method": "POST",
+        "url": "{{baseUrl}}/api/v1/health-records/",
+        "header": [
+          {
+            "key": "X-CSRFToken",
+            "value": "{{csrfToken}}"
+          },
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\"student_id\": \"{{studentId}}\", \"blood_type\": \"O+\"}",
+          "options": {
+            "raw": {
+              "language": "json"
+            }
+          }
+        }
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test(\"HTTP 422\",()=>pm.response.to.have.status(422));"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "Mark dropped out",
+      "request": {
+        "method": "PATCH",
+        "url": "{{baseUrl}}/api/v1/mock/registrar/students/{{studentId}}/",
+        "header": [
+          {
+            "key": "X-CSRFToken",
+            "value": "{{csrfToken}}"
+          },
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\"status\": \"DROPPED_OUT\"}",
+          "options": {
+            "raw": {
+              "language": "json"
+            }
+          }
+        }
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test(\"HTTP 200\",()=>pm.response.to.have.status(200));"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "Dropped consultation create rejected",
+      "request": {
+        "method": "POST",
+        "url": "{{baseUrl}}/api/v1/consultations/",
+        "header": [
+          {
+            "key": "X-CSRFToken",
+            "value": "{{csrfToken}}"
+          },
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\"student_id\": \"{{studentId}}\", \"chief_complaint\": \"Blocked\"}",
+          "options": {
+            "raw": {
+              "language": "json"
+            }
+          }
+        }
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test(\"HTTP 422\",()=>pm.response.to.have.status(422));"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "Reactivate student",
+      "request": {
+        "method": "PATCH",
+        "url": "{{baseUrl}}/api/v1/mock/registrar/students/{{studentId}}/",
+        "header": [
+          {
+            "key": "X-CSRFToken",
+            "value": "{{csrfToken}}"
+          },
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\"status\": \"ACTIVE\"}",
+          "options": {
+            "raw": {
+              "language": "json"
+            }
+          }
+        }
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test(\"HTTP 200\",()=>pm.response.to.have.status(200));"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "Create clinic health record",
+      "request": {
+        "method": "POST",
+        "url": "{{baseUrl}}/api/v1/health-records/",
+        "header": [
+          {
+            "key": "X-CSRFToken",
+            "value": "{{csrfToken}}"
+          },
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\"student_id\": \"{{studentId}}\", \"blood_type\": \"O+\"}",
+          "options": {
+            "raw": {
+              "language": "json"
+            }
+          }
+        }
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test(\"HTTP 201\",()=>pm.response.to.have.status(201));",
+              "pm.collectionVariables.set(\"recordId\",pm.response.json().health_record_id);"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "Owner deletes health record",
+      "request": {
+        "method": "DELETE",
+        "url": "{{baseUrl}}/api/v1/health-records/{{recordId}}/",
+        "header": [
+          {
+            "key": "X-CSRFToken",
+            "value": "{{csrfToken}}"
+          }
+        ]
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test(\"HTTP 204\",()=>pm.response.to.have.status(204));"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "Add Inventory medicine",
+      "request": {
+        "method": "POST",
+        "url": "{{baseUrl}}/api/v1/mock/inventory/medicines/",
+        "header": [
+          {
+            "key": "X-CSRFToken",
+            "value": "{{csrfToken}}"
+          },
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\"medicine_id\": \"{{medicineId}}\", \"name\": \"API Medicine\", \"generic_name\": \"Test\", \"unit\": \"tablet\", \"quantity_in_stock\": 10, \"reorder_level\": 5, \"status\": \"ACTIVE\"}",
+          "options": {
+            "raw": {
+              "language": "json"
+            }
+          }
+        }
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test(\"HTTP 201\",()=>pm.response.to.have.status(201));"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "New medicine visible in Clinic",
+      "request": {
+        "method": "GET",
+        "url": "{{baseUrl}}/api/v1/medicines/{{medicineId}}/",
+        "header": []
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test(\"HTTP 200\",()=>pm.response.to.have.status(200));"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "Inventory notifications available",
+      "request": {
+        "method": "GET",
+        "url": "{{baseUrl}}/api/v1/inventory-notifications/",
+        "header": []
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test(\"HTTP 200\",()=>pm.response.to.have.status(200));",
+              "pm.test(\"New medicine notification\",()=>pm.expect(pm.response.json().some(n=>n.message.includes(pm.collectionVariables.get(\"medicineId\")))).to.eql(true));"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "Edit Inventory medicine",
+      "request": {
+        "method": "PATCH",
+        "url": "{{baseUrl}}/api/v1/mock/inventory/medicines/{{medicineId}}/",
+        "header": [
+          {
+            "key": "X-CSRFToken",
+            "value": "{{csrfToken}}"
+          },
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\"name\": \"API Updated Medicine\"}",
+          "options": {
+            "raw": {
+              "language": "json"
+            }
+          }
+        }
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test(\"HTTP 200\",()=>pm.response.to.have.status(200));"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "Request selected medicine",
+      "request": {
+        "method": "POST",
+        "url": "{{baseUrl}}/api/v1/restock-requests/",
+        "header": [
+          {
+            "key": "X-CSRFToken",
+            "value": "{{csrfToken}}"
+          },
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\"mode\": \"SELECTED\", \"items\": [{\"medicine_id\": \"{{medicineId}}\", \"quantity\": 7}]}",
+          "options": {
+            "raw": {
+              "language": "json"
+            }
+          }
+        }
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test(\"HTTP 201\",()=>pm.response.to.have.status(201));",
+              "pm.collectionVariables.set(\"requestId\",pm.response.json().request_id);"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "Pending request does not change stock",
+      "request": {
+        "method": "GET",
+        "url": "{{baseUrl}}/api/v1/medicines/{{medicineId}}/",
+        "header": []
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test(\"HTTP 200\",()=>pm.response.to.have.status(200));",
+              "pm.test(\"Awaiting Inventory\",()=>pm.expect(pm.response.json().quantity_in_stock).to.eql(10));"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "Inventory fulfills request",
+      "request": {
+        "method": "POST",
+        "url": "{{baseUrl}}/api/v1/mock/inventory/restock-requests/{{requestId}}/fulfill/",
+        "header": [
+          {
+            "key": "X-CSRFToken",
+            "value": "{{csrfToken}}"
+          }
+        ]
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test(\"HTTP 200\",()=>pm.response.to.have.status(200));"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "Fulfilled stock credited exactly once",
+      "request": {
+        "method": "GET",
+        "url": "{{baseUrl}}/api/v1/medicines/{{medicineId}}/",
+        "header": []
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test(\"HTTP 200\",()=>pm.response.to.have.status(200));",
+              "pm.test(\"Received 7\",()=>pm.expect(pm.response.json().quantity_in_stock).to.eql(17));"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "Duplicate fulfillment blocked",
+      "request": {
+        "method": "POST",
+        "url": "{{baseUrl}}/api/v1/mock/inventory/restock-requests/{{requestId}}/fulfill/",
+        "header": [
+          {
+            "key": "X-CSRFToken",
+            "value": "{{csrfToken}}"
+          }
+        ]
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test(\"HTTP 409\",()=>pm.response.to.have.status(409));"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "Request all medicines",
+      "request": {
+        "method": "POST",
+        "url": "{{baseUrl}}/api/v1/restock-requests/",
+        "header": [
+          {
+            "key": "X-CSRFToken",
+            "value": "{{csrfToken}}"
+          },
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\"mode\": \"ALL\", \"quantity\": 2}",
+          "options": {
+            "raw": {
+              "language": "json"
+            }
+          }
+        }
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test(\"HTTP 201\",()=>pm.response.to.have.status(201));",
+              "pm.collectionVariables.set(\"allRequestId\",pm.response.json().request_id);"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "Inventory fulfills all medicines",
+      "request": {
+        "method": "POST",
+        "url": "{{baseUrl}}/api/v1/mock/inventory/restock-requests/{{allRequestId}}/fulfill/",
+        "header": [
+          {
+            "key": "X-CSRFToken",
+            "value": "{{csrfToken}}"
+          }
+        ]
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test(\"HTTP 200\",()=>pm.response.to.have.status(200));"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "Dispense medicine",
+      "request": {
+        "method": "POST",
+        "url": "{{baseUrl}}/api/v1/medicine-dispensations/",
+        "header": [
+          {
+            "key": "X-CSRFToken",
+            "value": "{{csrfToken}}"
+          },
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\"student_id\": \"{{studentId}}\", \"medicine_id\": \"{{medicineId}}\", \"quantity\": 1, \"reason\": \"API history test\"}",
+          "options": {
+            "raw": {
+              "language": "json"
+            }
+          }
+        }
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test(\"HTTP 201\",()=>pm.response.to.have.status(201));",
+              "pm.collectionVariables.set(\"dispensationId\",pm.response.json().dispensation_id);"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "Owner deletes dispensing history",
+      "request": {
+        "method": "DELETE",
+        "url": "{{baseUrl}}/api/v1/medicine-dispensations/{{dispensationId}}/",
+        "header": [
+          {
+            "key": "X-CSRFToken",
+            "value": "{{csrfToken}}"
+          }
+        ]
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test(\"HTTP 204\",()=>pm.response.to.have.status(204));"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "History deletion does not restore stock",
+      "request": {
+        "method": "GET",
+        "url": "{{baseUrl}}/api/v1/medicines/{{medicineId}}/",
+        "header": []
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test(\"HTTP 200\",()=>pm.response.to.have.status(200));",
+              "pm.test(\"Stock remains 18\",()=>pm.expect(pm.response.json().quantity_in_stock).to.eql(18));"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "Catalog with transactions cannot be deleted",
+      "request": {
+        "method": "DELETE",
+        "url": "{{baseUrl}}/api/v1/mock/inventory/medicines/{{medicineId}}/",
+        "header": [
+          {
+            "key": "X-CSRFToken",
+            "value": "{{csrfToken}}"
+          }
+        ]
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test(\"HTTP 409\",()=>pm.response.to.have.status(409));"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "Retire used medicine",
+      "request": {
+        "method": "PATCH",
+        "url": "{{baseUrl}}/api/v1/mock/inventory/medicines/{{medicineId}}/",
+        "header": [
+          {
+            "key": "X-CSRFToken",
+            "value": "{{csrfToken}}"
+          },
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\"status\": \"INACTIVE\"}",
+          "options": {
+            "raw": {
+              "language": "json"
+            }
+          }
+        }
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test(\"HTTP 200\",()=>pm.response.to.have.status(200));"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "Create unused medicine",
+      "request": {
+        "method": "POST",
+        "url": "{{baseUrl}}/api/v1/mock/inventory/medicines/",
+        "header": [
+          {
+            "key": "X-CSRFToken",
+            "value": "{{csrfToken}}"
+          },
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\"medicine_id\": \"{{unusedId}}\", \"name\": \"API Medicine\", \"generic_name\": \"Test\", \"unit\": \"tablet\", \"quantity_in_stock\": 0, \"reorder_level\": 5, \"status\": \"ACTIVE\"}",
+          "options": {
+            "raw": {
+              "language": "json"
+            }
+          }
+        }
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test(\"HTTP 201\",()=>pm.response.to.have.status(201));"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "Delete unused medicine",
+      "request": {
+        "method": "DELETE",
+        "url": "{{baseUrl}}/api/v1/mock/inventory/medicines/{{unusedId}}/",
+        "header": [
+          {
+            "key": "X-CSRFToken",
+            "value": "{{csrfToken}}"
+          }
+        ]
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test(\"HTTP 204\",()=>pm.response.to.have.status(204));"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "Deleted medicine absent in Clinic",
+      "request": {
+        "method": "GET",
+        "url": "{{baseUrl}}/api/v1/medicines/{{unusedId}}/",
+        "header": []
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test(\"HTTP 404\",()=>pm.response.to.have.status(404));"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "Owner logout",
+      "request": {
+        "method": "POST",
+        "url": "{{baseUrl}}/api/auth/logout/",
+        "header": [
+          {
+            "key": "X-CSRFToken",
+            "value": "{{csrfToken}}"
+          }
+        ]
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test(\"HTTP 200\",()=>pm.response.to.have.status(200));"
+            ]
+          }
+        }
+      ]
+    }
+  ]
 }

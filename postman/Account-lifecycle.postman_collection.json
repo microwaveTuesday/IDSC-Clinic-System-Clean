@@ -1,976 +1,976 @@
 {
-    "info": {
-        "name": "Clinic account lifecycle (disposable database only)",
-        "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json",
-        "description": "Creates isolated staff/admin accounts, deactivates/reactivates and permanently deletes them. Requires an existing system administrator and two strong test passwords."
+  "info": {
+    "name": "Clinic account lifecycle (disposable database only)",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json",
+    "description": "Creates isolated staff/admin accounts, deactivates/reactivates and permanently deletes them. Requires an existing system administrator and two strong test passwords."
+  },
+  "variable": [
+    {
+      "key": "baseUrl",
+      "value": "http://127.0.0.1:8002"
     },
-    "variable": [
-        {
-            "key": "baseUrl",
-            "value": "http://127.0.0.1:8002"
-        },
-        {
-            "key": "username",
-            "value": ""
-        },
-        {
-            "key": "password",
-            "value": ""
-        },
-        {
-            "key": "newPassword",
-            "value": ""
-        },
-        {
-            "key": "csrfToken",
-            "value": ""
-        },
-        {
-            "key": "suffix",
-            "value": ""
-        },
-        {
-            "key": "actorId",
-            "value": ""
-        },
-        {
-            "key": "adminId",
-            "value": ""
-        },
-        {
-            "key": "staffId",
-            "value": ""
+    {
+      "key": "username",
+      "value": ""
+    },
+    {
+      "key": "password",
+      "value": ""
+    },
+    {
+      "key": "newPassword",
+      "value": ""
+    },
+    {
+      "key": "csrfToken",
+      "value": ""
+    },
+    {
+      "key": "suffix",
+      "value": ""
+    },
+    {
+      "key": "actorId",
+      "value": ""
+    },
+    {
+      "key": "adminId",
+      "value": ""
+    },
+    {
+      "key": "staffId",
+      "value": ""
+    }
+  ],
+  "item": [
+    {
+      "name": "Initialize isolated accounts and CSRF",
+      "request": {
+        "method": "GET",
+        "header": [],
+        "url": {
+          "raw": "{{baseUrl}}/api/auth/csrf/",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "api",
+            "auth",
+            "csrf",
+            ""
+          ]
         }
-    ],
-    "item": [
+      },
+      "event": [
         {
-            "name": "Initialize isolated accounts and CSRF",
-            "request": {
-                "method": "GET",
-                "header": [],
-                "url": {
-                    "raw": "{{baseUrl}}/api/auth/csrf/",
-                    "host": [
-                        "{{baseUrl}}"
-                    ],
-                    "path": [
-                        "api",
-                        "auth",
-                        "csrf",
-                        ""
-                    ]
-                }
-            },
-            "event": [
-                {
-                    "listen": "test",
-                    "script": {
-                        "type": "text/javascript",
-                        "exec": [
-                            "pm.test(\"Expected HTTP 200\", () => pm.response.to.have.status(200));",
-                            "pm.collectionVariables.set(\"csrfToken\", pm.response.json().csrfToken);",
-                            "pm.collectionVariables.set(\"suffix\", Date.now());"
-                        ]
-                    }
-                }
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test(\"Expected HTTP 200\", () => pm.response.to.have.status(200));",
+              "pm.collectionVariables.set(\"csrfToken\", pm.response.json().csrfToken);",
+              "pm.collectionVariables.set(\"suffix\", Date.now());"
             ]
-        },
-        {
-            "name": "Log in acting system admin",
-            "request": {
-                "method": "POST",
-                "header": [
-                    {
-                        "key": "Content-Type",
-                        "value": "application/json"
-                    },
-                    {
-                        "key": "X-CSRFToken",
-                        "value": "{{csrfToken}}"
-                    }
-                ],
-                "url": {
-                    "raw": "{{baseUrl}}/api/auth/login/",
-                    "host": [
-                        "{{baseUrl}}"
-                    ],
-                    "path": [
-                        "api",
-                        "auth",
-                        "login",
-                        ""
-                    ]
-                },
-                "body": {
-                    "mode": "raw",
-                    "raw": "{\"username\": \"{{username}}\", \"password\": \"{{password}}\"}",
-                    "options": {
-                        "raw": {
-                            "language": "json"
-                        }
-                    }
-                }
-            },
-            "event": [
-                {
-                    "listen": "test",
-                    "script": {
-                        "type": "text/javascript",
-                        "exec": [
-                            "pm.test(\"Expected HTTP 200\", () => pm.response.to.have.status(200));"
-                        ]
-                    }
-                }
-            ]
-        },
-        {
-            "name": "Get current CSRF",
-            "request": {
-                "method": "GET",
-                "header": [],
-                "url": {
-                    "raw": "{{baseUrl}}/api/auth/csrf/",
-                    "host": [
-                        "{{baseUrl}}"
-                    ],
-                    "path": [
-                        "api",
-                        "auth",
-                        "csrf",
-                        ""
-                    ]
-                }
-            },
-            "event": [
-                {
-                    "listen": "test",
-                    "script": {
-                        "type": "text/javascript",
-                        "exec": [
-                            "pm.test(\"Expected HTTP 200\", () => pm.response.to.have.status(200));",
-                            "pm.collectionVariables.set(\"csrfToken\", pm.response.json().csrfToken);"
-                        ]
-                    }
-                }
-            ]
-        },
-        {
-            "name": "Read acting account ID",
-            "request": {
-                "method": "GET",
-                "header": [],
-                "url": {
-                    "raw": "{{baseUrl}}/api/auth/me/",
-                    "host": [
-                        "{{baseUrl}}"
-                    ],
-                    "path": [
-                        "api",
-                        "auth",
-                        "me",
-                        ""
-                    ]
-                }
-            },
-            "event": [
-                {
-                    "listen": "test",
-                    "script": {
-                        "type": "text/javascript",
-                        "exec": [
-                            "pm.test(\"Expected HTTP 200\", () => pm.response.to.have.status(200));",
-                            "pm.collectionVariables.set(\"actorId\", pm.response.json().id);"
-                        ]
-                    }
-                }
-            ]
-        },
-        {
-            "name": "Self deactivation is blocked",
-            "request": {
-                "method": "POST",
-                "header": [
-                    {
-                        "key": "Content-Type",
-                        "value": "application/json"
-                    },
-                    {
-                        "key": "X-CSRFToken",
-                        "value": "{{csrfToken}}"
-                    }
-                ],
-                "url": {
-                    "raw": "{{baseUrl}}/api/v1/admins/{{actorId}}/deactivate/",
-                    "host": [
-                        "{{baseUrl}}"
-                    ],
-                    "path": [
-                        "api",
-                        "v1",
-                        "admins",
-                        "{{actorId}}",
-                        "deactivate",
-                        ""
-                    ]
-                },
-                "body": {
-                    "mode": "raw",
-                    "raw": "{}",
-                    "options": {
-                        "raw": {
-                            "language": "json"
-                        }
-                    }
-                }
-            },
-            "event": [
-                {
-                    "listen": "test",
-                    "script": {
-                        "type": "text/javascript",
-                        "exec": [
-                            "pm.test(\"Expected HTTP 409\", () => pm.response.to.have.status(409));"
-                        ]
-                    }
-                }
-            ]
-        },
-        {
-            "name": "Self deletion is blocked",
-            "request": {
-                "method": "DELETE",
-                "header": [
-                    {
-                        "key": "Content-Type",
-                        "value": "application/json"
-                    },
-                    {
-                        "key": "X-CSRFToken",
-                        "value": "{{csrfToken}}"
-                    }
-                ],
-                "url": {
-                    "raw": "{{baseUrl}}/api/v1/admins/{{actorId}}/",
-                    "host": [
-                        "{{baseUrl}}"
-                    ],
-                    "path": [
-                        "api",
-                        "v1",
-                        "admins",
-                        "{{actorId}}",
-                        ""
-                    ]
-                },
-                "body": {
-                    "mode": "raw",
-                    "raw": "{\"current_password\": \"{{password}}\"}",
-                    "options": {
-                        "raw": {
-                            "language": "json"
-                        }
-                    }
-                }
-            },
-            "event": [
-                {
-                    "listen": "test",
-                    "script": {
-                        "type": "text/javascript",
-                        "exec": [
-                            "pm.test(\"Expected HTTP 409\", () => pm.response.to.have.status(409));"
-                        ]
-                    }
-                }
-            ]
-        },
-        {
-            "name": "Create administrator for lifecycle test",
-            "request": {
-                "method": "POST",
-                "header": [
-                    {
-                        "key": "Content-Type",
-                        "value": "application/json"
-                    },
-                    {
-                        "key": "X-CSRFToken",
-                        "value": "{{csrfToken}}"
-                    }
-                ],
-                "url": {
-                    "raw": "{{baseUrl}}/api/v1/admins/",
-                    "host": [
-                        "{{baseUrl}}"
-                    ],
-                    "path": [
-                        "api",
-                        "v1",
-                        "admins",
-                        ""
-                    ]
-                },
-                "body": {
-                    "mode": "raw",
-                    "raw": "{\"username\": \"lifecycle_admin_{{suffix}}\", \"password\": \"{{newPassword}}\", \"confirm_password\": \"{{newPassword}}\", \"current_password\": \"{{password}}\"}",
-                    "options": {
-                        "raw": {
-                            "language": "json"
-                        }
-                    }
-                }
-            },
-            "event": [
-                {
-                    "listen": "test",
-                    "script": {
-                        "type": "text/javascript",
-                        "exec": [
-                            "pm.test(\"Expected HTTP 201\", () => pm.response.to.have.status(201));",
-                            "pm.collectionVariables.set(\"adminId\", pm.response.json().user_id);"
-                        ]
-                    }
-                }
-            ]
-        },
-        {
-            "name": "Create staff for lifecycle test",
-            "request": {
-                "method": "POST",
-                "header": [
-                    {
-                        "key": "Content-Type",
-                        "value": "application/json"
-                    },
-                    {
-                        "key": "X-CSRFToken",
-                        "value": "{{csrfToken}}"
-                    }
-                ],
-                "url": {
-                    "raw": "{{baseUrl}}/api/v1/users/",
-                    "host": [
-                        "{{baseUrl}}"
-                    ],
-                    "path": [
-                        "api",
-                        "v1",
-                        "users",
-                        ""
-                    ]
-                },
-                "body": {
-                    "mode": "raw",
-                    "raw": "{\"username\": \"lifecycle_staff_{{suffix}}\", \"password\": \"{{newPassword}}\"}",
-                    "options": {
-                        "raw": {
-                            "language": "json"
-                        }
-                    }
-                }
-            },
-            "event": [
-                {
-                    "listen": "test",
-                    "script": {
-                        "type": "text/javascript",
-                        "exec": [
-                            "pm.test(\"Expected HTTP 201\", () => pm.response.to.have.status(201));",
-                            "pm.collectionVariables.set(\"staffId\", pm.response.json().user_id);"
-                        ]
-                    }
-                }
-            ]
-        },
-        {
-            "name": "Owner is excluded from manageable administrators",
-            "request": {
-                "method": "GET",
-                "header": [],
-                "url": {
-                    "raw": "{{baseUrl}}/api/v1/admins/",
-                    "host": [
-                        "{{baseUrl}}"
-                    ],
-                    "path": [
-                        "api",
-                        "v1",
-                        "admins",
-                        ""
-                    ]
-                }
-            },
-            "event": [
-                {
-                    "listen": "test",
-                    "script": {
-                        "type": "text/javascript",
-                        "exec": [
-                            "pm.test(\"Expected HTTP 200\", () => pm.response.to.have.status(200));",
-                            "pm.test(\"Owner absent from manageable accounts\", () => { const actor = pm.response.json().find(row => String(row.user_id) === String(pm.collectionVariables.get(\"actorId\"))); pm.expect(actor).to.eql(undefined); });"
-                        ]
-                    }
-                }
-            ]
-        },
-        {
-            "name": "Deactivate admin",
-            "request": {
-                "method": "POST",
-                "header": [
-                    {
-                        "key": "Content-Type",
-                        "value": "application/json"
-                    },
-                    {
-                        "key": "X-CSRFToken",
-                        "value": "{{csrfToken}}"
-                    }
-                ],
-                "url": {
-                    "raw": "{{baseUrl}}/api/v1/admins/{{adminId}}/deactivate/",
-                    "host": [
-                        "{{baseUrl}}"
-                    ],
-                    "path": [
-                        "api",
-                        "v1",
-                        "admins",
-                        "{{adminId}}",
-                        "deactivate",
-                        ""
-                    ]
-                }
-            },
-            "event": [
-                {
-                    "listen": "test",
-                    "script": {
-                        "type": "text/javascript",
-                        "exec": [
-                            "pm.test(\"Expected HTTP 200\", () => pm.response.to.have.status(200));"
-                        ]
-                    }
-                }
-            ]
-        },
-        {
-            "name": "Reactivate admin",
-            "request": {
-                "method": "POST",
-                "header": [
-                    {
-                        "key": "Content-Type",
-                        "value": "application/json"
-                    },
-                    {
-                        "key": "X-CSRFToken",
-                        "value": "{{csrfToken}}"
-                    }
-                ],
-                "url": {
-                    "raw": "{{baseUrl}}/api/v1/admins/{{adminId}}/activate/",
-                    "host": [
-                        "{{baseUrl}}"
-                    ],
-                    "path": [
-                        "api",
-                        "v1",
-                        "admins",
-                        "{{adminId}}",
-                        "activate",
-                        ""
-                    ]
-                }
-            },
-            "event": [
-                {
-                    "listen": "test",
-                    "script": {
-                        "type": "text/javascript",
-                        "exec": [
-                            "pm.test(\"Expected HTTP 200\", () => pm.response.to.have.status(200));"
-                        ]
-                    }
-                }
-            ]
-        },
-        {
-            "name": "Wrong password cannot delete admin",
-            "request": {
-                "method": "DELETE",
-                "header": [
-                    {
-                        "key": "Content-Type",
-                        "value": "application/json"
-                    },
-                    {
-                        "key": "X-CSRFToken",
-                        "value": "{{csrfToken}}"
-                    }
-                ],
-                "url": {
-                    "raw": "{{baseUrl}}/api/v1/admins/{{adminId}}/",
-                    "host": [
-                        "{{baseUrl}}"
-                    ],
-                    "path": [
-                        "api",
-                        "v1",
-                        "admins",
-                        "{{adminId}}",
-                        ""
-                    ]
-                },
-                "body": {
-                    "mode": "raw",
-                    "raw": "{\"current_password\": \"Incorrect!123\"}",
-                    "options": {
-                        "raw": {
-                            "language": "json"
-                        }
-                    }
-                }
-            },
-            "event": [
-                {
-                    "listen": "test",
-                    "script": {
-                        "type": "text/javascript",
-                        "exec": [
-                            "pm.test(\"Expected HTTP 400\", () => pm.response.to.have.status(400));"
-                        ]
-                    }
-                }
-            ]
-        },
-        {
-            "name": "Delete admin with reauthentication",
-            "request": {
-                "method": "DELETE",
-                "header": [
-                    {
-                        "key": "Content-Type",
-                        "value": "application/json"
-                    },
-                    {
-                        "key": "X-CSRFToken",
-                        "value": "{{csrfToken}}"
-                    }
-                ],
-                "url": {
-                    "raw": "{{baseUrl}}/api/v1/admins/{{adminId}}/",
-                    "host": [
-                        "{{baseUrl}}"
-                    ],
-                    "path": [
-                        "api",
-                        "v1",
-                        "admins",
-                        "{{adminId}}",
-                        ""
-                    ]
-                },
-                "body": {
-                    "mode": "raw",
-                    "raw": "{\"current_password\": \"{{password}}\"}",
-                    "options": {
-                        "raw": {
-                            "language": "json"
-                        }
-                    }
-                }
-            },
-            "event": [
-                {
-                    "listen": "test",
-                    "script": {
-                        "type": "text/javascript",
-                        "exec": [
-                            "pm.test(\"Expected HTTP 204\", () => pm.response.to.have.status(204));"
-                        ]
-                    }
-                }
-            ]
-        },
-        {
-            "name": "Repeated admin delete is not found",
-            "request": {
-                "method": "DELETE",
-                "header": [
-                    {
-                        "key": "Content-Type",
-                        "value": "application/json"
-                    },
-                    {
-                        "key": "X-CSRFToken",
-                        "value": "{{csrfToken}}"
-                    }
-                ],
-                "url": {
-                    "raw": "{{baseUrl}}/api/v1/admins/{{adminId}}/",
-                    "host": [
-                        "{{baseUrl}}"
-                    ],
-                    "path": [
-                        "api",
-                        "v1",
-                        "admins",
-                        "{{adminId}}",
-                        ""
-                    ]
-                },
-                "body": {
-                    "mode": "raw",
-                    "raw": "{\"current_password\": \"{{password}}\"}",
-                    "options": {
-                        "raw": {
-                            "language": "json"
-                        }
-                    }
-                }
-            },
-            "event": [
-                {
-                    "listen": "test",
-                    "script": {
-                        "type": "text/javascript",
-                        "exec": [
-                            "pm.test(\"Expected HTTP 404\", () => pm.response.to.have.status(404));"
-                        ]
-                    }
-                }
-            ]
-        },
-        {
-            "name": "Deactivate staff",
-            "request": {
-                "method": "POST",
-                "header": [
-                    {
-                        "key": "Content-Type",
-                        "value": "application/json"
-                    },
-                    {
-                        "key": "X-CSRFToken",
-                        "value": "{{csrfToken}}"
-                    }
-                ],
-                "url": {
-                    "raw": "{{baseUrl}}/api/v1/users/{{staffId}}/deactivate/",
-                    "host": [
-                        "{{baseUrl}}"
-                    ],
-                    "path": [
-                        "api",
-                        "v1",
-                        "users",
-                        "{{staffId}}",
-                        "deactivate",
-                        ""
-                    ]
-                }
-            },
-            "event": [
-                {
-                    "listen": "test",
-                    "script": {
-                        "type": "text/javascript",
-                        "exec": [
-                            "pm.test(\"Expected HTTP 200\", () => pm.response.to.have.status(200));"
-                        ]
-                    }
-                }
-            ]
-        },
-        {
-            "name": "Reactivate staff",
-            "request": {
-                "method": "POST",
-                "header": [
-                    {
-                        "key": "Content-Type",
-                        "value": "application/json"
-                    },
-                    {
-                        "key": "X-CSRFToken",
-                        "value": "{{csrfToken}}"
-                    }
-                ],
-                "url": {
-                    "raw": "{{baseUrl}}/api/v1/users/{{staffId}}/activate/",
-                    "host": [
-                        "{{baseUrl}}"
-                    ],
-                    "path": [
-                        "api",
-                        "v1",
-                        "users",
-                        "{{staffId}}",
-                        "activate",
-                        ""
-                    ]
-                }
-            },
-            "event": [
-                {
-                    "listen": "test",
-                    "script": {
-                        "type": "text/javascript",
-                        "exec": [
-                            "pm.test(\"Expected HTTP 200\", () => pm.response.to.have.status(200));"
-                        ]
-                    }
-                }
-            ]
-        },
-        {
-            "name": "Missing password cannot delete staff",
-            "request": {
-                "method": "DELETE",
-                "header": [
-                    {
-                        "key": "Content-Type",
-                        "value": "application/json"
-                    },
-                    {
-                        "key": "X-CSRFToken",
-                        "value": "{{csrfToken}}"
-                    }
-                ],
-                "url": {
-                    "raw": "{{baseUrl}}/api/v1/users/{{staffId}}/",
-                    "host": [
-                        "{{baseUrl}}"
-                    ],
-                    "path": [
-                        "api",
-                        "v1",
-                        "users",
-                        "{{staffId}}",
-                        ""
-                    ]
-                },
-                "body": {
-                    "mode": "raw",
-                    "raw": "{}",
-                    "options": {
-                        "raw": {
-                            "language": "json"
-                        }
-                    }
-                }
-            },
-            "event": [
-                {
-                    "listen": "test",
-                    "script": {
-                        "type": "text/javascript",
-                        "exec": [
-                            "pm.test(\"Expected HTTP 400\", () => pm.response.to.have.status(400));"
-                        ]
-                    }
-                }
-            ]
-        },
-        {
-            "name": "Wrong password cannot delete staff",
-            "request": {
-                "method": "DELETE",
-                "header": [
-                    {
-                        "key": "Content-Type",
-                        "value": "application/json"
-                    },
-                    {
-                        "key": "X-CSRFToken",
-                        "value": "{{csrfToken}}"
-                    }
-                ],
-                "url": {
-                    "raw": "{{baseUrl}}/api/v1/users/{{staffId}}/",
-                    "host": [
-                        "{{baseUrl}}"
-                    ],
-                    "path": [
-                        "api",
-                        "v1",
-                        "users",
-                        "{{staffId}}",
-                        ""
-                    ]
-                },
-                "body": {
-                    "mode": "raw",
-                    "raw": "{\"current_password\": \"Incorrect!123\"}",
-                    "options": {
-                        "raw": {
-                            "language": "json"
-                        }
-                    }
-                }
-            },
-            "event": [
-                {
-                    "listen": "test",
-                    "script": {
-                        "type": "text/javascript",
-                        "exec": [
-                            "pm.test(\"Expected HTTP 400\", () => pm.response.to.have.status(400));"
-                        ]
-                    }
-                }
-            ]
-        },
-        {
-            "name": "Delete staff with reauthentication",
-            "request": {
-                "method": "DELETE",
-                "header": [
-                    {
-                        "key": "Content-Type",
-                        "value": "application/json"
-                    },
-                    {
-                        "key": "X-CSRFToken",
-                        "value": "{{csrfToken}}"
-                    }
-                ],
-                "url": {
-                    "raw": "{{baseUrl}}/api/v1/users/{{staffId}}/",
-                    "host": [
-                        "{{baseUrl}}"
-                    ],
-                    "path": [
-                        "api",
-                        "v1",
-                        "users",
-                        "{{staffId}}",
-                        ""
-                    ]
-                },
-                "body": {
-                    "mode": "raw",
-                    "raw": "{\"current_password\": \"{{password}}\"}",
-                    "options": {
-                        "raw": {
-                            "language": "json"
-                        }
-                    }
-                }
-            },
-            "event": [
-                {
-                    "listen": "test",
-                    "script": {
-                        "type": "text/javascript",
-                        "exec": [
-                            "pm.test(\"Expected HTTP 204\", () => pm.response.to.have.status(204));"
-                        ]
-                    }
-                }
-            ]
-        },
-        {
-            "name": "Deleted staff cannot be retrieved",
-            "request": {
-                "method": "GET",
-                "header": [],
-                "url": {
-                    "raw": "{{baseUrl}}/api/v1/users/{{staffId}}/",
-                    "host": [
-                        "{{baseUrl}}"
-                    ],
-                    "path": [
-                        "api",
-                        "v1",
-                        "users",
-                        "{{staffId}}",
-                        ""
-                    ]
-                }
-            },
-            "event": [
-                {
-                    "listen": "test",
-                    "script": {
-                        "type": "text/javascript",
-                        "exec": [
-                            "pm.test(\"Deleted staff is not found\", () => pm.response.to.have.status(404));"
-                        ]
-                    }
-                }
-            ]
-        },
-        {
-            "name": "Deleted admin removed, actor retained",
-            "request": {
-                "method": "GET",
-                "header": [],
-                "url": {
-                    "raw": "{{baseUrl}}/api/v1/admins/",
-                    "host": [
-                        "{{baseUrl}}"
-                    ],
-                    "path": [
-                        "api",
-                        "v1",
-                        "admins",
-                        ""
-                    ]
-                }
-            },
-            "event": [
-                {
-                    "listen": "test",
-                    "script": {
-                        "type": "text/javascript",
-                        "exec": [
-                            "pm.test(\"Expected HTTP 200\", () => pm.response.to.have.status(200));",
-                            "pm.test(\"Deleted administrator absent\", () => pm.expect(pm.response.json().some(row => String(row.user_id) === String(pm.collectionVariables.get(\"adminId\")))).to.eql(false));"
-                        ]
-                    }
-                }
-            ]
-        },
-        {
-            "name": "Log out acting admin",
-            "request": {
-                "method": "POST",
-                "header": [
-                    {
-                        "key": "Content-Type",
-                        "value": "application/json"
-                    },
-                    {
-                        "key": "X-CSRFToken",
-                        "value": "{{csrfToken}}"
-                    }
-                ],
-                "url": {
-                    "raw": "{{baseUrl}}/api/auth/logout/",
-                    "host": [
-                        "{{baseUrl}}"
-                    ],
-                    "path": [
-                        "api",
-                        "auth",
-                        "logout",
-                        ""
-                    ]
-                }
-            },
-            "event": [
-                {
-                    "listen": "test",
-                    "script": {
-                        "type": "text/javascript",
-                        "exec": [
-                            "pm.test(\"Expected HTTP 200\", () => pm.response.to.have.status(200));"
-                        ]
-                    }
-                }
-            ]
+          }
         }
-    ]
+      ]
+    },
+    {
+      "name": "Log in acting system admin",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          },
+          {
+            "key": "X-CSRFToken",
+            "value": "{{csrfToken}}"
+          }
+        ],
+        "url": {
+          "raw": "{{baseUrl}}/api/auth/login/",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "api",
+            "auth",
+            "login",
+            ""
+          ]
+        },
+        "body": {
+          "mode": "raw",
+          "raw": "{\"username\": \"{{username}}\", \"password\": \"{{password}}\"}",
+          "options": {
+            "raw": {
+              "language": "json"
+            }
+          }
+        }
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test(\"Expected HTTP 200\", () => pm.response.to.have.status(200));"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "Get current CSRF",
+      "request": {
+        "method": "GET",
+        "header": [],
+        "url": {
+          "raw": "{{baseUrl}}/api/auth/csrf/",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "api",
+            "auth",
+            "csrf",
+            ""
+          ]
+        }
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test(\"Expected HTTP 200\", () => pm.response.to.have.status(200));",
+              "pm.collectionVariables.set(\"csrfToken\", pm.response.json().csrfToken);"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "Read acting account ID",
+      "request": {
+        "method": "GET",
+        "header": [],
+        "url": {
+          "raw": "{{baseUrl}}/api/auth/me/",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "api",
+            "auth",
+            "me",
+            ""
+          ]
+        }
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test(\"Expected HTTP 200\", () => pm.response.to.have.status(200));",
+              "pm.collectionVariables.set(\"actorId\", pm.response.json().id);"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "Self deactivation is blocked",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          },
+          {
+            "key": "X-CSRFToken",
+            "value": "{{csrfToken}}"
+          }
+        ],
+        "url": {
+          "raw": "{{baseUrl}}/api/v1/admins/{{actorId}}/deactivate/",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "api",
+            "v1",
+            "admins",
+            "{{actorId}}",
+            "deactivate",
+            ""
+          ]
+        },
+        "body": {
+          "mode": "raw",
+          "raw": "{}",
+          "options": {
+            "raw": {
+              "language": "json"
+            }
+          }
+        }
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test(\"Expected HTTP 409\", () => pm.response.to.have.status(409));"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "Self deletion is blocked",
+      "request": {
+        "method": "DELETE",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          },
+          {
+            "key": "X-CSRFToken",
+            "value": "{{csrfToken}}"
+          }
+        ],
+        "url": {
+          "raw": "{{baseUrl}}/api/v1/admins/{{actorId}}/",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "api",
+            "v1",
+            "admins",
+            "{{actorId}}",
+            ""
+          ]
+        },
+        "body": {
+          "mode": "raw",
+          "raw": "{\"current_password\": \"{{password}}\"}",
+          "options": {
+            "raw": {
+              "language": "json"
+            }
+          }
+        }
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test(\"Expected HTTP 409\", () => pm.response.to.have.status(409));"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "Create administrator for lifecycle test",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          },
+          {
+            "key": "X-CSRFToken",
+            "value": "{{csrfToken}}"
+          }
+        ],
+        "url": {
+          "raw": "{{baseUrl}}/api/v1/admins/",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "api",
+            "v1",
+            "admins",
+            ""
+          ]
+        },
+        "body": {
+          "mode": "raw",
+          "raw": "{\"username\": \"lifecycle_admin_{{suffix}}\", \"password\": \"{{newPassword}}\", \"confirm_password\": \"{{newPassword}}\", \"current_password\": \"{{password}}\"}",
+          "options": {
+            "raw": {
+              "language": "json"
+            }
+          }
+        }
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test(\"Expected HTTP 201\", () => pm.response.to.have.status(201));",
+              "pm.collectionVariables.set(\"adminId\", pm.response.json().user_id);"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "Create staff for lifecycle test",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          },
+          {
+            "key": "X-CSRFToken",
+            "value": "{{csrfToken}}"
+          }
+        ],
+        "url": {
+          "raw": "{{baseUrl}}/api/v1/users/",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "api",
+            "v1",
+            "users",
+            ""
+          ]
+        },
+        "body": {
+          "mode": "raw",
+          "raw": "{\"username\": \"lifecycle_staff_{{suffix}}\", \"password\": \"{{newPassword}}\"}",
+          "options": {
+            "raw": {
+              "language": "json"
+            }
+          }
+        }
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test(\"Expected HTTP 201\", () => pm.response.to.have.status(201));",
+              "pm.collectionVariables.set(\"staffId\", pm.response.json().user_id);"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "Owner is excluded from manageable administrators",
+      "request": {
+        "method": "GET",
+        "header": [],
+        "url": {
+          "raw": "{{baseUrl}}/api/v1/admins/",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "api",
+            "v1",
+            "admins",
+            ""
+          ]
+        }
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test(\"Expected HTTP 200\", () => pm.response.to.have.status(200));",
+              "pm.test(\"Owner absent from manageable accounts\", () => { const actor = pm.response.json().find(row => String(row.user_id) === String(pm.collectionVariables.get(\"actorId\"))); pm.expect(actor).to.eql(undefined); });"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "Deactivate admin",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          },
+          {
+            "key": "X-CSRFToken",
+            "value": "{{csrfToken}}"
+          }
+        ],
+        "url": {
+          "raw": "{{baseUrl}}/api/v1/admins/{{adminId}}/deactivate/",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "api",
+            "v1",
+            "admins",
+            "{{adminId}}",
+            "deactivate",
+            ""
+          ]
+        }
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test(\"Expected HTTP 200\", () => pm.response.to.have.status(200));"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "Reactivate admin",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          },
+          {
+            "key": "X-CSRFToken",
+            "value": "{{csrfToken}}"
+          }
+        ],
+        "url": {
+          "raw": "{{baseUrl}}/api/v1/admins/{{adminId}}/activate/",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "api",
+            "v1",
+            "admins",
+            "{{adminId}}",
+            "activate",
+            ""
+          ]
+        }
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test(\"Expected HTTP 200\", () => pm.response.to.have.status(200));"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "Wrong password cannot delete admin",
+      "request": {
+        "method": "DELETE",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          },
+          {
+            "key": "X-CSRFToken",
+            "value": "{{csrfToken}}"
+          }
+        ],
+        "url": {
+          "raw": "{{baseUrl}}/api/v1/admins/{{adminId}}/",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "api",
+            "v1",
+            "admins",
+            "{{adminId}}",
+            ""
+          ]
+        },
+        "body": {
+          "mode": "raw",
+          "raw": "{\"current_password\": \"Incorrect!123\"}",
+          "options": {
+            "raw": {
+              "language": "json"
+            }
+          }
+        }
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test(\"Expected HTTP 400\", () => pm.response.to.have.status(400));"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "Delete admin with reauthentication",
+      "request": {
+        "method": "DELETE",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          },
+          {
+            "key": "X-CSRFToken",
+            "value": "{{csrfToken}}"
+          }
+        ],
+        "url": {
+          "raw": "{{baseUrl}}/api/v1/admins/{{adminId}}/",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "api",
+            "v1",
+            "admins",
+            "{{adminId}}",
+            ""
+          ]
+        },
+        "body": {
+          "mode": "raw",
+          "raw": "{\"current_password\": \"{{password}}\"}",
+          "options": {
+            "raw": {
+              "language": "json"
+            }
+          }
+        }
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test(\"Expected HTTP 204\", () => pm.response.to.have.status(204));"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "Repeated admin delete is not found",
+      "request": {
+        "method": "DELETE",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          },
+          {
+            "key": "X-CSRFToken",
+            "value": "{{csrfToken}}"
+          }
+        ],
+        "url": {
+          "raw": "{{baseUrl}}/api/v1/admins/{{adminId}}/",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "api",
+            "v1",
+            "admins",
+            "{{adminId}}",
+            ""
+          ]
+        },
+        "body": {
+          "mode": "raw",
+          "raw": "{\"current_password\": \"{{password}}\"}",
+          "options": {
+            "raw": {
+              "language": "json"
+            }
+          }
+        }
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test(\"Expected HTTP 404\", () => pm.response.to.have.status(404));"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "Deactivate staff",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          },
+          {
+            "key": "X-CSRFToken",
+            "value": "{{csrfToken}}"
+          }
+        ],
+        "url": {
+          "raw": "{{baseUrl}}/api/v1/users/{{staffId}}/deactivate/",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "api",
+            "v1",
+            "users",
+            "{{staffId}}",
+            "deactivate",
+            ""
+          ]
+        }
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test(\"Expected HTTP 200\", () => pm.response.to.have.status(200));"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "Reactivate staff",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          },
+          {
+            "key": "X-CSRFToken",
+            "value": "{{csrfToken}}"
+          }
+        ],
+        "url": {
+          "raw": "{{baseUrl}}/api/v1/users/{{staffId}}/activate/",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "api",
+            "v1",
+            "users",
+            "{{staffId}}",
+            "activate",
+            ""
+          ]
+        }
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test(\"Expected HTTP 200\", () => pm.response.to.have.status(200));"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "Missing password cannot delete staff",
+      "request": {
+        "method": "DELETE",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          },
+          {
+            "key": "X-CSRFToken",
+            "value": "{{csrfToken}}"
+          }
+        ],
+        "url": {
+          "raw": "{{baseUrl}}/api/v1/users/{{staffId}}/",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "api",
+            "v1",
+            "users",
+            "{{staffId}}",
+            ""
+          ]
+        },
+        "body": {
+          "mode": "raw",
+          "raw": "{}",
+          "options": {
+            "raw": {
+              "language": "json"
+            }
+          }
+        }
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test(\"Expected HTTP 400\", () => pm.response.to.have.status(400));"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "Wrong password cannot delete staff",
+      "request": {
+        "method": "DELETE",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          },
+          {
+            "key": "X-CSRFToken",
+            "value": "{{csrfToken}}"
+          }
+        ],
+        "url": {
+          "raw": "{{baseUrl}}/api/v1/users/{{staffId}}/",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "api",
+            "v1",
+            "users",
+            "{{staffId}}",
+            ""
+          ]
+        },
+        "body": {
+          "mode": "raw",
+          "raw": "{\"current_password\": \"Incorrect!123\"}",
+          "options": {
+            "raw": {
+              "language": "json"
+            }
+          }
+        }
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test(\"Expected HTTP 400\", () => pm.response.to.have.status(400));"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "Delete staff with reauthentication",
+      "request": {
+        "method": "DELETE",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          },
+          {
+            "key": "X-CSRFToken",
+            "value": "{{csrfToken}}"
+          }
+        ],
+        "url": {
+          "raw": "{{baseUrl}}/api/v1/users/{{staffId}}/",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "api",
+            "v1",
+            "users",
+            "{{staffId}}",
+            ""
+          ]
+        },
+        "body": {
+          "mode": "raw",
+          "raw": "{\"current_password\": \"{{password}}\"}",
+          "options": {
+            "raw": {
+              "language": "json"
+            }
+          }
+        }
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test(\"Expected HTTP 204\", () => pm.response.to.have.status(204));"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "Deleted staff cannot be retrieved",
+      "request": {
+        "method": "GET",
+        "header": [],
+        "url": {
+          "raw": "{{baseUrl}}/api/v1/users/{{staffId}}/",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "api",
+            "v1",
+            "users",
+            "{{staffId}}",
+            ""
+          ]
+        }
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test(\"Deleted staff is not found\", () => pm.response.to.have.status(404));"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "Deleted admin removed, actor retained",
+      "request": {
+        "method": "GET",
+        "header": [],
+        "url": {
+          "raw": "{{baseUrl}}/api/v1/admins/",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "api",
+            "v1",
+            "admins",
+            ""
+          ]
+        }
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test(\"Expected HTTP 200\", () => pm.response.to.have.status(200));",
+              "pm.test(\"Deleted administrator absent\", () => pm.expect(pm.response.json().some(row => String(row.user_id) === String(pm.collectionVariables.get(\"adminId\")))).to.eql(false));"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "Log out acting admin",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          },
+          {
+            "key": "X-CSRFToken",
+            "value": "{{csrfToken}}"
+          }
+        ],
+        "url": {
+          "raw": "{{baseUrl}}/api/auth/logout/",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "api",
+            "auth",
+            "logout",
+            ""
+          ]
+        }
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test(\"Expected HTTP 200\", () => pm.response.to.have.status(200));"
+            ]
+          }
+        }
+      ]
+    }
+  ]
 }

@@ -6,18 +6,26 @@ from django.db import migrations, models
 class Migration(migrations.Migration):
 
     dependencies = [
-        ('clinic', '0006_auditevent_mutationlock_operationreceipt_and_more'),
+        ("clinic", "0006_auditevent_mutationlock_operationreceipt_and_more"),
     ]
 
     operations = [
         migrations.CreateModel(
-            name='IntegrationIncident',
+            name="IntegrationIncident",
             fields=[
-                ('id', models.BigAutoField(auto_created=True, primary_key=True, serialize=False, verbose_name='ID')),
-                ('transaction_id', models.CharField(max_length=100)),
-                ('operation', models.CharField(max_length=40)),
-                ('created_at', models.DateTimeField(auto_now_add=True)),
-                ('resolved', models.BooleanField(default=False)),
+                (
+                    "id",
+                    models.BigAutoField(
+                        auto_created=True,
+                        primary_key=True,
+                        serialize=False,
+                        verbose_name="ID",
+                    ),
+                ),
+                ("transaction_id", models.CharField(max_length=100)),
+                ("operation", models.CharField(max_length=40)),
+                ("created_at", models.DateTimeField(auto_now_add=True)),
+                ("resolved", models.BooleanField(default=False)),
             ],
         ),
     ]

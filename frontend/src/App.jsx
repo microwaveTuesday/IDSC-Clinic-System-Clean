@@ -4,13 +4,18 @@ import {
 } from "./CredentialDialogs";
 import OwnerRegistration from "./OwnerRegistration";
 import { GetStudent, RestockPanel, MockWorkspace } from "./ExternalSystems";
-import {
-  useCallback,
-  useEffect,
-  useState,
-} from "react";
+import { useCallback, useEffect, useState } from "react";
 import { request, listAll } from "./api";
-import { Icon, Logo, Badge, Button, Search, Empty, Modal, Field } from "./ClinicUI";
+import {
+  Icon,
+  Logo,
+  Badge,
+  Button,
+  Search,
+  Empty,
+  Modal,
+  Field,
+} from "./ClinicUI";
 const date = (value, time = false) =>
   new Intl.DateTimeFormat("en-US", {
     timeZone: "Asia/Manila",

@@ -1,5 +1,11 @@
 """Compatibility exports for existing URL imports; controllers live in focused modules."""
-from .view_support import clinic_service, parse_optional_report_date, Conflict, UnprocessableEntity
+
+from .view_support import (
+    clinic_service,
+    parse_optional_report_date,
+    Conflict,
+    UnprocessableEntity,
+)
 from .report_views import HealthView
 from .report_views import DashboardView
 from .report_views import ClinicVisitsReportView
