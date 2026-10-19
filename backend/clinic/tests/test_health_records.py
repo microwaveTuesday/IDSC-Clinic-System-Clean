@@ -646,6 +646,7 @@ class HealthRecordContractTests(MockDomainTestMixin, APITestCase):
         )
 
     def test_delete_removes_record(self):
+        self.user.groups.add(Group.objects.get(name="CLINIC_ADMIN"))
         record = self.create_record()
 
         response = self.client.delete(
@@ -666,6 +667,7 @@ class HealthRecordContractTests(MockDomainTestMixin, APITestCase):
         )
 
     def test_delete_missing_record_returns_404(self):
+        self.user.groups.add(Group.objects.get(name="CLINIC_ADMIN"))
         response = self.client.delete(
             "/api/v1/health-records/999999/"
         )

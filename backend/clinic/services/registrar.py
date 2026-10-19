@@ -8,6 +8,9 @@ changing Clinic views or domain models.
 """
 
 
+import os
+
+
 class StudentNotFoundError(Exception):
     """Raised when Registrar does not contain the requested student."""
 
@@ -45,6 +48,10 @@ class MockRegistrarService:
             "status": "GRADUATED",
         },
     ]
+
+    def __init__(self):
+        if os.environ.get("CLINIC_EMPTY_START") == "1":
+            self._students = []
 
     def list_students(
         self,

@@ -40,6 +40,9 @@ def api_root_view(request):
     )
 
 
+from authentication.views import AdminListCreateView, AdminDetailView, AdminAccessView
+
+
 urlpatterns = [
     path("admin/", admin.site.urls),
 
@@ -48,6 +51,10 @@ urlpatterns = [
 
     # Administrative Clinic user management.
     path("api/v1/users/", include("authentication.user_urls")),
+    path("api/v1/admins/", AdminListCreateView.as_view(), name="clinic-admin-list-create"),
+    path("api/v1/admins/<int:user_id>/", AdminDetailView.as_view(), name="clinic-admin-detail"),
+    path("api/v1/admins/<int:user_id>/deactivate/", AdminAccessView.as_view(action="deactivate"), name="clinic-admin-deactivate"),
+    path("api/v1/admins/<int:user_id>/activate/", AdminAccessView.as_view(action="activate"), name="clinic-admin-activate"),
 
     # Canonical Clinic business API.
     path("api/v1/", include("clinic.urls")),

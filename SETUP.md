@@ -1,633 +1,138 @@
-# IDSC Clinic System — Developer Setup Guide
+# Run the clinic project in VS Code
 
-This guide describes the verified **midterm integration setup** for the Clinic module on `fix/pre-main-integration`.
+Applies to `improvement/clinic-final-10of10` in microwaveTuesday/IDSC-Clinic-System-Clean. See [README.md](README.md) for features and storage limits.
 
-The current backend deliberately separates **Clinic business data** from **Django framework infrastructure**:
+## Open the project
 
-```text
-HTTP route
-   |
-   v
-DRF view/controller
-   |
-   v
-ClinicService
-   |
-   v
-MockClinicRepository
-   |
-   v
-in-memory Clinic business records
-```
+Use Python 3.13, Node.js/npm compatible with the frontend lockfile, Git and VS Code. Validation used Python 3.13 and Node 24. Docker/PostgreSQL are not required for the mock runtime.
 
-Django still uses a small local SQLite database for authentication, groups, permissions, sessions, and admin support.
-
----
-
-## 1. Current Runtime Architecture
-
-### Clinic business data
-
-The midterm default is:
-
-```text
-CLINIC_DATA_BACKEND=mock
-```
-
-Clinic-owned business resources are held in `MockClinicRepository`:
-
-- `HealthRecord`
-- `Consultation`
-- `HealthStatus`
-- `MedicineDispensation`
-
-They are **not persisted through Django ORM during the midterm workflow**.
-
-### Django framework database
-
-The default database engine is SQLite.
-
-Its default file is:
-
-```text
-backend/framework.sqlite3
-```
-
-SQLite is used only for Django framework infrastructure such as:
-
-- authentication;
-- `CLINIC_ADMIN` and `CLINIC_STAFF` groups;
-- permissions;
-- sessions;
-- admin support; and
-- migration bookkeeping.
-
-The SQLite file is ignored by Git.
-
-### Finals database direction
-
-PostgreSQL is an **opt-in finals configuration**, not the midterm default.
-
-PostgreSQL support uses:
-
-```text
-backend/requirements-finals.txt
-```
-
-and environment variables such as:
-
-```ini
-DB_ENGINE=django.db.backends.postgresql
-POSTGRES_DB=clinic_db
-POSTGRES_USER=postgres
-POSTGRES_PASSWORD=<local-development-password>
-POSTGRES_HOST=localhost
-POSTGRES_PORT=5432
-```
-
-Do not switch to the finals database mode unless the team intentionally begins the database-backed finals repository work.
-
----
-
-## 2. Domain Ownership
-
-The setup must preserve the College Management System ownership boundaries.
-
-### Registrar owns
-
-- student identity;
-- student profile;
-- course and section; and
-- `student_id`.
-
-Clinic consumes Registrar student information through an integration boundary.
-
-`student_id` is a **Registrar-owned opaque external identifier**. Clinic does not generate student identities and does not own student lifecycle CRUD.
-
-### Clinic owns
-
-- `HealthRecord`;
-- `Consultation`;
-- `HealthStatus`; and
-- `MedicineDispensation`.
-
-### Inventory owns
-
-- medicine catalog;
-- medicine stock;
-- `medicine_id`; and
-- Inventory stock transactions.
-
-Clinic records Inventory transaction identifiers only for orchestration, audit, compensation, and rollback.
-
-### Faculty and Student Portal
-
-Clinic exposes restricted read-only health-status projections to Faculty and Student Portal.
-
----
-
-## 3. Prerequisites
-
-Install:
-
-- Git
-- Python 3.13-compatible environment
-- Node.js and npm for Newman/frontend workflows
-- VS Code or another editor
-
-Docker and PostgreSQL are **not required for the current midterm mock-data workflow**.
-
-They are only relevant if the team intentionally switches to the finals PostgreSQL configuration.
-
----
-
-## 4. Clone and Open the Project
+For a new checkout:
 
 ```powershell
-git clone https://github.com/microwaveTuesday/IDSC-Clinic-System-Clean.git
+git clone --branch improvement/clinic-final-10of10 https://github.com/microwaveTuesday/IDSC-Clinic-System-Clean.git
 cd IDSC-Clinic-System-Clean
+code .
 ```
 
-For integration work, use the reviewed integration branch rather than `main`:
+If you already have the Desktop copy, open that folder instead. Commands below start at the project root unless stated otherwise.
 
-```powershell
-git switch fix/pre-main-integration
-```
-
-Never push directly to `main`.
-
----
-
-## 5. Create and Activate the Virtual Environment
-
-From the repository root:
+## Backend: first terminal
 
 ```powershell
 python -m venv .venv
 .\.venv\Scripts\Activate.ps1
+python -m pip install -r backend/requirements.txt
+cd backend
+$env:CLINIC_DATA_BACKEND="database"
+python manage.py migrate --noinput
+python manage.py check
+python manage.py runserver 127.0.0.1:8002
 ```
 
-A successful activation shows:
+Apply all committed migrations. Back up existing databases before migration. The singleton-Owner migration adopts an existing Owner and retains extra legacy Owners as inactive Staff. See [OWNER-REGISTRATION.md](docs/OWNER-REGISTRATION.md). Clinic ORM tables may exist, and CLINIC_DATA_BACKEND selects mock memory or database persistence.
 
-```text
-(.venv)
-```
+If PowerShell blocks activation, use `.venv\Scripts\python.exe` from the root, or `..\.venv\Scripts\python.exe` inside backend, instead of python. Activation is optional when invoking the interpreter directly.
 
-in the PowerShell prompt.
+## Frontend: second terminal
 
----
-
-## 6. Install Midterm Backend Dependencies
+Keep Django running. Open another terminal at the project root:
 
 ```powershell
-pip install -r backend\requirements.txt
+cd frontend
+npm ci
+npm run dev
 ```
 
-The midterm dependency set includes:
+Open Vite's address, normally http://localhost:5173. Keep the hostname consistent: localhost and 127.0.0.1 have separate cookies. Both origins on port 5173 are approved. If Vite selects another port, stop the duplicate process or explicitly configure the new origin in Django CORS/CSRF settings.
 
-- Django
-- Django REST Framework
-- django-cors-headers
-- python-dotenv
-- drf-spectacular
+## First Owner and later login
 
-`psycopg` is intentionally excluded from the normal midterm requirements.
+A fresh database shows **Register the system Owner**. Username, strong password and confirmation are required; names/email are optional. Registration signs in and opens Dashboard. Logout shows shared login. A second Owner is blocked by the API and database.
 
-For the finals PostgreSQL direction only:
+Existing installations keep their Owner and show login. There is no default committed Owner account/password. Change your credentials in Settings. For authorized local recovery use `python manage.py changepassword <username>`; keep the database intact. Optional CLI first setup with `createsuperuser` can provision the single Owner before opening the website.
 
-```powershell
-pip install -r backend\requirements-finals.txt
-```
+Owner manages up to five Admins and all Staff. Admins manage Staff only. See [ROLE-HIERARCHY.md](docs/ROLE-HIERARCHY.md).
 
----
+## Optional local environment
 
-## 7. Environment Configuration
-
-The backend loads optional environment values from:
-
-```text
-backend/.env
-```
-
-A minimal local midterm configuration can be:
+Private `backend/.env`, ignored by Git:
 
 ```ini
 DEBUG=True
 ALLOWED_HOSTS=localhost,127.0.0.1
-CLINIC_DATA_BACKEND=mock
+CLINIC_DATA_BACKEND=database
 DB_ENGINE=django.db.backends.sqlite3
 DB_NAME=framework.sqlite3
+CLINIC_EMPTY_START=0
 ```
 
-The defaults already select `mock` Clinic data and SQLite framework infrastructure, so these values are mainly useful when making the local configuration explicit.
+DB_NAME is relative to backend unless absolute. Accounts, permanent Owner registration and sessions persist there. Clinic data persists with CLINIC_DATA_BACKEND=database; mock Clinic/Registrar/Inventory state resets on restart. Empty-start 0 loads samples; 1 starts mock records/students/medicines empty. Owner populates the mock workspaces. This setting does not clear accounts.
 
-Do not commit `.env` secrets.
+For a fresh-registration demonstration, use a separate new database. Set DB_NAME to an unused test filename before migration and start the isolated backend on another port.
 
----
-
-## 8. Initialize Django Framework Infrastructure
-
-The first local run needs Django's framework tables for authentication and sessions.
-
-For the midterm workflow, apply only the framework/authentication migrations:
+To change Vite's backend target, set it before starting Vite:
 
 ```powershell
-cd backend
-
-python manage.py migrate contenttypes --noinput
-python manage.py migrate auth --noinput
-python manage.py migrate admin --noinput
-python manage.py migrate sessions --noinput
-python manage.py migrate authentication --noinput
-```
-
-The `authentication` migration creates the required Clinic roles:
-
-- `CLINIC_ADMIN`
-- `CLINIC_STAFF`
-
-### Why the migrations are targeted
-
-The repository retains Clinic ORM migrations for the finals database direction, but Clinic business data currently uses `MockClinicRepository`.
-
-Therefore, the verified midterm integration workflow intentionally keeps Clinic domain migrations unapplied.
-
-You can inspect migration state with:
-
-```powershell
-python manage.py showmigrations
-```
-
-Expected architectural result:
-
-```text
-Django framework/authentication migrations -> applied
-Clinic domain migrations                   -> unapplied for midterm runtime
-CLINIC_DATA_BACKEND                        -> mock
-```
-
----
-
-## 9. Create a Local Clinic Administrator
-
-Session-authenticated API testing requires a Django user with the correct Clinic role.
-
-The Postman collection contains local development variables named:
-
-```text
-username
-password
-```
-
-The validated Newman flow uses a local account matching those variables and assigned to `CLINIC_ADMIN`.
-
-You may create the account through Django shell or another controlled local setup process. Do not commit local credentials.
-
-Verify the account is:
-
-- active;
-- able to authenticate with the Postman collection credentials; and
-- a member of `CLINIC_ADMIN`.
-
----
-
-## 10. Run Django System Checks
-
-From `backend`:
-
-```powershell
-python manage.py check
-python manage.py makemigrations --check --dry-run
-```
-
-Verified integration expectations:
-
-```text
-System check identified no issues
-No changes detected
-```
-
----
-
-## 11. Run Automated Tests
-
-From `backend`:
-
-```powershell
-python manage.py test --verbosity 1
-```
-
-Verified permanent baseline:
-
-```text
-Found 167 test(s).
-Ran 167 tests
-OK
-```
-
-The Django test runner creates and destroys its own test database.
-
----
-
-## 12. Start the Backend
-
-From `backend`:
-
-```powershell
-python manage.py runserver 127.0.0.1:8000
-```
-
-The local backend is then available at:
-
-```text
-http://127.0.0.1:8000
-```
-
----
-
-## 13. Canonical Runtime Routes
-
-| Purpose | Route |
-|---|---|
-| API discovery | `/` |
-| Authentication namespace | `/api/auth/` |
-| Business API namespace | `/api/v1/` |
-| Canonical health endpoint | `/api/v1/health` |
-| Dynamic OpenAPI schema | `/api/schema/` |
-| Canonical Swagger UI | `/docs` |
-| ReDoc | `/api/schema/redoc/` |
-| Django admin | `/admin/` |
-
-Canonical health request:
-
-```http
-GET /api/v1/health
-```
-
-Exact response:
-
-```json
-{
-  "status": "ok"
-}
-```
-
-A runtime `/api/v1/health/` compatibility alias may respond successfully, but `/api/v1/health` is the canonical OpenAPI operation.
-
----
-
-## 14. Authentication Flow
-
-The backend uses Django session authentication.
-
-Public operations are:
-
-```text
-GET  /api/auth/csrf/
-POST /api/auth/login/
-GET  /api/v1/health
-```
-
-Protected requests use the `sessionid` cookie.
-
-Unsafe session-authenticated requests also require CSRF protection.
-
-Typical browser/Postman flow:
-
-```text
-GET /api/auth/csrf/
-    -> receive csrftoken
-
-POST /api/auth/login/
-    -> send credentials + CSRF token
-    -> receive authenticated session
-
-protected /api/v1/... requests
-    -> send session cookie
-    -> include CSRF token on unsafe methods
-
-POST /api/auth/logout/
-    -> terminate session
-```
-
----
-
-## 15. CORS and Frontend Development
-
-Credentialed CORS is restricted to:
-
-```text
-http://localhost:5173
-http://127.0.0.1:5173
-```
-
-These origins are also trusted CSRF origins.
-
-Do not disable CSRF and do not enable wildcard credentialed CORS just to simplify development.
-
-The currently committed frontend is still a React/Vite starter and is not evidence of the final Clinic high-fidelity interface.
-
----
-
-## 16. OpenAPI and Swagger Verification
-
-Open the canonical Swagger UI:
-
-```text
-http://127.0.0.1:8000/docs
-```
-
-Dynamic schema:
-
-```text
-http://127.0.0.1:8000/api/schema/
-```
-
-Verified contract baseline:
-
-```text
-OpenAPI version    = 3.1.0
-Paths              = 29
-Operations         = 45
-Public operations  = 3
-Protected          = 42
-```
-
-The canonical static contract is:
-
-```text
-openapi.yaml
-```
-
----
-
-## 17. Postman and Newman
-
-The collection is:
-
-```text
-postman/IDSC-Clinic-System.postman_collection.json
-```
-
-Canonical collection base URL:
-
-```text
-http://127.0.0.1:8000
-```
-
-With the backend running and the local Clinic admin provisioned:
-
-```powershell
-npx --yes newman run .\postman\IDSC-Clinic-System.postman_collection.json
-```
-
-Verified baseline:
-
-```text
-Requests executed = 45
-Request failures  = 0
-Test scripts      = 45
-Assertions        = 46
-Assertion failures = 0
-```
-
----
-
-## 18. Problem Details Errors
-
-API errors use RFC-style Problem Details with:
-
-```json
-{
-  "type": "https://clinic.example/problems/example",
-  "title": "Example",
-  "status": 400,
-  "detail": "Human-readable explanation.",
-  "instance": "/api/v1/example/",
-  "code": "example_code"
-}
-```
-
-Validation responses may additionally contain an `errors` object.
-
-Verified status families include:
-
-- `400`
-- `401`
-- `403`
-- `404`
-- `409`
-- `422`
-
----
-
-## 19. Repository Hygiene
-
-Do not commit local runtime artifacts such as:
-
-- `.venv/`
-- `.env`
-- `*.sqlite3`
-- `__pycache__/`
-- `.idea/`
-- generated temporary reports
-
-The cleaned integration baseline also excludes the obsolete root `main.py` and generated `gen/` client.
-
-Before committing:
-
-```powershell
-git status --short
-git diff --check
-```
-
----
-
-## 20. Finals PostgreSQL Direction
-
-PostgreSQL is retained as the finals direction, not the active midterm default.
-
-When the team intentionally begins the database-backed Clinic repository:
-
-1. install `backend/requirements-finals.txt`;
-2. configure `DB_ENGINE=django.db.backends.postgresql`;
-3. configure the `POSTGRES_*` or equivalent `DB_*` variables;
-4. implement/activate a database-backed Clinic repository behind `ClinicService`;
-5. review the retained Clinic ORM migrations;
-6. apply Clinic migrations only as part of that intentional finals transition;
-7. rerun the full automated, OpenAPI, runtime, and integration test gates.
-
-Do not silently switch the midterm API from mock storage to ORM persistence.
-
----
-
-## 21. Normal Midterm Development Workflow
-
-### Terminal 1 — Backend
-
-```powershell
-cd backend
-..\.venv\Scripts\Activate.ps1
-```
-
-If the virtual environment is already active, skip the activation command.
-
-Then:
-
-```powershell
-python manage.py check
-python manage.py runserver 127.0.0.1:8000
-```
-
-### Terminal 2 — Frontend
-
-```powershell
-cd frontend
-npm install
+$env:CLINIC_API_TARGET="http://127.0.0.1:8001"
 npm run dev
 ```
 
-### Optional API regression
+Start Django on the same port. Restart Vite after target changes. This target is the Clinic backend, not an external Registrar/Inventory URL.
 
-From the repository root:
+## Daily start
+
+Backend terminal: activate the environment, enter backend, run `python manage.py runserver 127.0.0.1:8002`. Frontend terminal: enter frontend and run `npm run dev`. Apply new migrations after updates. Ctrl+C stops each server. Browser reload retains mock state; backend restart resets it.
+
+## Validation
+
+Inside backend:
 
 ```powershell
-npx --yes newman run .\postman\IDSC-Clinic-System.postman_collection.json
+$env:CLINIC_EMPTY_START="0"
+$env:CLINIC_DATA_BACKEND="mock"
+python manage.py check
+python manage.py makemigrations --check --dry-run
+python manage.py test --noinput
+python manage.py spectacular --file ../schema.generated.yaml --validate
 ```
 
----
+The runner creates/removes a test database. Currently there are 294 tests; normal password hashing can take several minutes. See [CURRENT-VALIDATION.md](docs/CURRENT-VALIDATION.md) for recorded conditions.
 
-## 22. Verification Checklist
+Inside frontend:
 
-Before considering the local integration environment healthy:
+```powershell
+npm run lint
+npm run build
+npx playwright install chromium
+```
 
-- [ ] virtual environment is active;
-- [ ] midterm backend dependencies are installed;
-- [ ] `CLINIC_DATA_BACKEND` resolves to `mock`;
-- [ ] SQLite framework infrastructure is initialized;
-- [ ] `CLINIC_ADMIN` and `CLINIC_STAFF` groups exist;
-- [ ] a local Clinic admin can authenticate;
-- [ ] Clinic domain migrations remain unapplied for the midterm runtime;
-- [ ] `python manage.py check` passes;
-- [ ] all 167 Django tests pass;
-- [ ] `GET /api/v1/health` returns exactly `{"status":"ok"}`;
-- [ ] `/docs` loads Swagger UI;
-- [ ] `/api/schema/` reports OpenAPI 3.1.0;
-- [ ] the Postman/Newman collection completes 45 requests and 46 assertions with zero failures;
-- [ ] Git working tree contains no accidental runtime artifacts.
+Read [frontend/README.md](frontend/README.md) before browser tests: they mutate accounts/data and need disposable Owner credentials, seeded mocks and special fixtures. First-registration tests need a separate unclaimed database.
 
----
+Open http://127.0.0.1:8002/docs with Django running. Runtime schema: `/api/schema/`; ReDoc: `/api/schema/redoc/`. Static [openapi.yaml](openapi.yaml) has 45 paths, 72 operations, 5 public/67 protected. Canonical health `GET /api/v1/health` returns exactly `{"status":"ok"}`. See [API.md](API.md).
 
-## 23. Git Integration Rules
+Import collections from postman/ into Postman. Set baseUrl to http://127.0.0.1:8002 and disposable local credentials. The original collection has 45 requests; feature collections cover passwords, accounts, roles and external workflows. Historical results are linked from [CURRENT-VALIDATION.md](docs/CURRENT-VALIDATION.md).
 
-The project integration baseline requires:
+## Troubleshooting
 
-- `phase7/tests-contract-validation` remains the canonical source branch to preserve;
-- legacy feature branches are historical/reference only;
-- integration fixes happen on `fix/pre-main-integration`;
-- never push directly to `main`;
-- protect `main`;
-- merge only through a reviewed Pull Request;
-- require teammate approval before the final merge.
+| Symptom | Check |
+| --- | --- |
+| Setup/login cannot load | Both servers running; Vite target matches Django port |
+| Login works on one hostname only | Keep localhost or 127.0.0.1 consistent; cookies differ |
+| CSRF 403 | Approved origin, retained cookies and fresh token before writes; keep CSRF enabled |
+| Login appears instead of registration | Database has an Owner or completed registration latch |
+| Empty students/medicines | Empty-start setting; populate Owner mock workspaces |
+| Records disappear after Django restart | Business storage is in memory; accounts persist separately |
+| Cannot create clinical record | Registrar must currently mark student ACTIVE |
+| Cannot add Admin | Owner only; five accounts including inactive is the maximum |
+| Cannot remove Owner | Intentional protection; edit own credentials in Settings |
 
-These rules are part of the release process, not optional workflow suggestions.
+## Remaining work and Git
+
+Real external adapters remain future work. Persistent Clinic storage is now implemented: select CLINIC_DATA_BACKEND=database and migrate. See [DATABASE.md](docs/DATABASE.md). See [REAL-SYSTEM-INTEGRATION.md](docs/REAL-SYSTEM-INTEGRATION.md).
+
+Keep credentials, .env, databases, backups, virtual environments and generated outputs out of commits. Use the submission branch and a reviewed PR for main.
+
+
+## Persistent final-project mode
+
+In backend/.env set CLINIC_DATA_BACKEND=database. SQLite works with the standard requirements and existing DB_NAME. For PostgreSQL install requirements-finals.txt and provide private DB_ENGINE/DB_NAME/DB_USER/DB_PASSWORD/DB_HOST/DB_PORT. Run all migrations before startup. Mock Registrar/Inventory workspaces remain available independently of Clinic persistence. See [DATABASE.md](docs/DATABASE.md) and [DEPLOYMENT.md](docs/DEPLOYMENT.md).

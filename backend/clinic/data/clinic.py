@@ -20,6 +20,7 @@ Domain ownership:
     Inventory owns medicine catalog/stock and inventory transactions.
 """
 
+import os
 from copy import deepcopy
 from datetime import datetime, timezone
 from decimal import Decimal
@@ -139,6 +140,8 @@ class MockClinicRepository:
 
     def __init__(self):
         self.reset()
+        if os.environ.get("CLINIC_EMPTY_START") == "1":
+            self.clear()
 
     def reset(self):
         self._health_records = {
@@ -391,6 +394,10 @@ class MockClinicRepository:
 
     def list_dispensations(self):
         return self._copy(list(self._dispensations.values()))
+
+    def delete_dispensation(self, dispensation_id):
+        record = self._dispensations.pop(int(dispensation_id), None)
+        return self._copy(record) if record is not None else None
 
     def get_dispensation(self, dispensation_id):
         record = self._dispensations.get(int(dispensation_id))

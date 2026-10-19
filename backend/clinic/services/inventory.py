@@ -6,7 +6,9 @@ data. Clinic never owns the medicine catalog, medicine stock, or Inventory
 stock transactions.
 """
 
+import os
 from copy import deepcopy
+from uuid import uuid4
 
 
 class MedicineNotFoundError(Exception):
@@ -59,15 +61,16 @@ class MockInventoryService:
             },
         ]
 
+        if os.environ.get("CLINIC_EMPTY_START") == "1":
+            self._medicines = []
+
         self._transactions = {}
         self._next_transaction_number = 1
 
     @staticmethod
     def _serialize_medicine(medicine):
         result = deepcopy(medicine)
-        result["is_low_stock"] = (
-            result["quantity_in_stock"] <= result["reorder_level"]
-        )
+        result["is_low_stock"] = result["quantity_in_stock"] <= result["reorder_level"]
         return result
 
     def list_medicines(
@@ -77,10 +80,7 @@ class MockInventoryService:
         status=None,
         ordering=None,
     ):
-        medicines = [
-            self._serialize_medicine(medicine)
-            for medicine in self._medicines
-        ]
+        medicines = [self._serialize_medicine(medicine) for medicine in self._medicines]
 
         if search:
             term = str(search).strip().lower()
@@ -172,9 +172,7 @@ class MockInventoryService:
 
             medicine["quantity_in_stock"] -= quantity
 
-            transaction_id = (
-                f"INV-TX-{self._next_transaction_number:04d}"
-            )
+            transaction_id = f"INV-TX-{uuid4().hex}"
             self._next_transaction_number += 1
 
             self._transactions[transaction_id] = {
@@ -212,9 +210,7 @@ class MockInventoryService:
                 medicine["quantity_in_stock"] += transaction["quantity"]
                 transaction["rolled_back"] = True
 
-                rollback_transaction_id = (
-                    f"INV-TX-{self._next_transaction_number:04d}"
-                )
+                rollback_transaction_id = f"INV-TX-{uuid4().hex}"
                 self._next_transaction_number += 1
 
                 self._transactions[rollback_transaction_id] = {

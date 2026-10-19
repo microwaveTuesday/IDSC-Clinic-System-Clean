@@ -22,6 +22,45 @@ from .inventory import (
 )
 
 from ..data.clinic import mock_clinic_repository
+from django.conf import settings
+from clinic.mutations import mutation_lock, pending_incidents
+from rest_framework.exceptions import APIException
+
+
+class ReconciliationRequired(APIException):
+    status_code = 503
+    default_detail = (
+        "Inventory reconciliation is required. Contact the Owner before retrying."
+    )
+    default_code = "reconciliation_required"
+
+
+def incident(transaction_id, operation):
+    queue = pending_incidents.get()
+    if queue is not None:
+        queue.append({"transaction_id": transaction_id, "operation": operation})
+
+
+from functools import wraps
+
+
+def coordinated(method):
+    @wraps(method)
+    def wrapped(*args, **kwargs):
+        with mutation_lock():
+            return method(*args, **kwargs)
+
+    return wrapped
+
+
+def configured_repository():
+    if settings.CLINIC_DATA_BACKEND == "mock":
+        return mock_clinic_repository
+    if settings.CLINIC_DATA_BACKEND == "database":
+        from clinic.data.persistent import PersistentClinicRepository
+
+        return PersistentClinicRepository()
+    raise ValueError("CLINIC_DATA_BACKEND must be mock or database.")
 
 
 class ClinicResourceNotFoundError(Exception):
@@ -38,9 +77,7 @@ class ClinicDispensationRollbackUnavailableError(Exception):
 
 class ClinicService:
     def __init__(self, repository=None):
-        self.repository = (
-            repository or mock_clinic_repository
-        )
+        self.repository = repository or configured_repository()
 
     def reset_mock_data(self):
         """Restore the normal runtime demonstration seed data."""
@@ -64,11 +101,7 @@ class ClinicService:
         records = self.repository.list_health_records()
 
         if student_id:
-            records = [
-                row
-                for row in records
-                if row["student_id"] == student_id
-            ]
+            records = [row for row in records if row["student_id"] == student_id]
 
         if blood_type:
             target = blood_type.lower()
@@ -76,9 +109,7 @@ class ClinicService:
             records = [
                 row
                 for row in records
-                if str(
-                    row.get("blood_type", "")
-                ).lower() == target
+                if str(row.get("blood_type", "")).lower() == target
             ]
 
         if search:
@@ -88,13 +119,10 @@ class ClinicService:
                 row
                 for row in records
                 if needle in row["student_id"].lower()
-                or needle in str(
-                    row.get("allergies", "")
-                ).lower()
-                or needle in str(
-                    row.get("medical_history", "")
-                ).lower()
-                or needle in str(
+                or needle in str(row.get("allergies", "")).lower()
+                or needle in str(row.get("medical_history", "")).lower()
+                or needle
+                in str(
                     row.get(
                         "current_medications",
                         "",
@@ -112,11 +140,7 @@ class ClinicService:
 
         if ordering:
             descending = ordering.startswith("-")
-            field = (
-                ordering[1:]
-                if descending
-                else ordering
-            )
+            field = ordering[1:] if descending else ordering
 
             if field in allowed_ordering:
                 records.sort(
@@ -139,9 +163,7 @@ class ClinicService:
         )
 
     def get_health_record(self, health_record_id):
-        record = self.repository.get_health_record(
-            health_record_id
-        )
+        record = self.repository.get_health_record(health_record_id)
 
         if record is None:
             raise ClinicResourceNotFoundError(
@@ -160,9 +182,7 @@ class ClinicService:
         health_record_id,
         values,
     ):
-        current = self.get_health_record(
-            health_record_id
-        )
+        current = self.get_health_record(health_record_id)
 
         student_id = values.get(
             "student_id",
@@ -184,9 +204,7 @@ class ClinicService:
         return record
 
     def delete_health_record(self, health_record_id):
-        record = self.repository.delete_health_record(
-            health_record_id
-        )
+        record = self.repository.delete_health_record(health_record_id)
 
         if record is None:
             raise ClinicResourceNotFoundError(
@@ -210,11 +228,7 @@ class ClinicService:
         records = self.repository.list_consultations()
 
         if student_id:
-            records = [
-                row
-                for row in records
-                if row["student_id"] == student_id
-            ]
+            records = [row for row in records if row["student_id"] == student_id]
 
         if search:
             needle = search.lower()
@@ -222,38 +236,25 @@ class ClinicService:
             records = [
                 row
                 for row in records
-                if needle in str(
+                if needle
+                in str(
                     row.get(
                         "chief_complaint",
                         "",
                     )
                 ).lower()
-                or needle in str(
-                    row.get("assessment", "")
-                ).lower()
-                or needle in str(
-                    row.get("treatment", "")
-                ).lower()
-                or needle in str(
-                    row.get("notes", "")
-                ).lower()
+                or needle in str(row.get("assessment", "")).lower()
+                or needle in str(row.get("treatment", "")).lower()
+                or needle in str(row.get("notes", "")).lower()
             ]
 
         if date_from:
             records = [
-                row
-                for row in records
-                if row["consulted_at"].date()
-                >= date_from
+                row for row in records if row["consulted_at"].date() >= date_from
             ]
 
         if date_to:
-            records = [
-                row
-                for row in records
-                if row["consulted_at"].date()
-                <= date_to
-            ]
+            records = [row for row in records if row["consulted_at"].date() <= date_to]
 
         allowed_ordering = {
             "consultation_id",
@@ -265,11 +266,7 @@ class ClinicService:
 
         if ordering:
             descending = ordering.startswith("-")
-            field = (
-                ordering[1:]
-                if descending
-                else ordering
-            )
+            field = ordering[1:] if descending else ordering
 
             if field in allowed_ordering:
                 records.sort(
@@ -292,9 +289,7 @@ class ClinicService:
         )
 
     def get_consultation(self, consultation_id):
-        record = self.repository.get_consultation(
-            consultation_id
-        )
+        record = self.repository.get_consultation(consultation_id)
 
         if record is None:
             raise ClinicResourceNotFoundError(
@@ -313,9 +308,7 @@ class ClinicService:
         consultation_id,
         values,
     ):
-        current = self.get_consultation(
-            consultation_id
-        )
+        current = self.get_consultation(consultation_id)
 
         student_id = values.get(
             "student_id",
@@ -337,9 +330,7 @@ class ClinicService:
         return record
 
     def delete_consultation(self, consultation_id):
-        record = self.repository.delete_consultation(
-            consultation_id
-        )
+        record = self.repository.delete_consultation(consultation_id)
 
         if record is None:
             raise ClinicResourceNotFoundError(
@@ -363,34 +354,18 @@ class ClinicService:
         records = self.repository.list_health_statuses()
 
         if student_id:
-            records = [
-                row
-                for row in records
-                if row["student_id"] == student_id
-            ]
+            records = [row for row in records if row["student_id"] == student_id]
 
         if status:
-            records = [
-                row
-                for row in records
-                if row["status"] == status
-            ]
+            records = [row for row in records if row["status"] == status]
 
         if date_from:
             records = [
-                row
-                for row in records
-                if row["effective_at"].date()
-                >= date_from
+                row for row in records if row["effective_at"].date() >= date_from
             ]
 
         if date_to:
-            records = [
-                row
-                for row in records
-                if row["effective_at"].date()
-                <= date_to
-            ]
+            records = [row for row in records if row["effective_at"].date() <= date_to]
 
         allowed_ordering = {
             "status_id",
@@ -403,11 +378,7 @@ class ClinicService:
 
         if ordering:
             descending = ordering.startswith("-")
-            field = (
-                ordering[1:]
-                if descending
-                else ordering
-            )
+            field = ordering[1:] if descending else ordering
 
             if field in allowed_ordering:
                 records.sort(
@@ -430,9 +401,7 @@ class ClinicService:
         )
 
     def get_health_status(self, status_id):
-        record = self.repository.get_health_status(
-            status_id
-        )
+        record = self.repository.get_health_status(status_id)
 
         if record is None:
             raise ClinicResourceNotFoundError(
@@ -473,9 +442,7 @@ class ClinicService:
         return record
 
     def delete_health_status(self, status_id):
-        record = self.repository.delete_health_status(
-            status_id
-        )
+        record = self.repository.delete_health_status(status_id)
 
         if record is None:
             raise ClinicResourceNotFoundError(
@@ -490,10 +457,7 @@ class ClinicService:
     ):
         registrar_service.get_student(student_id)
 
-        return (
-            self.repository
-            .get_latest_health_status_for_student(student_id)
-        )
+        return self.repository.get_latest_health_status_for_student(student_id)
 
     # --------------------------------------------------------------
     # Medicine dispensations
@@ -512,25 +476,13 @@ class ClinicService:
         records = self.repository.list_dispensations()
 
         if student_id:
-            records = [
-                row
-                for row in records
-                if row["student_id"] == student_id
-            ]
+            records = [row for row in records if row["student_id"] == student_id]
 
         if medicine_id:
-            records = [
-                row
-                for row in records
-                if row["medicine_id"] == medicine_id
-            ]
+            records = [row for row in records if row["medicine_id"] == medicine_id]
 
         if status:
-            records = [
-                row
-                for row in records
-                if row["status"] == status
-            ]
+            records = [row for row in records if row["status"] == status]
 
         if search:
             needle = search.lower()
@@ -540,16 +492,16 @@ class ClinicService:
                 for row in records
                 if needle in row["student_id"].lower()
                 or needle in row["medicine_id"].lower()
-                or needle in str(
-                    row.get("reason", "")
-                ).lower()
-                or needle in str(
+                or needle in str(row.get("reason", "")).lower()
+                or needle
+                in str(
                     row.get(
                         "inventory_transaction_id",
                         "",
                     )
                 ).lower()
-                or needle in str(
+                or needle
+                in str(
                     row.get(
                         "rollback_transaction_id",
                         "",
@@ -559,17 +511,11 @@ class ClinicService:
 
         if date_from:
             records = [
-                row
-                for row in records
-                if row["dispensed_at"].date() >= date_from
+                row for row in records if row["dispensed_at"].date() >= date_from
             ]
 
         if date_to:
-            records = [
-                row
-                for row in records
-                if row["dispensed_at"].date() <= date_to
-            ]
+            records = [row for row in records if row["dispensed_at"].date() <= date_to]
 
         allowed_ordering = {
             "dispensation_id",
@@ -583,11 +529,7 @@ class ClinicService:
 
         if ordering:
             descending = ordering.startswith("-")
-            field = (
-                ordering[1:]
-                if descending
-                else ordering
-            )
+            field = ordering[1:] if descending else ordering
 
             if field in allowed_ordering:
                 records.sort(
@@ -610,18 +552,16 @@ class ClinicService:
         )
 
     def get_dispensation(self, dispensation_id):
-        record = self.repository.get_dispensation(
-            dispensation_id
-        )
+        record = self.repository.get_dispensation(dispensation_id)
 
         if record is None:
             raise ClinicResourceNotFoundError(
-                f"Medicine dispensation "
-                f"'{dispensation_id}' was not found."
+                f"Medicine dispensation " f"'{dispensation_id}' was not found."
             )
 
         return record
 
+    @coordinated
     def create_dispensation(self, values):
         """
         Coordinate Registrar validation, Inventory deduction,
@@ -631,15 +571,11 @@ class ClinicService:
         compensate by restoring Inventory stock.
         """
 
-        self._validate_student(
-            values["student_id"]
-        )
+        self._validate_student(values["student_id"])
 
-        inventory_transaction_id = (
-            inventory_service.deduct_stock(
-                values["medicine_id"],
-                values["quantity"],
-            )
+        inventory_transaction_id = inventory_service.deduct_stock(
+            values["medicine_id"],
+            values["quantity"],
         )
 
         try:
@@ -649,16 +585,14 @@ class ClinicService:
             )
         except Exception:
             try:
-                inventory_service.restore_stock(
-                    inventory_transaction_id
-                )
-            except Exception:
-                # Preserve the original Clinic persistence
-                # failure as the primary exception.
-                pass
+                inventory_service.restore_stock(inventory_transaction_id)
+            except Exception as exc:
+                incident(inventory_transaction_id, "COMPENSATION_FAILED")
+                raise ReconciliationRequired() from exc
 
             raise
 
+    @coordinated
     def rollback_dispensation(
         self,
         dispensation_id,
@@ -668,9 +602,7 @@ class ClinicService:
         dispensation as rolled back.
         """
 
-        record = self.get_dispensation(
-            dispensation_id
-        )
+        record = self.get_dispensation(dispensation_id)
 
         if record["status"] == "ROLLED_BACK":
             raise (
@@ -681,11 +613,7 @@ class ClinicService:
                 )
             )
 
-        inventory_transaction_id = (
-            record.get(
-                "inventory_transaction_id"
-            )
-        )
+        inventory_transaction_id = record.get("inventory_transaction_id")
 
         if not inventory_transaction_id:
             raise (
@@ -697,30 +625,22 @@ class ClinicService:
                 )
             )
 
-        rollback_transaction_id = (
-            inventory_service.restore_stock(
-                inventory_transaction_id
-            )
+        rollback_transaction_id = inventory_service.restore_stock(
+            inventory_transaction_id
         )
 
         try:
-            updated = (
-                self.repository
-                .rollback_dispensation(
-                    dispensation_id,
-                    rollback_transaction_id,
-                )
+            updated = self.repository.rollback_dispensation(
+                dispensation_id,
+                rollback_transaction_id,
             )
-        except Exception:
-            # Inventory has already restored the stock.
-            # Surface the Clinic data-layer failure instead of
-            # pretending the external action was reverted.
-            raise
+        except Exception as exc:
+            incident(inventory_transaction_id, "ROLLBACK_RECORD_FAILED")
+            raise ReconciliationRequired() from exc
 
         if updated is None:
             raise ClinicResourceNotFoundError(
-                f"Medicine dispensation "
-                f"'{dispensation_id}' was not found."
+                f"Medicine dispensation " f"'{dispensation_id}' was not found."
             )
 
         return updated
@@ -738,17 +658,11 @@ class ClinicService:
 
         if date_from:
             records = [
-                row
-                for row in records
-                if row["consulted_at"].date() >= date_from
+                row for row in records if row["consulted_at"].date() >= date_from
             ]
 
         if date_to:
-            records = [
-                row
-                for row in records
-                if row["consulted_at"].date() <= date_to
-            ]
+            records = [row for row in records if row["consulted_at"].date() <= date_to]
 
         return records
 
@@ -760,18 +674,10 @@ class ClinicService:
         records = self.list_health_records()
 
         if date_from:
-            records = [
-                row
-                for row in records
-                if row["created_at"].date() >= date_from
-            ]
+            records = [row for row in records if row["created_at"].date() >= date_from]
 
         if date_to:
-            records = [
-                row
-                for row in records
-                if row["created_at"].date() <= date_to
-            ]
+            records = [row for row in records if row["created_at"].date() <= date_to]
 
         return records
 
@@ -787,38 +693,20 @@ class ClinicService:
 
         if date_from:
             records = [
-                row
-                for row in records
-                if row["dispensed_at"].date() >= date_from
+                row for row in records if row["dispensed_at"].date() >= date_from
             ]
 
         if date_to:
-            records = [
-                row
-                for row in records
-                if row["dispensed_at"].date() <= date_to
-            ]
+            records = [row for row in records if row["dispensed_at"].date() <= date_to]
 
         if student_id:
-            records = [
-                row
-                for row in records
-                if row["student_id"] == student_id
-            ]
+            records = [row for row in records if row["student_id"] == student_id]
 
         if medicine_id:
-            records = [
-                row
-                for row in records
-                if row["medicine_id"] == medicine_id
-            ]
+            records = [row for row in records if row["medicine_id"] == medicine_id]
 
         if status:
-            records = [
-                row
-                for row in records
-                if row["status"] == status
-            ]
+            records = [row for row in records if row["status"] == status]
 
         return records
 
@@ -827,9 +715,7 @@ class ClinicService:
     # --------------------------------------------------------------
 
     def total_health_records(self):
-        return len(
-            self.repository.list_health_records()
-        )
+        return len(self.repository.list_health_records())
 
     def recent_activity(self, limit=10):
         activities = []
@@ -838,9 +724,7 @@ class ClinicService:
             activities.append(
                 {
                     "activity_type": "HEALTH_RECORD",
-                    "reference_id": row[
-                        "health_record_id"
-                    ],
+                    "reference_id": row["health_record_id"],
                     "student_id": row["student_id"],
                     "occurred_at": row["created_at"],
                 }
@@ -850,9 +734,7 @@ class ClinicService:
             activities.append(
                 {
                     "activity_type": "CONSULTATION",
-                    "reference_id": row[
-                        "consultation_id"
-                    ],
+                    "reference_id": row["consultation_id"],
                     "student_id": row["student_id"],
                     "occurred_at": row["consulted_at"],
                 }
@@ -872,9 +754,7 @@ class ClinicService:
             activities.append(
                 {
                     "activity_type": "MEDICINE_DISPENSATION",
-                    "reference_id": row[
-                        "dispensation_id"
-                    ],
+                    "reference_id": row["dispensation_id"],
                     "student_id": row["student_id"],
                     "occurred_at": row["dispensed_at"],
                 }
@@ -890,9 +770,7 @@ class ClinicService:
     @staticmethod
     def _validate_student(student_id):
         try:
-            registrar_service.validate_student_for_clinic(
-                student_id
-            )
+            registrar_service.validate_student_for_clinic(student_id)
         except (
             StudentNotFoundError,
             StudentUnavailableError,

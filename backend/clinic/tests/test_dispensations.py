@@ -577,7 +577,7 @@ class MedicineDispensationContractTests(MockDomainTestMixin, APITestCase):
 
         self.assertEqual(response.status_code, 405)
 
-    def test_delete_is_not_exposed(self):
+    def test_staff_cannot_delete_history(self):
         created = self.create_via_api()
         dispensation_id = created.json()[
             "dispensation_id"
@@ -590,7 +590,7 @@ class MedicineDispensationContractTests(MockDomainTestMixin, APITestCase):
             )
         )
 
-        self.assertEqual(response.status_code, 405)
+        self.assertEqual(response.status_code, 403)
 
     def test_rollback_restores_stock_and_records_transaction(self):
         before = self.stock(MEDICINE)

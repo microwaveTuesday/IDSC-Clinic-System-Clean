@@ -7,6 +7,7 @@ This module is mounted by config.urls at:
 """
 
 from django.urls import path
+from .demo_integrations import ImportStudentView
 from rest_framework.routers import DefaultRouter
 
 from .views import (
@@ -112,6 +113,7 @@ urlpatterns = [
         StudentListView.as_view(),
         name="student-list",
     ),
+    path("students/import/", ImportStudentView.as_view(), name="import-student"),
     path(
         "students/<str:student_id>/",
         StudentDetailView.as_view(),
@@ -144,3 +146,15 @@ urlpatterns = [
 ]
 
 urlpatterns += router.urls
+
+from .demo_integrations import (ImportStudentView, RegistrarStudentsView, RegistrarStudentDetailView,
+    InventoryMedicinesView, InventoryMedicineDetailView, RestocksView, FulfillRestockView, InventoryNotificationsView)
+urlpatterns += [
+    path("mock/registrar/students/", RegistrarStudentsView.as_view(), name="mock-registrar-students"),
+    path("mock/registrar/students/<str:student_id>/", RegistrarStudentDetailView.as_view(), name="mock-registrar-student"),
+    path("mock/inventory/medicines/", InventoryMedicinesView.as_view(), name="mock-inventory-medicines"),
+    path("mock/inventory/medicines/<str:medicine_id>/", InventoryMedicineDetailView.as_view(), name="mock-inventory-medicine"),
+    path("restock-requests/", RestocksView.as_view(), name="restock-requests"),
+    path("mock/inventory/restock-requests/<str:request_id>/fulfill/", FulfillRestockView.as_view(), name="fulfill-restock"),
+    path("inventory-notifications/", InventoryNotificationsView.as_view(), name="inventory-notifications"),
+]

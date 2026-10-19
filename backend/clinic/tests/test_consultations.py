@@ -647,6 +647,7 @@ class ConsultationContractTests(MockDomainTestMixin, APITestCase):
         )
 
     def test_delete_removes_consultation(self):
+        self.user.groups.add(Group.objects.get(name="CLINIC_ADMIN"))
         consultation = self.create_consultation()
 
         response = self.client.delete(
@@ -665,6 +666,7 @@ class ConsultationContractTests(MockDomainTestMixin, APITestCase):
         )
 
     def test_delete_missing_consultation_returns_404(self):
+        self.user.groups.add(Group.objects.get(name="CLINIC_ADMIN"))
         response = self.client.delete(
             "/api/v1/consultations/999999/"
         )

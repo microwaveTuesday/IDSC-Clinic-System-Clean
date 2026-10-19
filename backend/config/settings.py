@@ -7,86 +7,97 @@ Configured for the IDSC Clinic System midterm mock API with Django REST Framewor
 
 import os
 from pathlib import Path
+from django.core.exceptions import ImproperlyConfigured
 from dotenv import load_dotenv
 
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
 BASE_DIR = Path(__file__).resolve().parent.parent
 
 # Load environment variables from .env file
-load_dotenv(BASE_DIR / '.env')
+load_dotenv(BASE_DIR / ".env")
 
 # Quick-start development settings - unsuitable for production
-SECRET_KEY = os.environ.get(
-    'SECRET_KEY',
-    'django-insecure-4uipb%r-hr+7aq+2g7xtu(a6gnf=0s-^ql!b6^=q=vi8g+2kz4'
-)
+DEBUG = os.environ.get("DEBUG", "True").lower() in ("true", "1", "yes")
+SECRET_KEY = os.environ.get("SECRET_KEY")
+if not SECRET_KEY and DEBUG:
+    from django.core.management.utils import get_random_secret_key
 
-DEBUG = os.environ.get('DEBUG', 'True').lower() in ('true', '1', 'yes')
+    secret_file = BASE_DIR / ".development-secret"
+    try:
+        with secret_file.open("x", encoding="utf-8") as stream:
+            stream.write(get_random_secret_key())
+    except FileExistsError:
+        pass
+    SECRET_KEY = secret_file.read_text(encoding="utf-8").strip()
+if not SECRET_KEY:
+    from django.core.exceptions import ImproperlyConfigured
+
+    raise ImproperlyConfigured("Set a private SECRET_KEY before production startup.")
 
 ALLOWED_HOSTS = [
-    host.strip() for host in os.environ.get('ALLOWED_HOSTS', 'localhost,127.0.0.1,*').split(',') if host.strip()
+    host.strip()
+    for host in os.environ.get("ALLOWED_HOSTS", "localhost,127.0.0.1").split(",")
+    if host.strip()
 ]
 
 
 # Application definition
 
 INSTALLED_APPS = [
-    'django.contrib.admin',
-    'django.contrib.auth',
-    'django.contrib.contenttypes',
-    'django.contrib.sessions',
-    'django.contrib.messages',
-    'django.contrib.staticfiles',
-
+    "django.contrib.admin",
+    "django.contrib.auth",
+    "django.contrib.contenttypes",
+    "django.contrib.sessions",
+    "django.contrib.messages",
+    "django.contrib.staticfiles",
     # Third-party apps
-    'rest_framework',
-    'corsheaders',
-    'drf_spectacular',
-
+    "rest_framework",
+    "corsheaders",
+    "drf_spectacular",
     # Local apps
-    'clinic.apps.ClinicConfig',
-    'authentication.apps.AuthenticationConfig',
+    "clinic.apps.ClinicConfig",
+    "authentication.apps.AuthenticationConfig",
 ]
 
 MIDDLEWARE = [
-    'django.middleware.security.SecurityMiddleware',
-    'corsheaders.middleware.CorsMiddleware',
-    'django.contrib.sessions.middleware.SessionMiddleware',
-    'django.middleware.common.CommonMiddleware',
-    'django.middleware.csrf.CsrfViewMiddleware',
-    'django.contrib.auth.middleware.AuthenticationMiddleware',
-    'django.contrib.messages.middleware.MessageMiddleware',
-    'django.middleware.clickjacking.XFrameOptionsMiddleware',
+    "django.middleware.security.SecurityMiddleware",
+    "corsheaders.middleware.CorsMiddleware",
+    "django.contrib.sessions.middleware.SessionMiddleware",
+    "django.middleware.common.CommonMiddleware",
+    "django.middleware.csrf.CsrfViewMiddleware",
+    "django.contrib.auth.middleware.AuthenticationMiddleware",
+    "django.contrib.messages.middleware.MessageMiddleware",
+    "django.middleware.clickjacking.XFrameOptionsMiddleware",
+    "clinic.middleware.ClinicResponseMiddleware",
 ]
 
-ROOT_URLCONF = 'config.urls'
+ROOT_URLCONF = "config.urls"
 
 TEMPLATES = [
     {
-        'BACKEND': 'django.template.backends.django.DjangoTemplates',
-        'DIRS': [BASE_DIR / 'templates'],
-        'APP_DIRS': True,
-        'OPTIONS': {
-            'context_processors': [
-                'django.template.context_processors.request',
-                'django.contrib.auth.context_processors.auth',
-                'django.contrib.messages.context_processors.messages',
+        "BACKEND": "django.template.backends.django.DjangoTemplates",
+        "DIRS": [BASE_DIR / "templates"],
+        "APP_DIRS": True,
+        "OPTIONS": {
+            "context_processors": [
+                "django.template.context_processors.request",
+                "django.contrib.auth.context_processors.auth",
+                "django.contrib.messages.context_processors.messages",
             ],
         },
     },
 ]
 
-WSGI_APPLICATION = 'config.wsgi.application'
+WSGI_APPLICATION = "config.wsgi.application"
 
 # Clinic domain storage mode.
 #
 # Midterm default: mock/in-memory Clinic business data.
 # Finals can introduce a database-backed repository without changing routes.
 CLINIC_DATA_BACKEND = os.environ.get(
-    'CLINIC_DATA_BACKEND',
-    'mock',
+    "CLINIC_DATA_BACKEND",
+    "mock",
 )
-
 
 
 # Database Configuration
@@ -120,9 +131,7 @@ if "sqlite3" in DB_ENGINE:
         sqlite_path = Path(DB_NAME)
 
         SQLITE_NAME = (
-            sqlite_path
-            if sqlite_path.is_absolute()
-            else BASE_DIR / sqlite_path
+            sqlite_path if sqlite_path.is_absolute() else BASE_DIR / sqlite_path
         )
 
     DATABASES = {
@@ -190,16 +199,16 @@ else:
 
 AUTH_PASSWORD_VALIDATORS = [
     {
-        'NAME': 'django.contrib.auth.password_validation.UserAttributeSimilarityValidator',
+        "NAME": "django.contrib.auth.password_validation.UserAttributeSimilarityValidator",
     },
     {
-        'NAME': 'django.contrib.auth.password_validation.MinimumLengthValidator',
+        "NAME": "django.contrib.auth.password_validation.MinimumLengthValidator",
     },
     {
-        'NAME': 'django.contrib.auth.password_validation.CommonPasswordValidator',
+        "NAME": "django.contrib.auth.password_validation.CommonPasswordValidator",
     },
     {
-        'NAME': 'django.contrib.auth.password_validation.NumericPasswordValidator',
+        "NAME": "django.contrib.auth.password_validation.NumericPasswordValidator",
     },
 ]
 
@@ -207,9 +216,9 @@ AUTH_PASSWORD_VALIDATORS = [
 # Internationalization
 # https://docs.djangoproject.com/en/6.1/topics/i18n/
 
-LANGUAGE_CODE = 'en-us'
+LANGUAGE_CODE = "en-us"
 
-TIME_ZONE = 'UTC'
+TIME_ZONE = "UTC"
 
 USE_I18N = True
 
@@ -219,63 +228,61 @@ USE_TZ = True
 # Static files (CSS, JavaScript, Images)
 # https://docs.djangoproject.com/en/6.1/howto/static-files/
 
-STATIC_URL = 'static/'
-STATIC_ROOT = BASE_DIR / 'staticfiles'
+STATIC_URL = "static/"
+STATIC_ROOT = BASE_DIR / "staticfiles"
 
 
 # Default primary key field type
-DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
+DEFAULT_AUTO_FIELD = "django.db.models.BigAutoField"
 
 
 # Django REST Framework Configuration
 REST_FRAMEWORK = {
-    'DEFAULT_AUTHENTICATION_CLASSES': [
-        'authentication.authentication.ClinicSessionAuthentication',
+    "DEFAULT_AUTHENTICATION_CLASSES": [
+        "authentication.authentication.ClinicSessionAuthentication",
     ],
-    'DEFAULT_PERMISSION_CLASSES': [
-        'rest_framework.permissions.IsAuthenticated',
+    "DEFAULT_PERMISSION_CLASSES": [
+        "rest_framework.permissions.IsAuthenticated",
     ],
-    'DEFAULT_RENDERER_CLASSES': [
-        'rest_framework.renderers.JSONRenderer',
-        'rest_framework.renderers.BrowsableAPIRenderer',
+    "DEFAULT_RENDERER_CLASSES": [
+        "rest_framework.renderers.JSONRenderer",
+        "rest_framework.renderers.BrowsableAPIRenderer",
     ],
-    'DEFAULT_PARSER_CLASSES': [
-        'rest_framework.parsers.JSONParser',
-        'rest_framework.parsers.FormParser',
-        'rest_framework.parsers.MultiPartParser',
+    "DEFAULT_PARSER_CLASSES": [
+        "rest_framework.parsers.JSONParser",
+        "rest_framework.parsers.FormParser",
+        "rest_framework.parsers.MultiPartParser",
     ],
-    'DEFAULT_SCHEMA_CLASS': 'drf_spectacular.openapi.AutoSchema',
-    'EXCEPTION_HANDLER': 'clinic.exceptions.custom_exception_handler',
+    "DEFAULT_SCHEMA_CLASS": "drf_spectacular.openapi.AutoSchema",
+    "EXCEPTION_HANDLER": "clinic.exceptions.custom_exception_handler",
 }
 
 
 # Spectacular / OpenAPI Configuration
 SPECTACULAR_SETTINGS = {
-    'TITLE': 'IDSC Clinic System API',
-    'DESCRIPTION': (
-        'OpenAPI documentation for the IDSC Clinic System backend. '
-        'Provides endpoints for managing student records, health records, clinical consultations, '
-        'vital signs, medical histories, and allergies.'
+    "TITLE": "IDSC Clinic System API",
+    "DESCRIPTION": (
+        "OpenAPI documentation for the IDSC Clinic System backend. "
+        "Provides endpoints for managing student records, health records, clinical consultations, "
+        "vital signs, medical histories, and allergies."
     ),
-    'VERSION': '1.0.0',
-    'OAS_VERSION': '3.1.0',
-    'SERVE_INCLUDE_SCHEMA': False,
-    'COMPONENT_SPLIT_REQUEST': True,
-    'SCHEMA_PATH_PREFIX': r'/api/',
-
+    "VERSION": "1.0.0",
+    "OAS_VERSION": "3.1.0",
+    "SERVE_INCLUDE_SCHEMA": False,
+    "COMPONENT_SPLIT_REQUEST": True,
+    "SCHEMA_PATH_PREFIX": r"/api/",
     # Canonical local development server.
-    'SERVERS': [
+    "SERVERS": [
         {
-            'url': 'http://127.0.0.1:8000',
-            'description': 'Local Django development server',
+            "url": "http://127.0.0.1:8000",
+            "description": "Local Django development server",
         },
     ],
-
     # Preserve drf-spectacular's enum postprocessing and then
     # normalize project-level OpenAPI documentation metadata.
-    'POSTPROCESSING_HOOKS': [
-        'drf_spectacular.hooks.postprocess_schema_enums',
-        'config.schema.postprocess_openapi_metadata',
+    "POSTPROCESSING_HOOKS": [
+        "drf_spectacular.hooks.postprocess_schema_enums",
+        "config.schema.postprocess_openapi_metadata",
     ],
 }
 
@@ -299,7 +306,80 @@ CSRF_TRUSTED_ORIGINS = [
 
 # Email
 MAILERS = {
-    'default': {
-        'BACKEND': 'django.core.mail.backends.console.EmailBackend',
+    "default": {
+        "BACKEND": "django.core.mail.backends.console.EmailBackend",
     },
 }
+
+
+# Explicit production profile: missing secrets/hosts never silently fall back.
+from django.core.exceptions import ImproperlyConfigured
+
+if CLINIC_DATA_BACKEND not in ("mock", "database"):
+    raise ImproperlyConfigured("CLINIC_DATA_BACKEND must be mock or database.")
+if not DEBUG:
+    if (
+        not os.environ.get("SECRET_KEY")
+        or len(SECRET_KEY) < 50
+        or SECRET_KEY.startswith("django-insecure-")
+    ):
+        raise ImproperlyConfigured(
+            "Production requires a private SECRET_KEY of at least 50 characters."
+        )
+    if "*" in ALLOWED_HOSTS or not os.environ.get("ALLOWED_HOSTS"):
+        raise ImproperlyConfigured(
+            "Production requires explicit ALLOWED_HOSTS without wildcard."
+        )
+    SESSION_COOKIE_SECURE = True
+    CSRF_COOKIE_SECURE = True
+    SECURE_SSL_REDIRECT = True
+    SECURE_HSTS_SECONDS = 31536000
+    SECURE_HSTS_INCLUDE_SUBDOMAINS = True
+    SECURE_HSTS_PRELOAD = True
+    SECURE_CONTENT_TYPE_NOSNIFF = True
+    REST_FRAMEWORK["DEFAULT_RENDERER_CLASSES"] = [
+        "rest_framework.renderers.JSONRenderer"
+    ]
+SESSION_COOKIE_HTTPONLY = True
+SESSION_COOKIE_SAMESITE = "Lax"
+CORS_ALLOWED_ORIGINS = [
+    x
+    for x in os.environ.get(
+        "CORS_ALLOWED_ORIGINS", ",".join(CORS_ALLOWED_ORIGINS)
+    ).split(",")
+    if x
+]
+CSRF_TRUSTED_ORIGINS = [
+    x
+    for x in os.environ.get(
+        "CSRF_TRUSTED_ORIGINS", ",".join(CSRF_TRUSTED_ORIGINS)
+    ).split(",")
+    if x
+]
+
+LOGIN_THROTTLE_ENABLED = not DEBUG
+
+if not DEBUG:
+    MAILERS = {
+        "default": {
+            "BACKEND": "django.core.mail.backends.smtp.EmailBackend",
+            "HOST": os.environ.get("EMAIL_HOST", "localhost"),
+        }
+    }
+
+# Domain persistence and external mock workspaces are independent choices.
+MOCK_WORKSPACES_ENABLED = os.environ.get("MOCK_WORKSPACES_ENABLED", "True").lower() in (
+    "true",
+    "1",
+    "yes",
+)
+REGISTRAR_BACKEND = os.environ.get("REGISTRAR_BACKEND", "mock")
+INVENTORY_BACKEND = os.environ.get("INVENTORY_BACKEND", "mock")
+if REGISTRAR_BACKEND != "mock" or INVENTORY_BACKEND != "mock":
+    raise ImproperlyConfigured(
+        "Only verified mock external adapters are currently implemented. Real contracts are required."
+    )
+
+REST_FRAMEWORK["NUM_PROXIES"] = (
+    0  # Do not trust arbitrary X-Forwarded-For for login limiting.
+)

@@ -2,7 +2,6 @@
 from django.contrib.auth.models import Group
 from rest_framework.test import APIClient, APITestCase
 
-
 User = get_user_model()
 
 PASSWORD = "TemporaryTest123!"
@@ -12,15 +11,9 @@ AUTH_ONLY_URL = "/api/auth/me/"
 STAFF_URL = "/api/v1/dashboard/"
 ADMIN_URL = "/api/v1/users/"
 
-FACULTY_URL = (
-    "/api/v1/integrations/faculty/"
-    "health-status/2026-0001/"
-)
+FACULTY_URL = "/api/v1/integrations/faculty/" "health-status/2026-0001/"
 
-PORTAL_URL = (
-    "/api/v1/integrations/student-portal/"
-    "health-status/2026-0001/"
-)
+PORTAL_URL = "/api/v1/integrations/student-portal/" "health-status/2026-0001/"
 
 STAFF_ENDPOINTS = (
     "/api/v1/dashboard/",
@@ -45,12 +38,8 @@ class PermissionContractTests(APITestCase):
 
     @classmethod
     def setUpTestData(cls):
-        staff_group, _ = Group.objects.get_or_create(
-            name="CLINIC_STAFF"
-        )
-        admin_group, _ = Group.objects.get_or_create(
-            name="CLINIC_ADMIN"
-        )
+        staff_group, _ = Group.objects.get_or_create(name="CLINIC_STAFF")
+        admin_group, _ = Group.objects.get_or_create(name="CLINIC_ADMIN")
 
         cls.plain = User.objects.create_user(
             username="permanent_permission_plain",
@@ -92,9 +81,7 @@ class PermissionContractTests(APITestCase):
             response.get(
                 "Content-Type",
                 "",
-            ).startswith(
-                "application/problem+json"
-            )
+            ).startswith("application/problem+json")
         )
 
         body = response.json()
@@ -121,9 +108,7 @@ class PermissionContractTests(APITestCase):
         return body
 
     def test_health_endpoint_is_public(self):
-        response = self.client_for().get(
-            PUBLIC_URL
-        )
+        response = self.client_for().get(PUBLIC_URL)
 
         self.assertEqual(
             response.status_code,
@@ -131,39 +116,27 @@ class PermissionContractTests(APITestCase):
         )
 
     def test_authenticated_user_can_access_me(self):
-        response = self.client_for(
-            self.plain
-        ).get(
-            AUTH_ONLY_URL
-        )
+        response = self.client_for(self.plain).get(AUTH_ONLY_URL)
 
         self.assertEqual(
             response.status_code,
             200,
         )
 
-    def test_authenticated_user_can_access_faculty_integration(self):
-        response = self.client_for(
-            self.plain
-        ).get(
-            FACULTY_URL
-        )
+    def test_roleless_user_cannot_access_faculty_integration(self):
+        response = self.client_for(self.plain).get(FACULTY_URL)
 
         self.assertEqual(
             response.status_code,
-            200,
+            403,
         )
 
-    def test_authenticated_user_can_access_student_portal_integration(self):
-        response = self.client_for(
-            self.plain
-        ).get(
-            PORTAL_URL
-        )
+    def test_roleless_user_cannot_access_student_portal_integration(self):
+        response = self.client_for(self.plain).get(PORTAL_URL)
 
         self.assertEqual(
             response.status_code,
-            200,
+            403,
         )
 
     def test_anonymous_auth_only_endpoints_return_401(self):
@@ -179,16 +152,12 @@ class PermissionContractTests(APITestCase):
             )
 
             self.assertEqual(
-                response.get(
-                    "WWW-Authenticate"
-                ),
+                response.get("WWW-Authenticate"),
                 "Session",
             )
 
     def test_anonymous_staff_endpoint_returns_401(self):
-        response = self.client_for().get(
-            STAFF_URL
-        )
+        response = self.client_for().get(STAFF_URL)
 
         self.assert_problem(
             response,
@@ -197,18 +166,12 @@ class PermissionContractTests(APITestCase):
         )
 
         self.assertEqual(
-            response.get(
-                "WWW-Authenticate"
-            ),
+            response.get("WWW-Authenticate"),
             "Session",
         )
 
     def test_plain_user_is_forbidden_from_staff_endpoint(self):
-        response = self.client_for(
-            self.plain
-        ).get(
-            STAFF_URL
-        )
+        response = self.client_for(self.plain).get(STAFF_URL)
 
         self.assert_problem(
             response,
@@ -216,18 +179,10 @@ class PermissionContractTests(APITestCase):
             "permission_denied",
         )
 
-        self.assertIsNone(
-            response.get(
-                "WWW-Authenticate"
-            )
-        )
+        self.assertIsNone(response.get("WWW-Authenticate"))
 
     def test_clinic_staff_can_access_staff_endpoint(self):
-        response = self.client_for(
-            self.staff
-        ).get(
-            STAFF_URL
-        )
+        response = self.client_for(self.staff).get(STAFF_URL)
 
         self.assertEqual(
             response.status_code,
@@ -235,11 +190,7 @@ class PermissionContractTests(APITestCase):
         )
 
     def test_clinic_admin_can_access_staff_endpoint(self):
-        response = self.client_for(
-            self.admin
-        ).get(
-            STAFF_URL
-        )
+        response = self.client_for(self.admin).get(STAFF_URL)
 
         self.assertEqual(
             response.status_code,
@@ -258,9 +209,7 @@ class PermissionContractTests(APITestCase):
         )
 
         for url in STAFF_ENDPOINTS:
-            response = self.client_for(
-                self.admin
-            ).get(url)
+            response = self.client_for(self.admin).get(url)
 
             self.assertEqual(
                 response.status_code,
@@ -269,9 +218,7 @@ class PermissionContractTests(APITestCase):
             )
 
     def test_plain_user_is_forbidden_from_all_staff_endpoints(self):
-        client = self.client_for(
-            self.plain
-        )
+        client = self.client_for(self.plain)
 
         for url in STAFF_ENDPOINTS:
             response = client.get(url)
@@ -283,9 +230,7 @@ class PermissionContractTests(APITestCase):
             )
 
     def test_clinic_staff_can_access_all_staff_endpoints(self):
-        client = self.client_for(
-            self.staff
-        )
+        client = self.client_for(self.staff)
 
         for url in STAFF_ENDPOINTS:
             response = client.get(url)
@@ -297,9 +242,7 @@ class PermissionContractTests(APITestCase):
             )
 
     def test_anonymous_admin_endpoint_returns_401(self):
-        response = self.client_for().get(
-            ADMIN_URL
-        )
+        response = self.client_for().get(ADMIN_URL)
 
         self.assert_problem(
             response,
@@ -308,18 +251,12 @@ class PermissionContractTests(APITestCase):
         )
 
         self.assertEqual(
-            response.get(
-                "WWW-Authenticate"
-            ),
+            response.get("WWW-Authenticate"),
             "Session",
         )
 
     def test_plain_user_is_forbidden_from_admin_endpoint(self):
-        response = self.client_for(
-            self.plain
-        ).get(
-            ADMIN_URL
-        )
+        response = self.client_for(self.plain).get(ADMIN_URL)
 
         self.assert_problem(
             response,
@@ -328,11 +265,7 @@ class PermissionContractTests(APITestCase):
         )
 
     def test_clinic_staff_is_forbidden_from_admin_endpoint(self):
-        response = self.client_for(
-            self.staff
-        ).get(
-            ADMIN_URL
-        )
+        response = self.client_for(self.staff).get(ADMIN_URL)
 
         self.assert_problem(
             response,
@@ -341,11 +274,7 @@ class PermissionContractTests(APITestCase):
         )
 
     def test_clinic_admin_can_access_admin_endpoint(self):
-        response = self.client_for(
-            self.admin
-        ).get(
-            ADMIN_URL
-        )
+        response = self.client_for(self.admin).get(ADMIN_URL)
 
         self.assertEqual(
             response.status_code,

@@ -1,5 +1,7 @@
 ﻿# Phase 7 — Tests & Contract Validation Evidence
 
+> Historical stage-by-stage evidence. Counts and branch names below describe the stage when recorded, not the current submission. Latest scope/results: [CURRENT-VALIDATION.md](CURRENT-VALIDATION.md). Current setup: [SETUP.md](../SETUP.md).
+
 ## 1. Purpose
 
 This document records the verified testing, contract-validation, regression, lifecycle, and repository-integrity evidence produced during Phase 7 of the IDSC Clinic System backend.
@@ -296,3 +298,75 @@ These results represent the recorded Phase 7 test and contract-validation eviden
 The evidence document itself must be included in the Phase 7 commit together with the already staged backend tests, OpenAPI contract, and Postman collection.
 
 Phase 7 remains subject to the final commit and push procedure documented as Goal 7.12.
+
+## Subsequent password-change extension
+
+On 17 October 2026, the additive password-change implementation passed all 180 Django tests (167 preserved plus 13 new), three browser stories, both schema lints, the original Newman suite (45 requests / 46 assertions), and the separate password flow (11 requests / 13 assertions). All passed with zero failures. Current inventory is 30 paths / 46 operations; all original operation definitions are unchanged. See `PASSWORD-CHANGE.md` and `INTEGRATION-VALIDATION.md` for reproduction and scope.
+
+
+## Username and administrator extension
+
+The additive username/admin implementation passed all 198 Django tests. Current schema: 32 paths / 49 operations. Both Redocly lints passed, no migration drift, and all three Newman collections passed: 75 requests / 80 assertions with zero failures. The 18 new backend tests cover self-only username updates, validation, authentication, CSRF, administrator creation/role isolation, staff denial and new-admin capabilities. See `ACCOUNT-MANAGEMENT.md` and latest `INTEGRATION-VALIDATION.md` for browser results and reproduction.
+
+Final browser verification after repairing the login navigation race: all four stories passed together. Frontend lint/build and desktop/mobile dialog checks passed.
+
+
+## Account lifecycle extension
+
+All 221 Django tests passed; schema inventory is 35 paths / 53 operations. Both schema lints, configuration/migration checks and frontend lint/build passed. All four Newman collections passed: 97 requests / 104 assertions, zero failures. The 23 lifecycle tests cover deletion, deactivation/reactivation, authorization/CSRF, actor-password verification, session revocation, self/last-admin protections, system/mixed-role boundaries and medical-record preservation. See latest browser evidence in `INTEGRATION-VALIDATION.md`.
+
+
+### Final account lifecycle validation
+
+- 221 Django tests passed, including 23 account lifecycle tests.
+- All five browser stories passed: account lifecycle, administrator creation/username, clinical CRUD/dispensing/reports, staff permissions, and password changes. The clinical story passed in a targeted rerun after fixing test synchronization: wait for the pending confirmation and dispensing refresh before proceeding, and use unique consultation/status markers to avoid prior aborted-run fixtures. The full pass initially had four passes and one clinical synchronization failure; no backend baseline tests were changed.
+- Four Newman collections passed: 97 requests and 104 assertions total.
+- Frontend lint and production build passed; static/dynamic schemas match at 35 paths and 53 operations; schema lint and migration/configuration checks passed.
+- Changes remain local on integration/clinic-final; main was not modified and nothing was pushed.
+
+
+## Owner/Admin/Staff hierarchy validation
+
+- Clean full Django run: **233 tests passed** (182 seconds). This includes twelve new hierarchy tests and revised extension tests for Owner-only Admin management. Original backend clinic/auth contract tests are unchanged.
+- All **six browser workflows passed** across the full run and targeted hierarchy rerun. The five existing stories passed in the full run; the new hierarchy story passed after synchronizing sign-in with completed logout (21.9 seconds). It covers Owner editing Admin, Admin creating/editing/deactivating/activating/deleting Staff, Staff clinic access, and denied management access.
+- Frontend lint and production build passed.
+- No database migration changes detected. Static/dynamic inventories match: **35 paths, 56 operations**, with **3 public and 53 protected** under effective inherited security.
+- Role mapping uses existing Django superusers as Owners without promoting regular Admin/Staff accounts. Owner credential changes retain the session; management endpoints protect Owner accounts and reject mixed-role bypasses.
+- New API collection: `postman/Role-hierarchy.postman_collection.json` (42 requests). Final collection and schema results are recorded below.
+- Changes remain local on `integration/clinic-final`; main and the original Postman collection are unchanged.
+
+Both static and generated OpenAPI descriptions passed Redocly lint without warnings.
+
+
+Final API collections: original baseline **45 requests / 46 assertions**; password change **11 / 13**; account management **19 / 21**; account lifecycle **22 / 24**; role hierarchy **42 / 46**. Total: **139 requests / 150 assertions**, zero failures. Lifecycle directory assertions were updated to verify that Owner is excluded from manageable Admins. All original baseline collection requests/tests remain unchanged. Validation used an isolated API database; temporary credentials/results were removed afterward. Website and API remain available on ports 5173 and 8000.
+
+
+## Staff pagination and five-Admin limit validation
+
+Full backend run: **242 tests passed** (246.8 seconds), including nine new pagination/capacity tests. All **seven browser workflows passed** across the full run and targeted reruns. The five unaffected stories passed in the full run. The new boundary story passed in 19.8 seconds on fresh disposable fixtures, and account management passed in 22.1 seconds after scoping its Settings role selector. The first boundary attempt was interrupted by a Vite configuration-format reload; no product defect was indicated by that interruption. The final boundary story verifies ten/one Staff rows across two pages, search reset, deletion of the last row returning to page one, sixth-Admin rejection, inactive Admins retaining their slots, deletion enabling creation and successful replacement.
+
+Frontend lint/build, migration-drift check, schema generation/validation and both Redocly lints passed. Static/runtime schema inventories still match at 35 paths / 56 operations. The original backend clinic/auth contract tests and original Postman collection are unchanged. Admin capacity counts inactive Admins, excludes Owner and is checked transactionally in the backend. Existing over-limit accounts are preserved, with new creation blocked.
+
+Validation ran on an isolated database and frontend (ports 8001/5174); normal user development services remain on 8000/5173. Temporary validation services and sensitive files were cleaned up afterward. Changes remain local on integration/clinic-final; main is untouched.
+
+Original Postman baseline passed unchanged: **45 requests / 46 assertions**, zero failures. Normal website/API health checks both returned 200 after updating the running backend.
+
+
+## Registrar/Inventory workflows and clinical deletion validation
+
+- Full backend run: **257 tests passed**, including fifteen new external-workflow tests (263.4 seconds). Tests exercise current Registrar profiles and enrollment gating, direct role/CSRF/auth checks, catalog CRUD and notifications with per-user receipts, selected/all requests, no stock before delivery, atomic delivery validation, duplicate fulfillment, and stock-preserving dispensing-history deletion.
+- **Nine browser workflows passed across regression runs**. Account lifecycle and capacity passed in the initial run. Adding Owner mock navigation exposed a short-window sidebar overflow; the sidebar was made scrollable and account management then passed. The final six-story run passed clinical CRUD/reporting, Staff management, the complete new external workflow (42.4 seconds), mock Registrar/catalog edit/delete (4.9 seconds), password changes and role hierarchy. Older quantity selectors were scoped to the dispensing form; native select controls use accessible combobox selectors. API-created clinical fixtures are reloaded before checking website labels.
+- The new complete browser flow verifies health/consultation display labels restart at #1 after deletion while internal IDs continue increasing, a Registrar update reaches an open Staff page, graduated/dropped-out students cannot create, a new Inventory medicine generates Clinic notifications, selected and all requests reach Inventory and are fulfilled, and removing dispensing history leaves stock unchanged. The catalog story verifies Owner editing status/profile and editing/deleting an unused medicine in the mock workspaces.
+- API collections passed: original baseline **45 requests / 46 assertions**; new External-workflows collection **34 requests / 40 assertions**. Total **79 requests / 86 assertions**, zero failures. The original Postman collection is unchanged.
+- The earlier clinical deletion contract tests now explicitly authorize an Admin for deletion; the former dispensing-delete-405 test now expects Staff 403. These are intentional adjustments to the newly requested permissions, not removal of regression checks.
+- Frontend lint/build, Django configuration/migration checks, static/runtime schema generation and both Redocly lints passed. Matching inventory: **43 paths / 70 operations**, 3 public / 67 protected. Main runtime schema returns 200 with 43 paths; website HTML returns 200.
+- Desktop sidebar scrolling and the medicine/restock/notification screen were visually checked. Test screenshots are in the ignored frontend/test-results directory.
+- Isolated validation services used 8001/5174 and disposable accounts. Those services, credentials, API response reports and database were removed afterward. User services remain on **8000/5173**. Main was not modified; changes remain local on integration/clinic-final.
+- New mock state is process-local, matching the existing mock domain; it resets on backend restart. Real student/medicine source systems are not connected. Django account credentials were not changed.
+
+
+## Password dialog focus fix (Desktop copy, 2026-10-19)
+
+The shared Modal focus effect previously depended on an inline onClose callback. Background integration refreshes changed that callback and reran focus initialization, selecting the close button while the user typed. Focus initialization/cleanup now run only when the modal mounts/unmounts; an Effect Event reads the latest keyboard-close callback so pending-submit guards remain current. Initial focus prefers an enabled form field, and the Tab loop excludes disabled/hidden inputs.
+
+`frontend/tests/modal-focus.spec.js` passed (11.1 seconds). It uses intercepted API fixtures, types slowly across a confirmed integration refresh, checks the typed value and focused field, verifies Tab/Shift+Tab wrapping, prevents Escape from closing a pending password update, and verifies Escape/focus restoration after the request finishes. No real account password is submitted or changed. Frontend lint and production build passed. Changes are local and unpushed.

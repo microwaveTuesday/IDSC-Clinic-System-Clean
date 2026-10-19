@@ -19598,15 +19598,15 @@
   "variable": [
     {
       "key": "baseUrl",
-      "value": "http://127.0.0.1:8000"
+      "value": "http://127.0.0.1:8002"
     },
     {
       "key": "username",
-      "value": "clinic_admin"
+      "value": ""
     },
     {
       "key": "password",
-      "value": "AdminTest123!"
+      "value": ""
     },
     {
       "key": "csrfToken",

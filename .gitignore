@@ -26,3 +26,16 @@ frontend/dist/
 
 # Django framework database (auth/session infrastructure only)
 *.sqlite3-journal
+
+.validation-password
+schema.generated.yaml
+frontend/test-results/
+frontend/playwright-report/
+newman-results.json
+.validation-server.log
+
+.validation-regression.log
+
+.runtime/
+
+.development-secret

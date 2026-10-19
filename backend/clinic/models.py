@@ -53,7 +53,6 @@ class HealthRecord(models.Model):
     student_id = models.CharField(
         max_length=100,
         db_index=True,
-            #Temporarily allow null for testing purposes; should be non-null in production
         help_text="Opaque student identifier owned by Registrar",
     )
 
@@ -100,6 +99,21 @@ class HealthRecord(models.Model):
 
     class Meta:
         db_table = "health_records"
+        constraints = [
+            models.CheckConstraint(
+                condition=models.Q(height_cm__isnull=True)
+                | models.Q(height_cm__gt=0, height_cm__lte=300),
+                name="valid_health_height",
+            ),
+            models.CheckConstraint(
+                condition=models.Q(weight_kg__isnull=True)
+                | models.Q(weight_kg__gt=0, weight_kg__lte=500),
+                name="valid_health_weight",
+            ),
+            models.CheckConstraint(
+                condition=~models.Q(student_id=""), name="health_student_required"
+            ),
+        ]
         ordering = ["-created_at", "-health_record_id"]
         indexes = [
             models.Index(
@@ -134,6 +148,11 @@ class Consultation(models.Model):
 
     class Meta:
         db_table = "consultations"
+        constraints = [
+            models.CheckConstraint(
+                condition=~models.Q(student_id=""), name="consult_student_required"
+            )
+        ]
         ordering = ["-consulted_at", "-consultation_id"]
         indexes = [
             models.Index(
@@ -175,6 +194,12 @@ class HealthStatus(models.Model):
 
     class Meta:
         db_table = "health_statuses"
+        constraints = [
+            models.CheckConstraint(
+                condition=models.Q(status__in=HealthStatusChoices.values),
+                name="valid_health_status",
+            )
+        ]
         ordering = ["-effective_at", "-status_id"]
         indexes = [
             models.Index(
@@ -252,6 +277,20 @@ class MedicineDispensation(models.Model):
 
     class Meta:
         db_table = "medicine_dispensations"
+        constraints = [
+            models.CheckConstraint(
+                condition=models.Q(quantity__gte=1), name="positive_dispense_quantity"
+            ),
+            models.CheckConstraint(
+                condition=models.Q(status__in=DispensationStatusChoices.values),
+                name="valid_dispense_status",
+            ),
+            models.UniqueConstraint(
+                fields=["inventory_transaction_id"],
+                condition=~models.Q(inventory_transaction_id=""),
+                name="unique_inventory_deduction",
+            ),
+        ]
         ordering = ["-dispensed_at", "-dispensation_id"]
         indexes = [
             models.Index(
@@ -273,3 +312,46 @@ class MedicineDispensation(models.Model):
             f"Dispensation #{self.dispensation_id} - "
             f"{self.student_id} / {self.medicine_id}"
         )
+
+
+class MutationLock(models.Model):
+    """Database mutex acquired before side effects, including on SQLite."""
+
+    name = models.CharField(max_length=32, primary_key=True)
+
+
+class OperationReceipt(models.Model):
+    """Scoped replay receipt; no password or medical request body is stored."""
+
+    scope = models.CharField(max_length=64)
+    key = models.CharField(max_length=128)
+    fingerprint = models.CharField(max_length=64)
+    response = models.JSONField(default=dict, null=True)
+    status_code = models.PositiveSmallIntegerField(default=0)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        constraints = [
+            models.UniqueConstraint(
+                fields=["scope", "key"], name="unique_operation_replay"
+            )
+        ]
+
+
+class AuditEvent(models.Model):
+    """Metadata-only security trail, separate from deletable clinical history."""
+
+    actor_id = models.CharField(max_length=64, blank=True)
+    method = models.CharField(max_length=8)
+    path = models.CharField(max_length=256)
+    status_code = models.PositiveSmallIntegerField()
+    created_at = models.DateTimeField(auto_now_add=True, db_index=True)
+
+
+class IntegrationIncident(models.Model):
+    """Durable queue for operator reconciliation; never silently retry stock writes."""
+
+    transaction_id = models.CharField(max_length=100)
+    operation = models.CharField(max_length=40)
+    created_at = models.DateTimeField(auto_now_add=True)
+    resolved = models.BooleanField(default=False)

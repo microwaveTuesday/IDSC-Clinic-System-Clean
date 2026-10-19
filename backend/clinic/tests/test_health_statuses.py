@@ -666,6 +666,7 @@ class HealthStatusContractTests(MockDomainTestMixin, APITestCase):
         )
 
     def test_delete_removes_health_status(self):
+        self.user.groups.add(Group.objects.get(name="CLINIC_ADMIN"))
         status = self.create_status()
 
         response = self.client.delete(

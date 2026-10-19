@@ -8,3 +8,5 @@ class AuthenticationConfig(AppConfig):
         # Import schema extensions after Django app initialization.
         # The import registers them with drf-spectacular.
         from . import schema  # noqa: F401
+
+        from . import owner_setup  # noqa: F401

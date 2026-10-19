@@ -108,3 +108,33 @@ class MedicineDispensationAdmin(admin.ModelAdmin):
         "rolled_back_at",
         "created_at",
     )
+
+
+from .models import AuditEvent, IntegrationIncident
+
+
+@admin.register(AuditEvent)
+class AuditEventAdmin(admin.ModelAdmin):
+    list_display = ("created_at", "actor_id", "method", "path", "status_code")
+    readonly_fields = ("created_at", "actor_id", "method", "path", "status_code")
+
+    def has_add_permission(self, request):
+        return False
+
+    def has_change_permission(self, request, obj=None):
+        return False
+
+    def has_delete_permission(self, request, obj=None):
+        return False
+
+
+@admin.register(IntegrationIncident)
+class IntegrationIncidentAdmin(admin.ModelAdmin):
+    list_display = ("created_at", "transaction_id", "operation", "resolved")
+    readonly_fields = ("created_at", "transaction_id", "operation")
+
+    def has_add_permission(self, request):
+        return False
+
+    def has_delete_permission(self, request, obj=None):
+        return False
