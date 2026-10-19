@@ -1,5 +1,7 @@
 # Current validation record
 
+> Earlier submission background. Current improvement architecture/storage and evidence: [DATABASE.md](DATABASE.md), [IMPROVEMENT-VALIDATION.md](IMPROVEMENT-VALIDATION.md), [KNOWN-LIMITATIONS.md](KNOWN-LIMITATIONS.md).
+
 As of 19 October 2026, submission/clinic-final-project implements the features in [README.md](../README.md). Historical reports retain their stage-specific counts; use this page for latest implementation evidence.
 
 | Check | Recorded result and scope |

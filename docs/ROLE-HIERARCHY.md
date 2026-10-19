@@ -46,3 +46,5 @@ Owner sees the Administrators and Staff directories, with create, edit, activate
 `frontend/tests/role-hierarchy.spec.js` exercises Owner editing an Admin, Admin managing Staff, Staff clinical access and denied management, and Admin deleting Staff. `postman/Role-hierarchy.postman_collection.json` provides 42 API requests covering the hierarchy. Use disposable Owner credentials for validation.
 
 Current API inventory: 45 paths, 72 operations; 5 public and 67 protected. This role policy supersedes the earlier extension where Admins could manage other Admins.
+
+Improvement security change: Faculty/Student Portal health-status demonstration endpoints now require active Clinic roles. Roleless authenticated sessions receive403; genuine external provider/subject authorization is not invented. Staff creation now uses Django password validators. See [IMPROVEMENT-VALIDATION.md](IMPROVEMENT-VALIDATION.md).

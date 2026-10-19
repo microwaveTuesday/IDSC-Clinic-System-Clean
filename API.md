@@ -1,6 +1,6 @@
 # Clinic backend API reference
 
-Current branch: submission/clinic-final-project. Canonical machine-readable contract: [openapi.yaml](openapi.yaml). Runtime schema: `/api/schema/`; Swagger: `/docs`; ReDoc: `/api/schema/redoc/`. Development backend: http://127.0.0.1:8002.
+Current branch: improvement/clinic-final-10of10. Canonical machine-readable contract: [openapi.yaml](openapi.yaml). Runtime schema: `/api/schema/`; Swagger: `/docs`; ReDoc: `/api/schema/redoc/`. Development backend: http://127.0.0.1:8002.
 
 OpenAPI 3.1.0: **45 paths, 72 operations, 5 public, 67 protected**. The table below includes every canonical operation; compatibility aliases are excluded.
 
@@ -57,8 +57,8 @@ Owner is the single superuser; CLINIC_ADMIN manages Staff only; CLINIC_STAFF use
 | GET | `/api/v1/reports/health-records/` | Owner, Admin, Staff |
 | GET | `/api/v1/reports/medicine-inventory/` | Owner, Admin, Staff |
 | GET | `/api/v1/reports/medicine-dispensations/` | Owner, Admin, Staff |
-| GET | `/api/v1/integrations/faculty/health-status/{student_id}/` | Authenticated |
-| GET | `/api/v1/integrations/student-portal/health-status/{student_id}/` | Authenticated |
+| GET | `/api/v1/integrations/faculty/health-status/{student_id}/` | Owner, Admin, Staff |
+| GET | `/api/v1/integrations/student-portal/health-status/{student_id}/` | Owner, Admin, Staff |
 | GET | `/api/v1/users/` | Owner, Admin |
 | POST | `/api/v1/users/` | Owner, Admin |
 | GET | `/api/v1/users/{user_id}/` | Owner, Admin |
@@ -116,6 +116,17 @@ Errors use application/problem+json with type/title/status/detail/instance/code 
 
 ## Storage and validation
 
-Accounts, sessions and the permanent Owner reference persist in Django's database. Clinic records, mock students/medicines, stock transactions, restocks and notifications are process-local and reset on restart. CLINIC_EMPTY_START=1 starts mock stores empty; it does not reset accounts. PostgreSQL configuration alone does not add Clinic business persistence.
+Accounts, sessions and the permanent Owner reference persist in Django's database. Clinic records persist when CLINIC_DATA_BACKEND=database; mock students/medicines, stock transactions, restocks and notifications remain process-local. CLINIC_EMPTY_START=1 starts mock stores empty; it does not reset accounts. Select database repository mode to use SQLite/PostgreSQL Clinic persistence.
 
 [SETUP.md](SETUP.md) provides commands. [CURRENT-VALIDATION.md](docs/CURRENT-VALIDATION.md) distinguishes latest checks from historical Postman/browser evidence. Original and feature collections are under postman/; use disposable data and configure local credentials/base URL. Request/response field details remain authoritative in openapi.yaml and verified runtime tests.
+
+
+## Reliability and security extensions
+
+No endpoint paths were removed or added. Coordinated business mutations accept optional Idempotency-Key (ASCII, at most128 characters), scoped to actor+method+path. Successful replay returns the original status/body and Idempotency-Replayed:true; reused key with a different body returns409. Authorization runs before replay. Receipts persist and may contain sensitive response fields: restrict database access and plan retention.
+
+Database-mode clinical updates/deletes accept If-Match from a detail ETag; stale state returns409. Updates can instead use X-Record-Version with the original updated_at ISO timestamp, as the frontend does. Invalid timestamp headers return400. Header-free legacy clients remain supported with transactional serialization; they do not receive optimistic conflict protection.
+
+Medical API responses use Cache-Control:no-store. Staff creation now enforces configured password validators and a1024-character maximum. Roleless sessions cannot read Faculty/Portal health projections. Production login throttling is10/minute per direct client IP using the configured cache; no arbitrary forwarded IP trust. In production use an appropriately shared cache/proxy policy when scaling beyond the supported single mock worker.
+
+Failed stock compensation or post-restore Clinic failure returns503 reconciliation_required and creates a private IntegrationIncident. Owner inspects/resolves incidents via Django administration after checking the Inventory ledger; marking resolved alone does not repair stock. Never blindly retry an unknown external stock outcome. See [KNOWN-LIMITATIONS.md](docs/KNOWN-LIMITATIONS.md).

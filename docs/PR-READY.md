@@ -1,15 +1,11 @@
-# PR title
+# Draft PR: durable Clinic records and verified final-project reliability
 
-Complete clinic website integration, account roles and one-time Owner setup
+Target: microwaveTuesday/IDSC-Clinic-System-Clean main. Head: improvement/clinic-final-10of10. Do not merge without review.
 
-# Description
+This branch imports the complete source submission9514469 and its ancestry without modifying corpeadmin or either main/fix branch. It adds an ORM Clinic repository for SQLite/PostgreSQL while retaining explicit mocks, constraints/transaction locks, scoped replay receipts, conditional updates, private audit/reconciliation metadata and first-Owner/role/lifecycle compatibility.
 
-The clean repository had a verified backend but a starter frontend; the legacy interface simulated credentials and local record changes. This branch connects the recovered clinic layout to Django sessions/CSRF and the Clinic API, including records, consultations, statuses, dispensing/rollback, reports and account management.
+Security fixes enforce Staff password strength, deny roleless medical-status reads and fail closed for production secrets/hosts with secure cookies/HTTPS policy. Login throttling is production-only and documented as cache/peer scoped. Views and frontend controls/dialogs are split into focused modules. API client timeouts/retry keys, pending-state protection and secondary-text contrast improve reliability without redesigning the interface.
 
-Fresh installations register exactly one Owner and open Dashboard automatically. Later visits show shared login. Owner manages Admins/Staff; Admin manages Staff; Staff uses clinic features without administration. Admin capacity is five including inactive accounts; Staff pages contain at most ten accounts. Settings supports verified username/password changes and light/dark theme.
+Verification: baseline273 normal-hasher tests; expanded PostgreSQL294 passed with normal hashing; final SQLite292 passed/2 PostgreSQL-only skips and PostgreSQL294 passed using a test-only faster hasher. PostgreSQL server restart and fresh application process retained all four Clinic resources/references. Six Newman collections:173 requests/190 assertions/0 failures. Twelve distinct browser stories passed across scoped runs plus a PostgreSQL clinical rerun. Schemas/lints/build/migrations/deploy and dependency checks pass. See IMPROVEMENT-VALIDATION.md for exact scope and failed intermediate checks/fixes.
 
-Registrar lookup/status refresh, inactive-student creation restrictions, Owner mock workspaces, selected/all restocks with fulfillment, notifications and Owner/Admin clinical/history deletion are implemented. Visible record numbers are consecutive while API IDs stay stable. History deletion does not restore stock.
-
-The original 45-operation baseline was extended to 45 paths/72 operations (5 public/67 protected). Tests were retained and adjusted where role/deletion policy intentionally changed. Backend suite now contains 273 tests. See [CURRENT-VALIDATION.md](CURRENT-VALIDATION.md) for exact latest checks, faster-hasher test conditions and historical browser/Postman scope. [CONSOLIDATION-AUDIT.md](CONSOLIDATION-AUDIT.md) records branch selection.
-
-Accounts/Owner registration persist in Django's database. Clinic and external mock business data remains in process memory and resets on restart. Optional empty mock startup is supported. Real external adapters and durable Clinic storage remain future work; see [REAL-SYSTEM-INTEGRATION.md](REAL-SYSTEM-INTEGRATION.md). Use a reviewed PR and teammate approval before merging main.
+Remaining limits: no genuine external contracts/adapters; external mock state remains process-local/single-worker; uncertain external crash windows require reconciliation; hosted TLS, operational recovery and exhaustive security/accessibility certification are not claimed. The school-project engineering assessment is9.5/10, not10/10. See KNOWN-LIMITATIONS.md and DATABASE.md.

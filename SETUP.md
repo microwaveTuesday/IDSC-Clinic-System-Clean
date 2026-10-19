@@ -1,6 +1,6 @@
 # Run the clinic project in VS Code
 
-Applies to `submission/clinic-final-project` in corpeadmin/IDSC-Clinic-System. See [README.md](README.md) for features and storage limits.
+Applies to `improvement/clinic-final-10of10` in microwaveTuesday/IDSC-Clinic-System-Clean. See [README.md](README.md) for features and storage limits.
 
 ## Open the project
 
@@ -9,8 +9,8 @@ Use Python 3.13, Node.js/npm compatible with the frontend lockfile, Git and VS C
 For a new checkout:
 
 ```powershell
-git clone --branch submission/clinic-final-project https://github.com/corpeadmin/IDSC-Clinic-System.git
-cd IDSC-Clinic-System
+git clone --branch improvement/clinic-final-10of10 https://github.com/microwaveTuesday/IDSC-Clinic-System-Clean.git
+cd IDSC-Clinic-System-Clean
 code .
 ```
 
@@ -23,12 +23,13 @@ python -m venv .venv
 .\.venv\Scripts\Activate.ps1
 python -m pip install -r backend/requirements.txt
 cd backend
+$env:CLINIC_DATA_BACKEND="database"
 python manage.py migrate --noinput
 python manage.py check
 python manage.py runserver 127.0.0.1:8002
 ```
 
-Apply all committed migrations. Back up existing databases before migration. The singleton-Owner migration adopts an existing Owner and retains extra legacy Owners as inactive Staff. See [OWNER-REGISTRATION.md](docs/OWNER-REGISTRATION.md). Clinic ORM tables may exist, but the active business repository remains in memory.
+Apply all committed migrations. Back up existing databases before migration. The singleton-Owner migration adopts an existing Owner and retains extra legacy Owners as inactive Staff. See [OWNER-REGISTRATION.md](docs/OWNER-REGISTRATION.md). Clinic ORM tables may exist, and CLINIC_DATA_BACKEND selects mock memory or database persistence.
 
 If PowerShell blocks activation, use `.venv\Scripts\python.exe` from the root, or `..\.venv\Scripts\python.exe` inside backend, instead of python. Activation is optional when invoking the interpreter directly.
 
@@ -59,13 +60,13 @@ Private `backend/.env`, ignored by Git:
 ```ini
 DEBUG=True
 ALLOWED_HOSTS=localhost,127.0.0.1
-CLINIC_DATA_BACKEND=mock
+CLINIC_DATA_BACKEND=database
 DB_ENGINE=django.db.backends.sqlite3
 DB_NAME=framework.sqlite3
 CLINIC_EMPTY_START=0
 ```
 
-DB_NAME is relative to backend unless absolute. Accounts, permanent Owner registration and sessions persist there. Clinic/Registrar/Inventory mock data resets when Django restarts. Empty-start 0 loads samples; 1 starts mock records/students/medicines empty. Owner populates the mock workspaces. This setting does not clear accounts.
+DB_NAME is relative to backend unless absolute. Accounts, permanent Owner registration and sessions persist there. Clinic data persists with CLINIC_DATA_BACKEND=database; mock Clinic/Registrar/Inventory state resets on restart. Empty-start 0 loads samples; 1 starts mock records/students/medicines empty. Owner populates the mock workspaces. This setting does not clear accounts.
 
 For a fresh-registration demonstration, use a separate new database. Set DB_NAME to an unused test filename before migration and start the isolated backend on another port.
 
@@ -88,13 +89,14 @@ Inside backend:
 
 ```powershell
 $env:CLINIC_EMPTY_START="0"
+$env:CLINIC_DATA_BACKEND="mock"
 python manage.py check
 python manage.py makemigrations --check --dry-run
 python manage.py test --noinput
 python manage.py spectacular --file ../schema.generated.yaml --validate
 ```
 
-The runner creates/removes a test database. Currently there are 273 tests; normal password hashing can take several minutes. See [CURRENT-VALIDATION.md](docs/CURRENT-VALIDATION.md) for recorded conditions.
+The runner creates/removes a test database. Currently there are 294 tests; normal password hashing can take several minutes. See [CURRENT-VALIDATION.md](docs/CURRENT-VALIDATION.md) for recorded conditions.
 
 Inside frontend:
 
@@ -126,6 +128,11 @@ Import collections from postman/ into Postman. Set baseUrl to http://127.0.0.1:8
 
 ## Remaining work and Git
 
-Real external adapters and persistent business storage remain future work. PostgreSQL settings/requirements-finals.txt support infrastructure but do not replace MockClinicRepository. See [REAL-SYSTEM-INTEGRATION.md](docs/REAL-SYSTEM-INTEGRATION.md).
+Real external adapters remain future work. Persistent Clinic storage is now implemented: select CLINIC_DATA_BACKEND=database and migrate. See [DATABASE.md](docs/DATABASE.md). See [REAL-SYSTEM-INTEGRATION.md](docs/REAL-SYSTEM-INTEGRATION.md).
 
 Keep credentials, .env, databases, backups, virtual environments and generated outputs out of commits. Use the submission branch and a reviewed PR for main.
+
+
+## Persistent final-project mode
+
+In backend/.env set CLINIC_DATA_BACKEND=database. SQLite works with the standard requirements and existing DB_NAME. For PostgreSQL install requirements-finals.txt and provide private DB_ENGINE/DB_NAME/DB_USER/DB_PASSWORD/DB_HOST/DB_PORT. Run all migrations before startup. Mock Registrar/Inventory workspaces remain available independently of Clinic persistence. See [DATABASE.md](docs/DATABASE.md) and [DEPLOYMENT.md](docs/DEPLOYMENT.md).

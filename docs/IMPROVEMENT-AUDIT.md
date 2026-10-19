@@ -4,7 +4,7 @@ Recorded before implementation changes. Imported source9514469fe0eddac3d185e806d
 
 ## Baseline observations
 
-- 273 existing Django tests; full normal-hasher run launched, result pending at this checkpoint. Frontend npm ci, ESLint and production build pass.
+- 273 existing Django tests; full normal-hasher baseline completed:273 passed in135.900 seconds. Frontend npm ci, ESLint and production build pass.
 - ClinicService always selects MockClinicRepository, ignoring storage configuration. Four Clinic ORM models/migrations already exist, but no persistent repository. All business history resets on restart.
 - Read/modify/write operations lack optimistic concurrency checks. Mock inventory stock operations and clinical mock mutations lack one shared synchronization boundary. External transaction IDs restart their numeric sequence.
 - Dispensing compensation catches and discards stock-restore failure. No durable idempotency or reconciliation receipt exists. Restock fulfillment does use a process lock and duplicate-state guard, but all mock state is process-local.
