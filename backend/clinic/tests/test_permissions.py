@@ -142,7 +142,7 @@ class PermissionContractTests(APITestCase):
             200,
         )
 
-    def test_authenticated_user_can_access_faculty_integration(self):
+    def test_roleless_user_cannot_access_faculty_integration(self):
         response = self.client_for(
             self.plain
         ).get(
@@ -151,10 +151,10 @@ class PermissionContractTests(APITestCase):
 
         self.assertEqual(
             response.status_code,
-            200,
+            403,
         )
 
-    def test_authenticated_user_can_access_student_portal_integration(self):
+    def test_roleless_user_cannot_access_student_portal_integration(self):
         response = self.client_for(
             self.plain
         ).get(
@@ -163,7 +163,7 @@ class PermissionContractTests(APITestCase):
 
         self.assertEqual(
             response.status_code,
-            200,
+            403,
         )
 
     def test_anonymous_auth_only_endpoints_return_401(self):

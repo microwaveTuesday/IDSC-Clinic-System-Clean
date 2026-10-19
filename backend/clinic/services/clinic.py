@@ -22,6 +22,24 @@ from .inventory import (
 )
 
 from ..data.clinic import mock_clinic_repository
+from django.conf import settings
+from clinic.mutations import mutation_lock
+from functools import wraps
+
+def coordinated(method):
+    @wraps(method)
+    def wrapped(*args, **kwargs):
+        with mutation_lock():
+            return method(*args, **kwargs)
+    return wrapped
+
+
+def configured_repository():
+    if settings.CLINIC_DATA_BACKEND == 'mock':return mock_clinic_repository
+    if settings.CLINIC_DATA_BACKEND == 'database':
+        from clinic.data.persistent import PersistentClinicRepository
+        return PersistentClinicRepository()
+    raise ValueError('CLINIC_DATA_BACKEND must be mock or database.')
 
 
 class ClinicResourceNotFoundError(Exception):
@@ -39,7 +57,7 @@ class ClinicDispensationRollbackUnavailableError(Exception):
 class ClinicService:
     def __init__(self, repository=None):
         self.repository = (
-            repository or mock_clinic_repository
+            repository or configured_repository()
         )
 
     def reset_mock_data(self):
@@ -622,6 +640,7 @@ class ClinicService:
 
         return record
 
+    @coordinated
     def create_dispensation(self, values):
         """
         Coordinate Registrar validation, Inventory deduction,
@@ -659,6 +678,7 @@ class ClinicService:
 
             raise
 
+    @coordinated
     def rollback_dispensation(
         self,
         dispensation_id,

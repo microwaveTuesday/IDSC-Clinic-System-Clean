@@ -189,7 +189,7 @@ def custom_exception_handler(exc, context):
 
     # Database constraint violations.
     if isinstance(exc, IntegrityError):
-        logger.warning("Database IntegrityError encountered: %s", exc)
+        logger.warning("Database integrity constraint violated; inspect protected database diagnostics.")
 
         return _problem_response(
             request,

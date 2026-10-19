@@ -174,6 +174,7 @@ class StaffCreateSerializer(serializers.ModelSerializer):
         write_only=True,
         required=True,
         trim_whitespace=False,
+        max_length=1024,
     )
 
     class Meta:
@@ -196,13 +197,13 @@ class StaffCreateSerializer(serializers.ModelSerializer):
 
         return value
 
-    def validate_password(self, value):
-        if not value:
-            raise serializers.ValidationError(
-                "Password is required."
-            )
-
-        return value
+    def validate(self, attrs):
+        candidate=User(**{k:v for k,v in attrs.items() if k!='password'})
+        try:
+            validate_password(attrs['password'],user=candidate)
+        except DjangoValidationError as exc:
+            raise serializers.ValidationError({'password':exc.messages}) from exc
+        return attrs
 
     def create(self, validated_data):
         password = validated_data.pop("password")

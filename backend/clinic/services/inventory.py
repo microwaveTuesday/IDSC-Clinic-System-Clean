@@ -8,6 +8,7 @@ stock transactions.
 
 import os
 from copy import deepcopy
+from uuid import uuid4
 
 
 class MedicineNotFoundError(Exception):
@@ -177,7 +178,7 @@ class MockInventoryService:
             medicine["quantity_in_stock"] -= quantity
 
             transaction_id = (
-                f"INV-TX-{self._next_transaction_number:04d}"
+                f"INV-TX-{uuid4().hex}"
             )
             self._next_transaction_number += 1
 
@@ -217,7 +218,7 @@ class MockInventoryService:
                 transaction["rolled_back"] = True
 
                 rollback_transaction_id = (
-                    f"INV-TX-{self._next_transaction_number:04d}"
+                    f"INV-TX-{uuid4().hex}"
                 )
                 self._next_transaction_number += 1
 

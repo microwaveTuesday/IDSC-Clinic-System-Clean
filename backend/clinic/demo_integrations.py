@@ -16,7 +16,8 @@ from .exceptions import ConflictError
 from .services.registrar import registrar_service, StudentNotFoundError
 from .services.inventory import inventory_service, MedicineNotFoundError
 
-lock = RLock()
+from .mutations import process_lock, guarded
+lock = process_lock
 restocks = {}
 notifications = []
 read_notifications = {}
@@ -121,6 +122,7 @@ def medicine(medicine_id):
 
 class ImportStudentView(DemoBase):
     @extend_schema(request=StudentLookup, responses=StudentWrite)
+    @guarded
     def post(self, request):
         serializer = StudentLookup(data=request.data)
         serializer.is_valid(raise_exception=True)
@@ -135,6 +137,7 @@ class RegistrarStudentsView(OwnerDemo):
             return Response(registrar_service.list_students())
 
     @extend_schema(request=StudentWrite, responses={201: StudentWrite})
+    @guarded
     def post(self, request):
         serializer = StudentWrite(data=request.data)
         serializer.is_valid(raise_exception=True)
@@ -148,6 +151,7 @@ class RegistrarStudentsView(OwnerDemo):
 
 class RegistrarStudentDetailView(OwnerDemo):
     @extend_schema(request=StudentWrite, responses=StudentWrite)
+    @guarded
     def patch(self, request, student_id):
         with lock:
             existing = student(student_id)
@@ -167,6 +171,7 @@ class InventoryMedicinesView(OwnerDemo):
             return Response(inventory_service.list_medicines())
 
     @extend_schema(request=MedicineWrite, responses={201: MedicineWrite})
+    @guarded
     def post(self, request):
         serializer = MedicineWrite(data=request.data)
         serializer.is_valid(raise_exception=True)
@@ -181,6 +186,7 @@ class InventoryMedicinesView(OwnerDemo):
 
 class InventoryMedicineDetailView(OwnerDemo):
     @extend_schema(request=MedicineWrite, responses=MedicineWrite)
+    @guarded
     def patch(self, request, medicine_id):
         with lock:
             existing = medicine(medicine_id)
@@ -194,6 +200,7 @@ class InventoryMedicineDetailView(OwnerDemo):
             return Response(medicine(medicine_id))
 
     @extend_schema(request=None, responses={204: None})
+    @guarded
     def delete(self, request, medicine_id):
         with lock:
             medicine(medicine_id)
@@ -213,6 +220,7 @@ class RestocksView(DemoBase):
             return Response(deepcopy(list(reversed(list(restocks.values())))))
 
     @extend_schema(request=RestockWrite, responses={201: RestockResponse})
+    @guarded
     def post(self, request):
         serializer = RestockWrite(data=request.data)
         serializer.is_valid(raise_exception=True)
@@ -234,6 +242,7 @@ class RestocksView(DemoBase):
 
 class FulfillRestockView(OwnerDemo):
     @extend_schema(request=None, responses=RestockResponse)
+    @guarded
     def post(self, request, request_id):
         with lock:
             row = restocks.get(request_id)
@@ -265,6 +274,7 @@ class InventoryNotificationsView(DemoBase):
             return Response(deepcopy([n for n in reversed(notifications) if n["notification_id"] not in seen]))
 
     @extend_schema(request=NotificationRead, responses={204: None})
+    @guarded
     def post(self, request):
         serializer = NotificationRead(data=request.data)
         serializer.is_valid(raise_exception=True)

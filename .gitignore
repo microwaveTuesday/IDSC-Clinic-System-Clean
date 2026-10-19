@@ -37,3 +37,5 @@ newman-results.json
 .validation-regression.log
 
 .runtime/
+
+.development-secret

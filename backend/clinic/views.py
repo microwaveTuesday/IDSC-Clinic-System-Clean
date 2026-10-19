@@ -15,6 +15,7 @@ Clinic ORM models.
 """
 
 from authentication.permissions import IsClinicStaff, IsClinicAdmin
+from clinic.mutations import guarded
 
 from .pagination import ClinicPagination
 
@@ -682,6 +683,7 @@ class HealthRecordViewSet(viewsets.ViewSet):
             self._serialize(record).data
         )
 
+    @guarded
     def create(self, request):
         serializer = self.serializer_class(
             data=request.data
@@ -714,6 +716,7 @@ class HealthRecordViewSet(viewsets.ViewSet):
             status=status.HTTP_201_CREATED,
         )
 
+    @guarded
     def update(
         self,
         request,
@@ -725,6 +728,7 @@ class HealthRecordViewSet(viewsets.ViewSet):
             partial=False,
         )
 
+    @guarded
     def partial_update(
         self,
         request,
@@ -781,6 +785,7 @@ class HealthRecordViewSet(viewsets.ViewSet):
             self._serialize(record).data
         )
 
+    @guarded
     def destroy(
         self,
         request,
@@ -918,6 +923,7 @@ class ConsultationViewSet(viewsets.ViewSet):
             self._serialize(record).data
         )
 
+    @guarded
     def create(self, request):
         serializer = self.serializer_class(
             data=request.data
@@ -948,6 +954,7 @@ class ConsultationViewSet(viewsets.ViewSet):
             status=status.HTTP_201_CREATED,
         )
 
+    @guarded
     def update(
         self,
         request,
@@ -959,6 +966,7 @@ class ConsultationViewSet(viewsets.ViewSet):
             partial=False,
         )
 
+    @guarded
     def partial_update(
         self,
         request,
@@ -1015,6 +1023,7 @@ class ConsultationViewSet(viewsets.ViewSet):
             self._serialize(record).data
         )
 
+    @guarded
     def destroy(
         self,
         request,
@@ -1152,6 +1161,7 @@ class HealthStatusViewSet(viewsets.ViewSet):
             self._serialize(record).data
         )
 
+    @guarded
     def create(self, request):
         serializer = self.serializer_class(
             data=request.data
@@ -1182,6 +1192,7 @@ class HealthStatusViewSet(viewsets.ViewSet):
             status=status.HTTP_201_CREATED,
         )
 
+    @guarded
     def update(
         self,
         request,
@@ -1193,6 +1204,7 @@ class HealthStatusViewSet(viewsets.ViewSet):
             partial=False,
         )
 
+    @guarded
     def partial_update(
         self,
         request,
@@ -1249,6 +1261,7 @@ class HealthStatusViewSet(viewsets.ViewSet):
             self._serialize(record).data
         )
 
+    @guarded
     def destroy(
         self,
         request,
@@ -1380,6 +1393,7 @@ class MedicineDispensationViewSet(viewsets.ViewSet):
     ]
 
     @extend_schema(request=None, responses={204: None}, parameters=[OpenApiParameter(name="dispensation_id", type=OpenApiTypes.INT64, location=OpenApiParameter.PATH)])
+    @guarded
     def destroy(self, request, dispensation_id=None):
         record = clinic_service.repository.get_dispensation(dispensation_id)
         if record is None:
@@ -1491,6 +1505,7 @@ class MedicineDispensationViewSet(viewsets.ViewSet):
             self._serialize(record).data
         )
 
+    @guarded
     def create(
         self,
         request,
@@ -1537,6 +1552,7 @@ class MedicineDispensationViewSet(viewsets.ViewSet):
         methods=["post"],
         url_path="rollback",
     )
+    @guarded
     def rollback(
         self,
         request,
@@ -1635,7 +1651,7 @@ class FacultyHealthStatusIntegrationView(HealthStatusIntegrationView):
     when real module-to-module integration is introduced.
     """
 
-    permission_classes = [IsAuthenticated]
+    permission_classes = [IsClinicStaff]
 
 class StudentPortalHealthStatusIntegrationView(HealthStatusIntegrationView):
     """
@@ -1646,6 +1662,6 @@ class StudentPortalHealthStatusIntegrationView(HealthStatusIntegrationView):
     when real module-to-module integration is introduced.
     """
 
-    permission_classes = [IsAuthenticated]
+    permission_classes = [IsClinicStaff]
 
 

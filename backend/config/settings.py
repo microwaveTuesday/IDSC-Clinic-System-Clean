@@ -16,15 +16,23 @@ BASE_DIR = Path(__file__).resolve().parent.parent
 load_dotenv(BASE_DIR / '.env')
 
 # Quick-start development settings - unsuitable for production
-SECRET_KEY = os.environ.get(
-    'SECRET_KEY',
-    'django-insecure-4uipb%r-hr+7aq+2g7xtu(a6gnf=0s-^ql!b6^=q=vi8g+2kz4'
-)
-
 DEBUG = os.environ.get('DEBUG', 'True').lower() in ('true', '1', 'yes')
+SECRET_KEY = os.environ.get('SECRET_KEY')
+if not SECRET_KEY and DEBUG:
+    from django.core.management.utils import get_random_secret_key
+    secret_file=BASE_DIR / '.development-secret'
+    try:
+        with secret_file.open('x',encoding='utf-8') as stream:
+            stream.write(get_random_secret_key())
+    except FileExistsError:
+        pass
+    SECRET_KEY=secret_file.read_text(encoding='utf-8').strip()
+if not SECRET_KEY:
+    from django.core.exceptions import ImproperlyConfigured
+    raise ImproperlyConfigured('Set a private SECRET_KEY before production startup.')
 
 ALLOWED_HOSTS = [
-    host.strip() for host in os.environ.get('ALLOWED_HOSTS', 'localhost,127.0.0.1,*').split(',') if host.strip()
+    host.strip() for host in os.environ.get('ALLOWED_HOSTS', 'localhost,127.0.0.1').split(',') if host.strip()
 ]
 
 
@@ -57,6 +65,7 @@ MIDDLEWARE = [
     'django.contrib.auth.middleware.AuthenticationMiddleware',
     'django.contrib.messages.middleware.MessageMiddleware',
     'django.middleware.clickjacking.XFrameOptionsMiddleware',
+    'clinic.middleware.ClinicResponseMiddleware',
 ]
 
 ROOT_URLCONF = 'config.urls'
@@ -303,3 +312,28 @@ MAILERS = {
         'BACKEND': 'django.core.mail.backends.console.EmailBackend',
     },
 }
+
+
+# Explicit production profile: missing secrets/hosts never silently fall back.
+from django.core.exceptions import ImproperlyConfigured
+if CLINIC_DATA_BACKEND not in ('mock','database'):
+    raise ImproperlyConfigured('CLINIC_DATA_BACKEND must be mock or database.')
+if not DEBUG:
+    if not os.environ.get('SECRET_KEY') or len(SECRET_KEY)<50 or SECRET_KEY.startswith('django-insecure-'):
+        raise ImproperlyConfigured('Production requires a private SECRET_KEY of at least 50 characters.')
+    if '*' in ALLOWED_HOSTS or not os.environ.get('ALLOWED_HOSTS'):
+        raise ImproperlyConfigured('Production requires explicit ALLOWED_HOSTS without wildcard.')
+    SESSION_COOKIE_SECURE=True
+    CSRF_COOKIE_SECURE=True
+    SECURE_SSL_REDIRECT=True
+    SECURE_HSTS_SECONDS=31536000
+    SECURE_HSTS_INCLUDE_SUBDOMAINS=True
+    SECURE_HSTS_PRELOAD=True
+    SECURE_CONTENT_TYPE_NOSNIFF=True
+    REST_FRAMEWORK['DEFAULT_RENDERER_CLASSES']=['rest_framework.renderers.JSONRenderer']
+SESSION_COOKIE_HTTPONLY=True
+SESSION_COOKIE_SAMESITE='Lax'
+CORS_ALLOWED_ORIGINS=[x for x in os.environ.get('CORS_ALLOWED_ORIGINS',','.join(CORS_ALLOWED_ORIGINS)).split(',') if x]
+CSRF_TRUSTED_ORIGINS=[x for x in os.environ.get('CSRF_TRUSTED_ORIGINS',','.join(CSRF_TRUSTED_ORIGINS)).split(',') if x]
+
+LOGIN_THROTTLE_ENABLED = not DEBUG

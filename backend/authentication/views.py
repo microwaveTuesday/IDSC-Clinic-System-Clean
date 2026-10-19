@@ -1,3 +1,5 @@
+from rest_framework.decorators import throttle_classes
+from .throttles import LoginThrottle
 from django.contrib.auth import authenticate, get_user_model, login, logout, update_session_auth_hash
 from django.db import IntegrityError, transaction
 from django.views.decorators.debug import sensitive_post_parameters
@@ -61,6 +63,7 @@ def csrf_token(request):
 @api_view(["POST"])
 @permission_classes([AllowAny])
 @csrf_protect
+@throttle_classes([LoginThrottle])
 def login_view(request):
     """
     Authenticate a user and create a Django session.
