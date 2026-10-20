@@ -141,7 +141,9 @@ def guarded(method):
                         from django.utils import timezone
                         from datetime import timedelta
 
-                        if receipt.created_at < timezone.now() - timedelta(
+                        if (
+                            receipt.response is None and receipt.status_code != 204
+                        ) or receipt.created_at < timezone.now() - timedelta(
                             hours=settings.REPLAY_RETENTION_HOURS
                         ):
                             raise ConflictError(

@@ -382,6 +382,14 @@ INVENTORY_BACKEND = os.environ.get("INVENTORY_BACKEND", "mock")
 MOCK_INVENTORY_DB = os.environ.get(
     "MOCK_INVENTORY_DB", str(BASE_DIR / "mock-inventory.sqlite3")
 )
+if INVENTORY_BACKEND == "durable_mock" and "sqlite3" in DB_ENGINE:
+    if (
+        str(SQLITE_NAME) != ":memory:"
+        and Path(MOCK_INVENTORY_DB).resolve() == Path(SQLITE_NAME).resolve()
+    ):
+        raise ImproperlyConfigured(
+            "The simulated Inventory ledger must use a separate database file."
+        )
 REPLAY_RETENTION_HOURS = int(os.environ.get("REPLAY_RETENTION_HOURS", "24"))
 if REPLAY_RETENTION_HOURS < 1:
     raise ImproperlyConfigured("REPLAY_RETENTION_HOURS must be positive.")

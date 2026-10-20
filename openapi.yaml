@@ -441,8 +441,10 @@ paths:
       - name: Idempotency-Key
         in: header
         required: false
-        description: Optional actor/path scoped replay key. Reuse identical key/body
-          after a network failure; changed body returns 409.
+        description: Actor/path scoped replay key; required for external writes in
+          durable_mock Inventory mode, optional otherwise. Reuse identical key/body
+          after a network failure; changed body or expired replay returns 409. Uncertain
+          Inventory outcomes return 503; do not retry with a new key.
         schema:
           type: string
           maxLength: 128
@@ -484,8 +486,10 @@ paths:
       - name: Idempotency-Key
         in: header
         required: false
-        description: Optional actor/path scoped replay key. Reuse identical key/body
-          after a network failure; changed body returns 409.
+        description: Actor/path scoped replay key; required for external writes in
+          durable_mock Inventory mode, optional otherwise. Reuse identical key/body
+          after a network failure; changed body or expired replay returns 409. Uncertain
+          Inventory outcomes return 503; do not retry with a new key.
         schema:
           type: string
           maxLength: 128
@@ -545,8 +549,10 @@ paths:
       - name: Idempotency-Key
         in: header
         required: false
-        description: Optional actor/path scoped replay key. Reuse identical key/body
-          after a network failure; changed body returns 409.
+        description: Actor/path scoped replay key; required for external writes in
+          durable_mock Inventory mode, optional otherwise. Reuse identical key/body
+          after a network failure; changed body or expired replay returns 409. Uncertain
+          Inventory outcomes return 503; do not retry with a new key.
         schema:
           type: string
           maxLength: 128
@@ -605,8 +611,10 @@ paths:
       - name: Idempotency-Key
         in: header
         required: false
-        description: Optional actor/path scoped replay key. Reuse identical key/body
-          after a network failure; changed body returns 409.
+        description: Actor/path scoped replay key; required for external writes in
+          durable_mock Inventory mode, optional otherwise. Reuse identical key/body
+          after a network failure; changed body or expired replay returns 409. Uncertain
+          Inventory outcomes return 503; do not retry with a new key.
         schema:
           type: string
           maxLength: 128
@@ -729,8 +737,10 @@ paths:
       - name: Idempotency-Key
         in: header
         required: false
-        description: Optional actor/path scoped replay key. Reuse identical key/body
-          after a network failure; changed body returns 409.
+        description: Actor/path scoped replay key; required for external writes in
+          durable_mock Inventory mode, optional otherwise. Reuse identical key/body
+          after a network failure; changed body or expired replay returns 409. Uncertain
+          Inventory outcomes return 503; do not retry with a new key.
         schema:
           type: string
           maxLength: 128
@@ -772,8 +782,10 @@ paths:
       - name: Idempotency-Key
         in: header
         required: false
-        description: Optional actor/path scoped replay key. Reuse identical key/body
-          after a network failure; changed body returns 409.
+        description: Actor/path scoped replay key; required for external writes in
+          durable_mock Inventory mode, optional otherwise. Reuse identical key/body
+          after a network failure; changed body or expired replay returns 409. Uncertain
+          Inventory outcomes return 503; do not retry with a new key.
         schema:
           type: string
           maxLength: 128
@@ -833,8 +845,10 @@ paths:
       - name: Idempotency-Key
         in: header
         required: false
-        description: Optional actor/path scoped replay key. Reuse identical key/body
-          after a network failure; changed body returns 409.
+        description: Actor/path scoped replay key; required for external writes in
+          durable_mock Inventory mode, optional otherwise. Reuse identical key/body
+          after a network failure; changed body or expired replay returns 409. Uncertain
+          Inventory outcomes return 503; do not retry with a new key.
         schema:
           type: string
           maxLength: 128
@@ -893,8 +907,10 @@ paths:
       - name: Idempotency-Key
         in: header
         required: false
-        description: Optional actor/path scoped replay key. Reuse identical key/body
-          after a network failure; changed body returns 409.
+        description: Actor/path scoped replay key; required for external writes in
+          durable_mock Inventory mode, optional otherwise. Reuse identical key/body
+          after a network failure; changed body or expired replay returns 409. Uncertain
+          Inventory outcomes return 503; do not retry with a new key.
         schema:
           type: string
           maxLength: 128
@@ -987,8 +1003,10 @@ paths:
       - name: Idempotency-Key
         in: header
         required: false
-        description: Optional actor/path scoped replay key. Reuse identical key/body
-          after a network failure; changed body returns 409.
+        description: Actor/path scoped replay key; required for external writes in
+          durable_mock Inventory mode, optional otherwise. Reuse identical key/body
+          after a network failure; changed body or expired replay returns 409. Uncertain
+          Inventory outcomes return 503; do not retry with a new key.
         schema:
           type: string
           maxLength: 128
@@ -1030,8 +1048,10 @@ paths:
       - name: Idempotency-Key
         in: header
         required: false
-        description: Optional actor/path scoped replay key. Reuse identical key/body
-          after a network failure; changed body returns 409.
+        description: Actor/path scoped replay key; required for external writes in
+          durable_mock Inventory mode, optional otherwise. Reuse identical key/body
+          after a network failure; changed body or expired replay returns 409. Uncertain
+          Inventory outcomes return 503; do not retry with a new key.
         schema:
           type: string
           maxLength: 128
@@ -1091,8 +1111,10 @@ paths:
       - name: Idempotency-Key
         in: header
         required: false
-        description: Optional actor/path scoped replay key. Reuse identical key/body
-          after a network failure; changed body returns 409.
+        description: Actor/path scoped replay key; required for external writes in
+          durable_mock Inventory mode, optional otherwise. Reuse identical key/body
+          after a network failure; changed body or expired replay returns 409. Uncertain
+          Inventory outcomes return 503; do not retry with a new key.
         schema:
           type: string
           maxLength: 128
@@ -1151,8 +1173,10 @@ paths:
       - name: Idempotency-Key
         in: header
         required: false
-        description: Optional actor/path scoped replay key. Reuse identical key/body
-          after a network failure; changed body returns 409.
+        description: Actor/path scoped replay key; required for external writes in
+          durable_mock Inventory mode, optional otherwise. Reuse identical key/body
+          after a network failure; changed body or expired replay returns 409. Uncertain
+          Inventory outcomes return 503; do not retry with a new key.
         schema:
           type: string
           maxLength: 128
@@ -1282,8 +1306,10 @@ paths:
       - name: Idempotency-Key
         in: header
         required: false
-        description: Optional actor/path scoped replay key. Reuse identical key/body
-          after a network failure; changed body returns 409.
+        description: Actor/path scoped replay key; required for external writes in
+          durable_mock Inventory mode, optional otherwise. Reuse identical key/body
+          after a network failure; changed body or expired replay returns 409. Uncertain
+          Inventory outcomes return 503; do not retry with a new key.
         schema:
           type: string
           maxLength: 128
@@ -1353,8 +1379,10 @@ paths:
       - name: Idempotency-Key
         in: header
         required: false
-        description: Optional actor/path scoped replay key. Reuse identical key/body
-          after a network failure; changed body returns 409.
+        description: Actor/path scoped replay key; required for external writes in
+          durable_mock Inventory mode, optional otherwise. Reuse identical key/body
+          after a network failure; changed body or expired replay returns 409. Uncertain
+          Inventory outcomes return 503; do not retry with a new key.
         schema:
           type: string
           maxLength: 128
@@ -1395,8 +1423,10 @@ paths:
       - name: Idempotency-Key
         in: header
         required: false
-        description: Optional actor/path scoped replay key. Reuse identical key/body
-          after a network failure; changed body returns 409.
+        description: Actor/path scoped replay key; required for external writes in
+          durable_mock Inventory mode, optional otherwise. Reuse identical key/body
+          after a network failure; changed body or expired replay returns 409. Uncertain
+          Inventory outcomes return 503; do not retry with a new key.
         schema:
           type: string
           maxLength: 128
@@ -1410,6 +1440,9 @@ paths:
         '409':
           description: Replay-key conflict or stale database record. Reload before
             retrying.
+        '503':
+          description: Inventory reconciliation required; Owner must inspect the private
+            incident queue before retrying.
       summary: Delete dispensing history (owner or admin)
   /api/v1/medicine-dispensations/{dispensation_id}/rollback/:
     post:
@@ -1426,8 +1459,10 @@ paths:
       - name: Idempotency-Key
         in: header
         required: false
-        description: Optional actor/path scoped replay key. Reuse identical key/body
-          after a network failure; changed body returns 409.
+        description: Actor/path scoped replay key; required for external writes in
+          durable_mock Inventory mode, optional otherwise. Reuse identical key/body
+          after a network failure; changed body or expired replay returns 409. Uncertain
+          Inventory outcomes return 503; do not retry with a new key.
         schema:
           type: string
           maxLength: 128
@@ -1542,13 +1577,18 @@ paths:
         '409':
           description: Replay-key conflict or stale database record. Reload before
             retrying.
+        '503':
+          description: Inventory reconciliation required; Owner must inspect the private
+            incident queue before retrying.
       summary: Add mock Inventory medicine (owner only)
       parameters:
       - name: Idempotency-Key
         in: header
         required: false
-        description: Optional actor/path scoped replay key. Reuse identical key/body
-          after a network failure; changed body returns 409.
+        description: Actor/path scoped replay key; required for external writes in
+          durable_mock Inventory mode, optional otherwise. Reuse identical key/body
+          after a network failure; changed body or expired replay returns 409. Uncertain
+          Inventory outcomes return 503; do not retry with a new key.
         schema:
           type: string
           maxLength: 128
@@ -1564,8 +1604,10 @@ paths:
       - name: Idempotency-Key
         in: header
         required: false
-        description: Optional actor/path scoped replay key. Reuse identical key/body
-          after a network failure; changed body returns 409.
+        description: Actor/path scoped replay key; required for external writes in
+          durable_mock Inventory mode, optional otherwise. Reuse identical key/body
+          after a network failure; changed body or expired replay returns 409. Uncertain
+          Inventory outcomes return 503; do not retry with a new key.
         schema:
           type: string
           maxLength: 128
@@ -1594,6 +1636,9 @@ paths:
         '409':
           description: Replay-key conflict or stale database record. Reload before
             retrying.
+        '503':
+          description: Inventory reconciliation required; Owner must inspect the private
+            incident queue before retrying.
       summary: Edit mock Inventory medicine (owner only)
     delete:
       operationId: v1_mock_inventory_medicines_destroy
@@ -1606,8 +1651,10 @@ paths:
       - name: Idempotency-Key
         in: header
         required: false
-        description: Optional actor/path scoped replay key. Reuse identical key/body
-          after a network failure; changed body returns 409.
+        description: Actor/path scoped replay key; required for external writes in
+          durable_mock Inventory mode, optional otherwise. Reuse identical key/body
+          after a network failure; changed body or expired replay returns 409. Uncertain
+          Inventory outcomes return 503; do not retry with a new key.
         schema:
           type: string
           maxLength: 128
@@ -1621,6 +1668,9 @@ paths:
         '409':
           description: Replay-key conflict or stale database record. Reload before
             retrying.
+        '503':
+          description: Inventory reconciliation required; Owner must inspect the private
+            incident queue before retrying.
       summary: Delete mock Inventory medicine (owner only)
   /api/v1/mock/inventory/restock-requests/{request_id}/fulfill/:
     post:
@@ -1634,8 +1684,10 @@ paths:
       - name: Idempotency-Key
         in: header
         required: false
-        description: Optional actor/path scoped replay key. Reuse identical key/body
-          after a network failure; changed body returns 409.
+        description: Actor/path scoped replay key; required for external writes in
+          durable_mock Inventory mode, optional otherwise. Reuse identical key/body
+          after a network failure; changed body or expired replay returns 409. Uncertain
+          Inventory outcomes return 503; do not retry with a new key.
         schema:
           type: string
           maxLength: 128
@@ -1653,6 +1705,9 @@ paths:
         '409':
           description: Replay-key conflict or stale database record. Reload before
             retrying.
+        '503':
+          description: Inventory reconciliation required; Owner must inspect the private
+            incident queue before retrying.
       summary: Fulfill mock restock request (owner only)
   /api/v1/mock/registrar/students/:
     get:
@@ -1704,8 +1759,10 @@ paths:
       - name: Idempotency-Key
         in: header
         required: false
-        description: Optional actor/path scoped replay key. Reuse identical key/body
-          after a network failure; changed body returns 409.
+        description: Actor/path scoped replay key; required for external writes in
+          durable_mock Inventory mode, optional otherwise. Reuse identical key/body
+          after a network failure; changed body or expired replay returns 409. Uncertain
+          Inventory outcomes return 503; do not retry with a new key.
         schema:
           type: string
           maxLength: 128
@@ -1721,8 +1778,10 @@ paths:
       - name: Idempotency-Key
         in: header
         required: false
-        description: Optional actor/path scoped replay key. Reuse identical key/body
-          after a network failure; changed body returns 409.
+        description: Actor/path scoped replay key; required for external writes in
+          durable_mock Inventory mode, optional otherwise. Reuse identical key/body
+          after a network failure; changed body or expired replay returns 409. Uncertain
+          Inventory outcomes return 503; do not retry with a new key.
         schema:
           type: string
           maxLength: 128
@@ -1857,13 +1916,18 @@ paths:
         '409':
           description: Replay-key conflict or stale database record. Reload before
             retrying.
+        '503':
+          description: Inventory reconciliation required; Owner must inspect the private
+            incident queue before retrying.
       summary: Request all or selected medicine restock
       parameters:
       - name: Idempotency-Key
         in: header
         required: false
-        description: Optional actor/path scoped replay key. Reuse identical key/body
-          after a network failure; changed body returns 409.
+        description: Actor/path scoped replay key; required for external writes in
+          durable_mock Inventory mode, optional otherwise. Reuse identical key/body
+          after a network failure; changed body or expired replay returns 409. Uncertain
+          Inventory outcomes return 503; do not retry with a new key.
         schema:
           type: string
           maxLength: 128
@@ -1937,8 +2001,10 @@ paths:
       - name: Idempotency-Key
         in: header
         required: false
-        description: Optional actor/path scoped replay key. Reuse identical key/body
-          after a network failure; changed body returns 409.
+        description: Actor/path scoped replay key; required for external writes in
+          durable_mock Inventory mode, optional otherwise. Reuse identical key/body
+          after a network failure; changed body or expired replay returns 409. Uncertain
+          Inventory outcomes return 503; do not retry with a new key.
         schema:
           type: string
           maxLength: 128

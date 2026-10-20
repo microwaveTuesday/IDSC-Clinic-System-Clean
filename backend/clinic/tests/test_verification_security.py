@@ -81,6 +81,75 @@ class VerificationSecurityTests(TestCase):
             self.provider.get_medicine("MED-0001")["quantity_in_stock"], 100
         )
 
+    def test_database_failure_compensates_and_private_exception_is_not_logged(self):
+        with patch.object(
+            clinic_service.repository,
+            "create_dispensation",
+            side_effect=RuntimeError("PRIVATE_MEDICAL_VALUE"),
+        ):
+            with self.assertLogs("clinic.exceptions", level="ERROR") as logs:
+                response = self.send()
+        self.assertEqual(response.status_code, 500)
+        self.assertNotIn("PRIVATE_MEDICAL_VALUE", str(logs.output))
+        self.assertNotIn("PRIVATE_MEDICAL_VALUE", str(response.data))
+        self.assertEqual(
+            self.provider.get_medicine("MED-0001")["quantity_in_stock"], 100
+        )
+        self.assertEqual(self.send().status_code, 503)
+
+    def test_restock_fulfillment_and_notifications_survive_restart(self):
+        from contextlib import ExitStack
+
+        def bind(provider):
+            stack = ExitStack()
+            for name, value in [
+                ("inventory_service", provider),
+                ("restocks", provider.restocks),
+                ("notifications", provider.notifications),
+                ("read_notifications", provider.read_notifications),
+            ]:
+                stack.enter_context(patch("clinic.demo_integrations." + name, value))
+            return stack
+
+        with bind(self.provider):
+            response = self.client.post(
+                "/api/v1/restock-requests/",
+                {
+                    "mode": "SELECTED",
+                    "items": [{"medicine_id": "MED-0001", "quantity": 5}],
+                },
+                format="json",
+                HTTP_IDEMPOTENCY_KEY="restock-new",
+            )
+            self.assertEqual(response.status_code, 201, response.data)
+            key = response.data["request_id"]
+            path = f"/api/v1/mock/inventory/restock-requests/{key}/fulfill/"
+            response = self.client.post(
+                path, {}, format="json", HTTP_IDEMPOTENCY_KEY="fulfill-one"
+            )
+            self.assertEqual(response.status_code, 200, response.data)
+        fresh = Provider(self.provider.path)
+        with bind(fresh):
+            result = self.client.post(
+                path, {}, format="json", HTTP_IDEMPOTENCY_KEY="fulfill-one"
+            )
+            self.assertEqual(result.status_code, 200)
+            self.assertEqual(
+                self.client.post(
+                    path,
+                    {},
+                    format="json",
+                    HTTP_IDEMPOTENCY_KEY="different-fulfillment",
+                ).status_code,
+                409,
+            )
+            rows = self.client.get("/api/v1/restock-requests/").data
+            self.assertEqual(rows[0]["status"], "FULFILLED")
+            self.assertEqual(
+                len(self.client.get("/api/v1/inventory-notifications/").data), 1
+            )
+        self.assertEqual(fresh.get_medicine("MED-0001")["quantity_in_stock"], 105)
+
     def test_expired_replay_cannot_reexecute_or_expose_medical_body(self):
         self.assertEqual(self.send().status_code, 201)
         OperationReceipt.objects.update(created_at=timezone.now() - timedelta(days=2))

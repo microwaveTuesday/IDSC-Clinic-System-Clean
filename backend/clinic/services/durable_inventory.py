@@ -105,6 +105,9 @@ class DurableInventoryMixin:
 
     def restore_stock(self, transaction_id):
         with self.workspace():
+            source = self._transactions.get(transaction_id)
+            if source and source.get("type") != "DEDUCTION":
+                raise ValueError("Only a deduction transaction can be restored.")
             for ref, row in self._transactions.items():
                 if row.get("source_transaction_id") == transaction_id:
                     return ref
