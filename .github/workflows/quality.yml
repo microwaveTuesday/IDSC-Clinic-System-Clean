@@ -1,0 +1,159 @@
+name: Clinic quality
+on:
+  push:
+    branches: ['improvement/**']
+  pull_request:
+    branches: [main, 'improvement/**']
+  workflow_dispatch:
+permissions:
+  contents: read
+concurrency:
+  group: quality-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+env:
+  PYTHONUNBUFFERED: '1'
+  DEBUG: 'True'
+  SECRET_KEY: 'ci-only-synthetic-secret-not-for-deployment-491839102753817'
+  CLINIC_DISPOSABLE: '1'
+  CLINIC_TEST_USERNAME: 'ci_owner'
+  CLINIC_TEST_PASSWORD: 'SyntheticGarden!49183'
+  CLINIC_TEST_NEW_PASSWORD: 'SyntheticForest!71923'
+jobs:
+  backend:
+    name: Backend / ${{ matrix.database }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    strategy:
+      fail-fast: false
+      matrix:
+        database: [sqlite, postgres]
+    services:
+      postgres:
+        image: postgres:17
+        env:
+          POSTGRES_USER: clinic_ci
+          POSTGRES_PASSWORD: synthetic-ci-only
+          POSTGRES_DB: clinic_ci
+        ports: ['5432:5432']
+        options: >-
+          --health-cmd pg_isready --health-interval 5s
+          --health-timeout 5s --health-retries 12
+    env:
+      DB_ENGINE: ${{ matrix.database == 'postgres' && 'django.db.backends.postgresql' || 'django.db.backends.sqlite3' }}
+      DB_NAME: ${{ matrix.database == 'postgres' && 'clinic_ci' || 'ci.sqlite3' }}
+      DB_USER: clinic_ci
+      DB_PASSWORD: synthetic-ci-only
+      DB_HOST: 127.0.0.1
+      DB_PORT: '5432'
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+      - uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065
+        with:
+          python-version: '3.13'
+          cache: pip
+      - run: python -m pip install -r backend/requirements-finals.txt
+      - name: Django system checks
+        run: python backend/manage.py check
+      - name: Migration drift
+        run: python backend/manage.py makemigrations --check --dry-run
+      - name: Apply migrations
+        run: python backend/manage.py migrate --noinput
+      - name: Full suite including security regressions
+        working-directory: backend
+        run: python manage.py test --noinput --verbosity 2
+      - name: Explicit persistence and concurrency checks
+        working-directory: backend
+        run: python manage.py test clinic.tests.test_persistent_repository clinic.tests.test_concurrency clinic.tests.test_reliability --noinput
+  contracts:
+    name: OpenAPI contracts and Redocly
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+      - uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065
+        with: {python-version: '3.13'}
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020
+        with: {node-version: '24'}
+      - run: python -m pip install -r backend/requirements.txt
+      - name: Dynamic OpenAPI validation
+        run: python backend/manage.py spectacular --validate --fail-on-warn --file /tmp/dynamic.yaml
+      - name: Static and dynamic Redocly lint
+        run: |
+          npx --yes @redocly/cli@2.7.0 lint openapi.yaml
+          npx --yes @redocly/cli@2.7.0 lint /tmp/dynamic.yaml --config redocly.yaml
+  frontend:
+    name: Frontend lint and production build
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    defaults:
+      run: {working-directory: frontend}
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020
+        with:
+          node-version: '24'
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+      - run: npm ci
+      - run: npm run lint
+      - run: npm run build
+  dependencies:
+    name: Dependency vulnerability checks
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+      - uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065
+        with: {python-version: '3.13'}
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020
+        with: {node-version: '24'}
+      - run: python -m pip install pip-audit==2.10.1
+      - run: python -m pip_audit -r backend/requirements-finals.txt
+      - run: npm ci --prefix frontend
+      - run: npm audit --prefix frontend --audit-level=moderate
+  browser:
+    name: Browser / ${{ matrix.fixture }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    strategy:
+      fail-fast: false
+      matrix:
+        fixture: [workflows, limits, first-owner, accessibility]
+    env:
+      DB_NAME: browser.sqlite3
+      CLINIC_DATA_BACKEND: mock
+      CLINIC_EMPTY_START: '0'
+      CLINIC_TEST_FIRST_RUN: ${{ matrix.fixture == 'first-owner' && '1' || '0' }}
+      CLINIC_TEST_LIMITS: ${{ matrix.fixture == 'limits' && '1' || '0' }}
+      CLINIC_TEST_BASE_URL: http://127.0.0.1:5173
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+      - uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065
+        with: {python-version: '3.13'}
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020
+        with: {node-version: '24'}
+      - run: python -m pip install -r backend/requirements.txt
+      - run: npm ci --prefix frontend
+      - run: npx --prefix frontend playwright install --with-deps chromium
+      - run: python backend/manage.py migrate --noinput
+      - if: matrix.fixture != 'first-owner'
+        run: python scripts/seed_validation.py
+      - name: Start disposable services
+        run: |
+          python backend/manage.py runserver 127.0.0.1:8002 --noreload > /tmp/backend.log 2>&1 &
+          npm --prefix frontend run dev -- --host 127.0.0.1 > /tmp/frontend.log 2>&1 &
+          python scripts/wait_services.py
+      - name: Browser stories
+        working-directory: frontend
+        env:
+          FIXTURE: ${{ matrix.fixture }}
+        run: |
+          case "$FIXTURE" in
+            workflows) npx playwright test clinic.spec.js password-change.spec.js account-management.spec.js account-lifecycle.spec.js role-hierarchy.spec.js external-workflows.spec.js mock-catalog.spec.js ;;
+            limits) npx playwright test account-limits.spec.js ;;
+            first-owner) npx playwright test owner-registration.spec.js ;;
+            accessibility) npx playwright test accessibility.spec.js modal-focus.spec.js ;;
+          esac
+      - name: Safe failure diagnostics
+        if: failure()
+        run: tail -n 60 /tmp/backend.log /tmp/frontend.log || true
