@@ -4,7 +4,7 @@ import {
 } from "./CredentialDialogs";
 import OwnerRegistration from "./OwnerRegistration";
 import { GetStudent, RestockPanel, MockWorkspace } from "./ExternalSystems";
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useEffectEvent, useState } from "react";
 import { request, listAll } from "./api";
 import {
   Icon,
@@ -262,6 +262,15 @@ export default function App() {
       window.removeEventListener("focus", sync);
     };
   }, [loggedIn, refreshExternal]);
+  const sessionExpired = useEffectEvent(() => {
+    clearSession();
+    setLoginError("Your session expired. Please log in again.");
+  });
+  useEffect(() => {
+    const listener = () => sessionExpired();
+    window.addEventListener("clinic-session-expired", listener);
+    return () => window.removeEventListener("clinic-session-expired", listener);
+  }, []);
   function clearSession() {
     setPasswordOpen(false);
     setUsernameOpen(false);

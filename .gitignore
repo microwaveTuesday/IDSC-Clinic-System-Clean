@@ -39,3 +39,7 @@ newman-results.json
 .runtime/
 
 .development-secret
+*.dump
+*.sqlite3-wal
+*.sqlite3-shm
+*.backup

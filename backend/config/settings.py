@@ -375,7 +375,13 @@ MOCK_WORKSPACES_ENABLED = os.environ.get("MOCK_WORKSPACES_ENABLED", "True").lowe
 )
 REGISTRAR_BACKEND = os.environ.get("REGISTRAR_BACKEND", "mock")
 INVENTORY_BACKEND = os.environ.get("INVENTORY_BACKEND", "mock")
-if REGISTRAR_BACKEND != "mock" or INVENTORY_BACKEND != "mock":
+MOCK_INVENTORY_DB = os.environ.get(
+    "MOCK_INVENTORY_DB", str(BASE_DIR / "mock-inventory.sqlite3")
+)
+REPLAY_RETENTION_HOURS = int(os.environ.get("REPLAY_RETENTION_HOURS", "24"))
+if REPLAY_RETENTION_HOURS < 1:
+    raise ImproperlyConfigured("REPLAY_RETENTION_HOURS must be positive.")
+if REGISTRAR_BACKEND != "mock" or INVENTORY_BACKEND not in ("mock", "durable_mock"):
     raise ImproperlyConfigured(
         "Only verified mock external adapters are currently implemented. Real contracts are required."
     )

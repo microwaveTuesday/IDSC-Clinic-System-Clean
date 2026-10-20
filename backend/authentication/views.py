@@ -80,10 +80,11 @@ def login_view(request):
             status=status.HTTP_400_BAD_REQUEST,
         )
 
+    serializer = LoginRequestSerializer(data=request.data)
+    serializer.is_valid(raise_exception=True)
     user = authenticate(
         request,
-        username=username,
-        password=password,
+        **serializer.validated_data,
     )
 
     if user is None:

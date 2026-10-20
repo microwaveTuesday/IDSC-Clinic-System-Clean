@@ -229,4 +229,14 @@ class MockInventoryService:
         )
 
 
-inventory_service = MockInventoryService()
+from django.conf import settings
+
+if settings.INVENTORY_BACKEND == "durable_mock":
+    from .durable_inventory import DurableInventoryMixin
+
+    class DurableMockInventoryService(DurableInventoryMixin, MockInventoryService):
+        """Optional simulated Inventory; ledger is independent of Clinic tables."""
+
+    inventory_service = DurableMockInventoryService(settings.MOCK_INVENTORY_DB)
+else:
+    inventory_service = MockInventoryService()

@@ -1,4 +1,5 @@
 """Create synthetic credentials ONLY in an explicitly disposable database."""
+
 import os
 import sys
 from pathlib import Path
@@ -8,6 +9,7 @@ if os.environ.get("CLINIC_DISPOSABLE") != "1":
 sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "backend"))
 os.environ.setdefault("DJANGO_SETTINGS_MODULE", "config.settings")
 import django
+
 django.setup()
 from django.contrib.auth import get_user_model
 from django.contrib.auth.models import Group
