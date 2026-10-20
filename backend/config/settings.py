@@ -229,7 +229,11 @@ USE_TZ = True
 # https://docs.djangoproject.com/en/6.1/howto/static-files/
 
 STATIC_URL = "static/"
-STATIC_ROOT = BASE_DIR / "staticfiles"
+STATIC_ROOT = os.environ.get("STATIC_ROOT", BASE_DIR / "staticfiles")
+if os.environ.get("TRUST_PROXY_HTTPS") == "1":
+    # Enable only when the backend is unreachable except through a trusted proxy
+    # which overwrites this header (the supplied private Compose network).
+    SECURE_PROXY_SSL_HEADER = ("HTTP_X_FORWARDED_PROTO", "https")
 
 
 # Default primary key field type

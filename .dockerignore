@@ -1,0 +1,12 @@
+.git
+sources
+**/node_modules
+**/.env
+**/.development-secret
+**/*.sqlite3*
+**/__pycache__
+**/dist
+**/test-results
+.runtime
+**/*.dump
+**/*.backup
