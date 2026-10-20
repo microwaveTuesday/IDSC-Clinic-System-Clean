@@ -4,7 +4,7 @@ React/Vite UI connected to Django sessions and CSRF. Follow [SETUP.md](../SETUP.
 
 Fresh databases show first-Owner registration with automatic Dashboard login. Later visits show shared login. Settings changes own credentials; Owner manages Admin/Staff, Admin manages Staff, Staff has no Administration. Owner alone operates Mock Registrar/Inventory. Clinic features include records/statuses, dispensing/rollback, reports, restocks, notifications and light/dark theme. See [README.md](../README.md).
 
-src/api.js handles cookies, fresh CSRF tokens, errors and pagination. Vite proxies /api. Production needs a same-origin API reverse proxy; vite preview alone does not provide it. Database-mode Clinic records and accounts persist; external mocks and mock-mode Clinic records reset on restart.
+src/api.js handles cookies, fresh CSRF tokens, errors and pagination. Vite proxies /api. Production needs a same-origin API reverse proxy; vite preview alone does not provide it. Database-mode Clinic records and accounts persist; Registrar/default Inventory and mock-mode Clinic records reset on restart. Optional durable_mock Inventory persists; CI also verifies expired-session workspace clearing.
 
 ## Validation
 
@@ -39,3 +39,7 @@ Point CLINIC_TEST_BASE_URL at the matching isolated frontend. Additional origins
 [CURRENT-VALIDATION.md](../docs/CURRENT-VALIDATION.md) separates latest checks from historical evidence. Details: [roles](../docs/ROLE-HIERARCHY.md), [external workflows](../docs/EXTERNAL-WORKFLOWS.md), [Owner setup](../docs/OWNER-REGISTRATION.md).
 
 Additional improvement checks: accessibility.spec.js scans seven pages in light/dark mode with axe WCAG2A/AA tags and verifies mobile navigation/dialog focus. See [IMPROVEMENT-VALIDATION.md](../docs/IMPROVEMENT-VALIDATION.md). Shared controls are in ClinicUI.jsx; credential dialogs in CredentialDialogs.jsx. API writes deduplicate inflight submissions, time out after30 seconds and retain retry keys in memory for60 seconds after network failure.
+
+Verification CI runs thirteen distinct browser stories in four fresh fixture jobs.
+The new session-expiry story clears the medical workspace after a background401.
+See ../docs/VERIFICATION-RESULTS.md for executed outcomes, not just configuration.

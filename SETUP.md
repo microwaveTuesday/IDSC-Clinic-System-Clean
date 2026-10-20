@@ -1,6 +1,6 @@
 # Run the clinic project in VS Code
 
-Applies to `improvement/clinic-final-10of10` in microwaveTuesday/IDSC-Clinic-System-Clean. See [README.md](README.md) for features and storage limits.
+Applies to `improvement/clinic-final-verification` in microwaveTuesday/IDSC-Clinic-System-Clean. See [README.md](README.md) for features and storage limits.
 
 ## Open the project
 
@@ -9,7 +9,7 @@ Use Python 3.13, Node.js/npm compatible with the frontend lockfile, Git and VS C
 For a new checkout:
 
 ```powershell
-git clone --branch improvement/clinic-final-10of10 https://github.com/microwaveTuesday/IDSC-Clinic-System-Clean.git
+git clone --branch improvement/clinic-final-verification https://github.com/microwaveTuesday/IDSC-Clinic-System-Clean.git
 cd IDSC-Clinic-System-Clean
 code .
 ```
@@ -24,6 +24,7 @@ python -m venv .venv
 python -m pip install -r backend/requirements.txt
 cd backend
 $env:CLINIC_DATA_BACKEND="database"
+$env:INVENTORY_BACKEND="durable_mock"
 python manage.py migrate --noinput
 python manage.py check
 python manage.py runserver 127.0.0.1:8002
@@ -61,12 +62,13 @@ Private `backend/.env`, ignored by Git:
 DEBUG=True
 ALLOWED_HOSTS=localhost,127.0.0.1
 CLINIC_DATA_BACKEND=database
+INVENTORY_BACKEND=durable_mock
 DB_ENGINE=django.db.backends.sqlite3
 DB_NAME=framework.sqlite3
 CLINIC_EMPTY_START=0
 ```
 
-DB_NAME is relative to backend unless absolute. Accounts, permanent Owner registration and sessions persist there. Clinic data persists with CLINIC_DATA_BACKEND=database; mock Clinic/Registrar/Inventory state resets on restart. Empty-start 0 loads samples; 1 starts mock records/students/medicines empty. Owner populates the mock workspaces. This setting does not clear accounts.
+DB_NAME is relative to backend unless absolute. Accounts, permanent Owner registration and sessions persist there. Clinic data persists with CLINIC_DATA_BACKEND=database; mock Clinic/Registrar and default Inventory reset on restart; optional durable_mock Inventory persists. Empty-start 0 loads samples; 1 starts mock records/students/medicines empty. Owner populates the mock workspaces. This setting does not clear accounts.
 
 For a fresh-registration demonstration, use a separate new database. Set DB_NAME to an unused test filename before migration and start the isolated backend on another port.
 
@@ -81,7 +83,12 @@ Start Django on the same port. Restart Vite after target changes. This target is
 
 ## Daily start
 
-Backend terminal: activate the environment, enter backend, run `python manage.py runserver 127.0.0.1:8002`. Frontend terminal: enter frontend and run `npm run dev`. Apply new migrations after updates. Ctrl+C stops each server. Browser reload retains mock state; backend restart resets it.
+Optional durable_mock uses backend/mock-inventory.sqlite3, separate from Clinic.
+Back up both with writes stopped. Default Inventory remains mock when the setting
+is omitted. Registrar remains process-local. See docs/INVENTORY-RECOVERY.md,
+docs/BACKUP-RESTORE.md and docs/DEPLOYMENT.md for HTTPS container startup.
+
+Backend terminal: activate the environment, enter backend, run `python manage.py runserver 127.0.0.1:8002`. Frontend terminal: enter frontend and run `npm run dev`. Apply new migrations after updates. Ctrl+C stops each server. Browser reload retains mock state; backend restart resets process-local mocks, while database Clinic and optional durable_mock Inventory persist.
 
 ## Validation
 
@@ -96,7 +103,7 @@ python manage.py test --noinput
 python manage.py spectacular --file ../schema.generated.yaml --validate
 ```
 
-The runner creates/removes a test database. Currently there are 294 tests; normal password hashing can take several minutes. See [CURRENT-VALIDATION.md](docs/CURRENT-VALIDATION.md) for recorded conditions.
+The runner creates/removes a test database. The inherited baseline had 294 tests; current counts are in docs/VERIFICATION-RESULTS.md; normal password hashing can take several minutes. See [CURRENT-VALIDATION.md](docs/CURRENT-VALIDATION.md) for recorded conditions.
 
 Inside frontend:
 

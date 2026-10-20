@@ -2,7 +2,13 @@
 
 School final project: a React/Vite clinic website connected to a Django API, with Owner/Admin/Staff accounts and mock Registrar/Inventory workspaces.
 
-Current branch: [improvement/clinic-final-10of10](https://github.com/corpeadmin/IDSC-Clinic-System/tree/improvement/clinic-final-10of10). Branch selection history: [CONSOLIDATION-AUDIT.md](docs/CONSOLIDATION-AUDIT.md). Use a reviewed PR for changes to main.
+Verification pass: [latest results](docs/VERIFICATION-RESULTS.md),
+[CI](.github/workflows/quality.yml), [backup/restore](docs/BACKUP-RESTORE.md),
+[durable simulated Inventory](docs/INVENTORY-RECOVERY.md), and
+[security review](docs/VERIFICATION-SECURITY.md). Optional durable mock stock
+survives restarts; no real external connectivity is claimed.
+
+Current branch: [improvement/clinic-final-verification](https://github.com/microwaveTuesday/IDSC-Clinic-System-Clean/tree/improvement/clinic-final-verification). Branch selection history: [CONSOLIDATION-AUDIT.md](docs/CONSOLIDATION-AUDIT.md). Use a reviewed PR for changes to main.
 
 ## Run in VS Code
 
@@ -14,6 +20,7 @@ python -m venv .venv
 python -m pip install -r backend/requirements.txt
 cd backend
 $env:CLINIC_DATA_BACKEND="database"
+$env:INVENTORY_BACKEND="durable_mock"
 python manage.py migrate --noinput
 python manage.py runserver 127.0.0.1:8002
 ```
@@ -87,7 +94,7 @@ React -> Django API -> ClinicService -> MockClinicRepository
 
 Browser reloads retain server state. Default startup loads sample data. Private `backend/.env` option `CLINIC_EMPTY_START=1` starts all mock stores empty on each restart; it does not erase accounts or reopen registration. Populate through Owner mock workspaces. Use one backend process for demonstrations.
 
-Set CLINIC_DATA_BACKEND=database to select the tested persistent ORM repository on SQLite or PostgreSQL. Health records, consultations, health statuses and dispensations then survive backend restarts. Keep CLINIC_DATA_BACKEND=mock for isolated demonstrations. Registrar/Inventory identities and stock remain external, process-local mocks. See [DATABASE.md](docs/DATABASE.md).
+Set CLINIC_DATA_BACKEND=database to select the tested persistent ORM repository on SQLite or PostgreSQL. Health records, consultations, health statuses and dispensations then survive backend restarts. Keep CLINIC_DATA_BACKEND=mock for isolated demonstrations. Registrar remains a process-local mock. Optional INVENTORY_BACKEND=durable_mock preserves simulated Inventory state in a separate ledger; default mock still resets. See [DATABASE.md](docs/DATABASE.md).
 
 Real Registrar/Inventory adapters are not implemented. Adding a URL alone cannot connect them. See [REAL-SYSTEM-INTEGRATION.md](docs/REAL-SYSTEM-INTEGRATION.md). Faculty/Student Portal demonstration routes require active Clinic roles; real provider/student identity binding is unavailable.
 
@@ -129,7 +136,7 @@ npx playwright install chromium
 
 Browser tests mutate accounts/data. Use disposable databases and credentials; [frontend/README.md](frontend/README.md) explains first-run setup and special fixtures. Configure local credentials/base URL for collections in postman/.
 
-Latest improvement evidence (20 October 2026): baseline273 tests passed; expanded PostgreSQL suite294 passed with normal hashing. SQLite294 discovered:292 passed and2 PostgreSQL-only concurrency tests skipped. Six Newman collections:173 requests/190 assertions, zero failures. Browser stories, PostgreSQL/application restart persistence, production configuration, dependency advisories, frontend lint/build, schemas and accessibility checks are detailed in [IMPROVEMENT-VALIDATION.md](docs/IMPROVEMENT-VALIDATION.md). Failed intermediate checks and their fixes are recorded there.
+Historical prior-improvement evidence (20 October 2026); latest results are in docs/VERIFICATION-RESULTS.md: baseline273 tests passed; expanded PostgreSQL suite294 passed with normal hashing. SQLite294 discovered:292 passed and2 PostgreSQL-only concurrency tests skipped. Six Newman collections:173 requests/190 assertions, zero failures. Browser stories, PostgreSQL/application restart persistence, production configuration, dependency advisories, frontend lint/build, schemas and accessibility checks are detailed in [IMPROVEMENT-VALIDATION.md](docs/IMPROVEMENT-VALIDATION.md). Failed intermediate checks and their fixes are recorded there.
 
 Conditional database writes use If-Match or X-Record-Version. Optional Idempotency-Key receipts protect coordinated mutations; the frontend deduplicates inflight writes and retries a network failure with the same key for60 seconds. Audit logs retain metadata without passwords/medical bodies. Unresolved partial Inventory failures create operator reconciliation incidents; inspect them in Owner's Django administration. See [DEPLOYMENT.md](docs/DEPLOYMENT.md), [FINAL-DEMO.md](docs/FINAL-DEMO.md) and [KNOWN-LIMITATIONS.md](docs/KNOWN-LIMITATIONS.md).
 

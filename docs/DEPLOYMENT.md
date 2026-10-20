@@ -1,5 +1,44 @@
 # Deployment profile and boundaries
 
+## Verification branch container profile
+
+`deploy/compose.yml` supplies PostgreSQL, one Gunicorn worker, and Caddy HTTPS
+serving the production React build and Django static files. Backend/database
+ports are private; only localhost HTTPS is published. PostgreSQL and simulated
+Inventory use separate named volumes. No real external connectivity is claimed.
+
+Set private `SECRET_KEY` (random, at least 50 characters) and `DB_PASSWORD` in the
+operator environment, then run from the repository root:
+
+```text
+docker compose -f deploy/compose.yml config --quiet
+docker compose -f deploy/compose.yml up --build --detach --wait
+```
+
+Open `https://localhost`. Caddy uses an internal CA for controlled staging; install
+its root certificate in the demo machine's trust store after verifying its origin.
+Never disable TLS verification. CI trusts only its disposable proxy certificate.
+Public institutional deployment requires approved certificates/DNS and review.
+
+Startup applies migrations and collects static files before starting Gunicorn.
+Back up before upgrading. The healthcheck queries setup status through the DB.
+Review logs privately. `TRUST_PROXY_HTTPS=1` is appropriate only with the private
+backend and trusted proxy overwriting forwarded protocol; never expose that
+backend directly. Schedule `purge_replay_bodies` hourly.
+
+Shutdown: `docker compose -f deploy/compose.yml down` preserves volumes. Do not
+add `--volumes` on an installation you need; it is only for disposable CI cleanup.
+Back up both stores with writes stopped: [BACKUP-RESTORE.md](BACKUP-RESTORE.md).
+One worker is intentional because Registrar/default mocks and login cache remain
+process-local.
+
+The deployment CI job builds both images, verifies trusted HTTPS/session/CSRF,
+registers a synthetic Owner, writes records, restarts the backend and checks stock,
+references and rollback. The actual outcome is in VERIFICATION-RESULTS.md;
+configuration alone is not evidence. Public hosted deployment remains unverified.
+
+## Earlier improvement profile
+
 This is a school final-project runtime. No live Registrar/Inventory adapter, hosted TLS deployment or disaster-recovery exercise is claimed.
 
 ## Preparation

@@ -1,13 +1,15 @@
 # Remaining limitations
 
-- Registrar/Inventory are explicitly mocks. Catalog, stock, external transactions, restock requests and notifications remain process-local and reset on restart. Database mode preserves Clinic-owned records only. No real API contracts or credentials were supplied; unknown adapter names fail startup instead of implying connectivity.
-- Run one application worker while using mocks. Database locking protects persistent Clinic writes across connections, but process-local external state is not a shared stock ledger. Real multi-service correctness needs provider-side idempotency, durable outbox/reconciliation and agreed transaction semantics.
-- Scoped replay receipts protect successful requests supplied with an Idempotency-Key. Header-free legacy clients are supported and can intentionally create another record. Frontend retry keys survive network failure in memory for60 seconds, not page reloads. A process crash between an external side effect and database commit remains an uncertain outcome; do not blindly retry it. Known compensation/post-restore failures create durable incidents.
-- Clinical optimistic conflict checks require If-Match or X-Record-Version. The frontend sends updated_at for edits. Header-free legacy writes use transactional last-write semantics. Mock-mode editing does not provide durable optimistic version guarantees.
-- Receipt responses may contain medical data and are retained in the protected database even after the visible record is removed. Audit metadata is separated from clinical content; retention/purge policies and off-host tamper protection still need an operator decision.
-- Initial Owner registration must be completed privately before public exposure. Production throttling uses the configured cache/direct IP; distributed rate limiting and trusted proxy client identity are not exercised.
-- Production settings/deploy checks passed, but hosted HTTPS, real provider connectivity, load/soak testing, operational backup restoration and real patient-data governance were not verified.
-- The independent security baseline had explicit partial repository coverage. Three concrete medium-severity baseline defects were fixed; this is not a claim that every line or every possible vulnerability was exhaustively reviewed. Dependency advisory checks found no known issues on the execution date; that is not a future guarantee.
-- Automated WCAG2A/AA scans cover seven main pages in light/dark mode plus mobile navigation/dialog checks. They are not a complete accessibility certification or screen-reader usability study.
+- Registrar and Inventory are mocks. No genuine provider contracts/access were supplied; live connectivity is unavailable. Registrar changes still reset with its process; use seeded students for restart demos.
+- Default INVENTORY_BACKEND=mock still resets. Optional durable_mock preserves simulated catalog, stock, transactions, restocks and notifications in a separate ledger. It is not the institutional Inventory System. See INVENTORY-RECOVERY.md.
+- Use one application worker while Registrar/default mocks are enabled. Inventory serialization alone does not make all mocks multi-worker services. Load/soak and multi-server behavior remain unverified.
+- A crash without a committed Clinic receipt requires manual reconciliation. Durable request fences return 503 instead of repeating an uncertain stock operation. Direct service callers need equivalent orchestration; no distributed exactly-once guarantee is claimed.
+- Frontend retry keys live in memory for 60 seconds and do not survive page reload. Never bypass an uncertain operation by supplying a new key.
+- Stale-write protection requires If-Match or X-Record-Version; current frontend edits send versions. Header-free legacy writes retain transactional last-write semantics.
+- Replay bodies expire after configurable 24 hours. An operator must schedule purge_replay_bodies to remove expired JSON physically. Tombstones remain. Institutional retention, encrypted backups and off-host audit protection need approval.
+- First Owner setup must occur privately. Login throttling uses process-local cache/direct peer IP. Shared limiting and trusted client-IP policy remain deployment decisions.
+- A private HTTPS container profile and CI smoke job are supplied. See VERIFICATION-RESULTS.md for executed outcomes. No public hosted college deployment, production certification or real student-data governance approval is claimed.
+- Axe, keyboard/focus/mobile checks are regression evidence, not full WCAG certification. Dependency audits describe known advisories on the execution date only.
+- Physical restore drills prove the current schema with synthetic data, not arbitrary future migrations or a monitored off-host backup service.
 
-These limits prevent an evidence-based10/10 or production-readiness claim. The engineering assessment is9.5/10 for a school demonstration, subject to the actual course rubric and evaluator's review; it is not an official grade.
+The final assessment is in VERIFICATION-RESULTS.md; it is not an official course grade.

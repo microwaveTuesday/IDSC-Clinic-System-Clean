@@ -1,6 +1,14 @@
 # Clinic backend API reference
 
-Current branch: improvement/clinic-final-10of10. Canonical machine-readable contract: [openapi.yaml](openapi.yaml). Runtime schema: `/api/schema/`; Swagger: `/docs`; ReDoc: `/api/schema/redoc/`. Development backend: http://127.0.0.1:8002.
+Verification branch: improvement/clinic-final-verification. Login input now
+enforces documented types/lengths. Durable mock Inventory mutations require an
+Idempotency-Key; uncertain prior outcomes return503, conflicting or expired
+replays return409. Replay body retention defaults to24 hours. See
+[INVENTORY-RECOVERY.md](docs/INVENTORY-RECOVERY.md) and
+[VERIFICATION-SECURITY.md](docs/VERIFICATION-SECURITY.md). Routes remain45 paths /
+72 operations; the runtime/committed schemas are compared structurally in CI.
+
+Current branch: improvement/clinic-final-verification. Canonical machine-readable contract: [openapi.yaml](openapi.yaml). Runtime schema: `/api/schema/`; Swagger: `/docs`; ReDoc: `/api/schema/redoc/`. Development backend: http://127.0.0.1:8002.
 
 OpenAPI 3.1.0: **45 paths, 72 operations, 5 public, 67 protected**. The table below includes every canonical operation; compatibility aliases are excluded.
 
@@ -116,7 +124,7 @@ Errors use application/problem+json with type/title/status/detail/instance/code 
 
 ## Storage and validation
 
-Accounts, sessions and the permanent Owner reference persist in Django's database. Clinic records persist when CLINIC_DATA_BACKEND=database; mock students/medicines, stock transactions, restocks and notifications remain process-local. CLINIC_EMPTY_START=1 starts mock stores empty; it does not reset accounts. Select database repository mode to use SQLite/PostgreSQL Clinic persistence.
+Accounts, sessions and the permanent Owner reference persist in Django's database. Clinic records persist when CLINIC_DATA_BACKEND=database; Registrar and default Inventory are process-local mocks. Optional durable_mock preserves simulated Inventory stock, transactions, restocks and notifications independently. CLINIC_EMPTY_START=1 starts mock stores empty; it does not reset accounts. Select database repository mode to use SQLite/PostgreSQL Clinic persistence.
 
 [SETUP.md](SETUP.md) provides commands. [CURRENT-VALIDATION.md](docs/CURRENT-VALIDATION.md) distinguishes latest checks from historical Postman/browser evidence. Original and feature collections are under postman/; use disposable data and configure local credentials/base URL. Request/response field details remain authoritative in openapi.yaml and verified runtime tests.
 
