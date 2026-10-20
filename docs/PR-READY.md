@@ -1,11 +1,23 @@
-# Draft PR: durable Clinic records and verified final-project reliability
+# Verify final-project reliability, restoration and CI
 
-Target: microwaveTuesday/IDSC-Clinic-System-Clean main. Head: improvement/clinic-final-10of10. Do not merge without review.
+Base: improvement/clinic-final-10of10. Head: improvement/clinic-final-verification.
+Clean repository only; this draft does not merge or alter PR #2.
 
-This branch imports the complete source submission9514469 and its ancestry without modifying corpeadmin or either main/fix branch. It adds an ORM Clinic repository for SQLite/PostgreSQL while retaining explicit mocks, constraints/transaction locks, scoped replay receipts, conditional updates, private audit/reconciliation metadata and first-Owner/role/lifecycle compatibility.
+The previous branch lacked automated CI and a verified restore procedure, and
+mock stock reset while clinical rows persisted. This pass adds fixture-isolated
+Actions jobs, physical SQLite/PostgreSQL restore exercises, a separately owned
+optional durable simulated Inventory ledger, and an ambiguity fence that refuses
+unsafe retries after an interrupted external operation.
 
-Security fixes enforce Staff password strength, deny roleless medical-status reads and fail closed for production secrets/hosts with secure cookies/HTTPS policy. Login throttling is production-only and documented as cache/peer scoped. Views and frontend controls/dialogs are split into focused modules. API client timeouts/retry keys, pending-state protection and secondary-text contrast improve reliability without redesigning the interface.
+It preserves default mocks and all 294 inherited tests, adds 14 backend
+regressions and an expired-session browser story, tightens login validation,
+expires/purges replay bodies while retaining duplicate-operation tombstones,
+minimizes error logs, and supplies a private HTTPS/Gunicorn/PostgreSQL deployment
+profile with an executed restart smoke test. API routes remain 45 paths and 72
+operations, with static/runtime schema equality checked in CI.
 
-Verification: baseline273 normal-hasher tests; expanded PostgreSQL294 passed with normal hashing; final SQLite292 passed/2 PostgreSQL-only skips and PostgreSQL294 passed using a test-only faster hasher. PostgreSQL server restart and fresh application process retained all four Clinic resources/references. Six Newman collections:173 requests/190 assertions/0 failures. Twelve distinct browser stories passed across scoped runs plus a PostgreSQL clinical rerun. Schemas/lints/build/migrations/deploy and dependency checks pass. See IMPROVEMENT-VALIDATION.md for exact scope and failed intermediate checks/fixes.
-
-Remaining limits: no genuine external contracts/adapters; external mock state remains process-local/single-worker; uncertain external crash windows require reconciliation; hosted TLS, operational recovery and exhaustive security/accessibility certification are not claimed. The school-project engineering assessment is9.5/10, not10/10. See KNOWN-LIMITATIONS.md and DATABASE.md.
+Validation and remaining limits: docs/VERIFICATION-RESULTS.md,
+docs/VERIFICATION-SECURITY.md, docs/INVENTORY-RECOVERY.md,
+docs/BACKUP-RESTORE.md and docs/KNOWN-LIMITATIONS.md. Real provider contracts,
+public institutional hosting and compliance certification remain unavailable.
+No real medical information or production credentials were used.

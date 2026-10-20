@@ -199,7 +199,12 @@ def custom_exception_handler(exc, context):
         )
 
     # Anything else is treated as an unexpected server error.
-    logger.exception("Unhandled server error: %s", exc)
+    # Exception values/traceback source lines can contain medical values or
+    # provider credentials. Public operational logs contain the class only.
+    logger.error(
+        "Unhandled server error (%s); investigate in a protected environment.",
+        type(exc).__name__,
+    )
 
     return _problem_response(
         request,

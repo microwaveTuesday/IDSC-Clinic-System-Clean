@@ -1,3 +1,5 @@
+> Historical import audit. The later branch baseline and current changes are documented in VERIFICATION-AUDIT.md and VERIFICATION-RESULTS.md.
+
 # Improvement baseline audit — 20 October 2026
 
 Recorded before implementation changes. Imported source9514469fe0eddac3d185e806d94d46a093d95586 exactly, including ancestry. Original main aab84b2f3865b105c7270ed941e541a1bdddd52c; clean main f37fd5cf74e426cf3c8129b994af27c890a203cb; clean fix/pre-main-integration195580e5336b7d8d5da683b7a35ab37da2d6101c. New branch improvement/clinic-final-10of10. Source push URL disabled locally; destination default origin. No inherited branch overwritten.

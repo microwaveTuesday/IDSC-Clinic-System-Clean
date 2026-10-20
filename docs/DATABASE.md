@@ -1,3 +1,5 @@
+> Current verification: BACKUP-RESTORE.md documents physical restore drills. INVENTORY-RECOVERY.md describes optional durable_mock with an independent ledger; stock-reset statements below refer to the unchanged default mock. Replay bodies now expire after configurable 24 hours; schedule purge_replay_bodies hourly while retaining tombstones/history/audit. Latest evidence: VERIFICATION-RESULTS.md.
+
 # Persistent Clinic storage
 
 Set `CLINIC_DATA_BACKEND=database` to select PersistentClinicRepository. The default remains `mock` for isolated demonstrations and original contract fixtures. The selector fails startup for unknown values. Domain rules remain in ClinicService; views do not own ORM business logic.

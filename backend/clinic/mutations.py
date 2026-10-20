@@ -74,6 +74,45 @@ def guarded(method):
         fingerprint = hashlib.sha256(
             json.dumps(request.data, sort_keys=True, cls=DjangoJSONEncoder).encode()
         ).hexdigest()
+        # A separate simulated-provider journal survives a rolled-back Clinic DB
+        # transaction or hard process termination. Ambiguous retries are fenced.
+        from clinic.services.inventory import inventory_service
+
+        external_write = (
+            getattr(inventory_service, "durable", False)
+            and request.method in ("POST", "PATCH", "DELETE")
+            and any(
+                part in request.path
+                for part in ("dispensations", "restock", "mock/inventory")
+            )
+        )
+        if external_write:
+            if not key:
+                raise ValidationError(
+                    "Durable mock Inventory writes require Idempotency-Key."
+                )
+            existing = OperationReceipt.objects.filter(scope=scope, key=key).first()
+            if not existing:
+                try:
+                    claim = inventory_service.claim_request(scope, key, fingerprint)
+                except ValueError as exc:
+                    raise ConflictError(str(exc)) from exc
+                if claim != "new":
+                    from clinic.models import IntegrationIncident
+                    from rest_framework.exceptions import APIException
+
+                    IntegrationIncident.objects.get_or_create(
+                        transaction_id=hashlib.sha256(
+                            f"{scope}:{key}".encode()
+                        ).hexdigest(),
+                        operation="UNCERTAIN_MOCK_REQUEST",
+                        resolved=False,
+                    )
+                    error = APIException(
+                        "Prior Inventory outcome requires operator reconciliation. Do not repeat with a new key."
+                    )
+                    error.status_code = 503
+                    raise error
         version = request.headers.get("X-Record-Version")
         if version:
             from django.utils.dateparse import parse_datetime
@@ -97,6 +136,18 @@ def guarded(method):
                         if receipt.fingerprint != fingerprint:
                             raise ConflictError(
                                 "Idempotency key reused with a different request."
+                            )
+                        from django.conf import settings
+                        from django.utils import timezone
+                        from datetime import timedelta
+
+                        if (
+                            receipt.response is None and receipt.status_code != 204
+                        ) or receipt.created_at < timezone.now() - timedelta(
+                            hours=settings.REPLAY_RETENTION_HOURS
+                        ):
+                            raise ConflictError(
+                                "Replay response expired. Retrieve the resource; do not repeat the operation with a new key."
                             )
                         response = Response(
                             receipt.response, status=receipt.status_code

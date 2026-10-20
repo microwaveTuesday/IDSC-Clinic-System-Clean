@@ -1,3 +1,5 @@
+> Current verification architecture: DATABASE.md describes Clinic ORM storage; INVENTORY-RECOVERY.md diagrams the independent simulated Inventory ledger and ambiguity fence; BACKUP-RESTORE.md specifies paired quiesced backups. Legacy process-local descriptions below apply to default mock mode.
+
 
 
 > Earlier submission background. Current improvement architecture/storage and evidence: [DATABASE.md](DATABASE.md), [IMPROVEMENT-VALIDATION.md](IMPROVEMENT-VALIDATION.md), [KNOWN-LIMITATIONS.md](KNOWN-LIMITATIONS.md).

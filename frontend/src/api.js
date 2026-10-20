@@ -59,7 +59,15 @@ async function send(path, method, body, key, options = {}) {
       : await response.json().catch(() => ({
           detail: "The server returned an unreadable response.",
         }));
-  if (!response.ok) throw new ApiError(response.status, data);
+  if (!response.ok) {
+    if (response.status === 401 && path !== "/api/auth/login/") {
+      window.dispatchEvent(new Event("clinic-session-expired"));
+    }
+    if (response.status === 403 && /csrf/i.test(data.detail || "")) {
+      data.detail = "Your security token expired. Reload the page and try again. Your change was not submitted.";
+    }
+    throw new ApiError(response.status, data);
+  }
   return data;
 }
 

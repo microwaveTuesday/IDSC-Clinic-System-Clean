@@ -1,3 +1,5 @@
+> Verification branch evidence is in [VERIFICATION-RESULTS.md](VERIFICATION-RESULTS.md); figures below remain historical stage records.
+
 ﻿# Phase 7 — Tests & Contract Validation Evidence
 
 > Historical stage-by-stage evidence. Counts and branch names below describe the stage when recorded, not the current submission. Latest scope/results: [CURRENT-VALIDATION.md](CURRENT-VALIDATION.md). Current setup: [SETUP.md](../SETUP.md).

@@ -229,7 +229,11 @@ USE_TZ = True
 # https://docs.djangoproject.com/en/6.1/howto/static-files/
 
 STATIC_URL = "static/"
-STATIC_ROOT = BASE_DIR / "staticfiles"
+STATIC_ROOT = os.environ.get("STATIC_ROOT", BASE_DIR / "staticfiles")
+if os.environ.get("TRUST_PROXY_HTTPS") == "1":
+    # Enable only when the backend is unreachable except through a trusted proxy
+    # which overwrites this header (the supplied private Compose network).
+    SECURE_PROXY_SSL_HEADER = ("HTTP_X_FORWARDED_PROTO", "https")
 
 
 # Default primary key field type
@@ -375,7 +379,21 @@ MOCK_WORKSPACES_ENABLED = os.environ.get("MOCK_WORKSPACES_ENABLED", "True").lowe
 )
 REGISTRAR_BACKEND = os.environ.get("REGISTRAR_BACKEND", "mock")
 INVENTORY_BACKEND = os.environ.get("INVENTORY_BACKEND", "mock")
-if REGISTRAR_BACKEND != "mock" or INVENTORY_BACKEND != "mock":
+MOCK_INVENTORY_DB = os.environ.get(
+    "MOCK_INVENTORY_DB", str(BASE_DIR / "mock-inventory.sqlite3")
+)
+if INVENTORY_BACKEND == "durable_mock" and "sqlite3" in DB_ENGINE:
+    if (
+        str(SQLITE_NAME) != ":memory:"
+        and Path(MOCK_INVENTORY_DB).resolve() == Path(SQLITE_NAME).resolve()
+    ):
+        raise ImproperlyConfigured(
+            "The simulated Inventory ledger must use a separate database file."
+        )
+REPLAY_RETENTION_HOURS = int(os.environ.get("REPLAY_RETENTION_HOURS", "24"))
+if REPLAY_RETENTION_HOURS < 1:
+    raise ImproperlyConfigured("REPLAY_RETENTION_HOURS must be positive.")
+if REGISTRAR_BACKEND != "mock" or INVENTORY_BACKEND not in ("mock", "durable_mock"):
     raise ImproperlyConfigured(
         "Only verified mock external adapters are currently implemented. Real contracts are required."
     )

@@ -3,6 +3,7 @@
 from copy import deepcopy
 from threading import RLock
 from uuid import uuid4
+from contextlib import contextmanager
 
 from django.conf import settings
 from django.utils import timezone
@@ -19,10 +20,20 @@ from .services.inventory import inventory_service, MedicineNotFoundError
 
 from .mutations import process_lock, guarded
 
-lock = process_lock
-restocks = {}
-notifications = []
-read_notifications = {}
+
+@contextmanager
+def workspace_lock():
+    with process_lock:
+        if getattr(inventory_service, "durable", False):
+            with inventory_service.workspace():
+                yield
+        else:
+            yield
+
+
+restocks = getattr(inventory_service, "restocks", {})
+notifications = getattr(inventory_service, "notifications", [])
+read_notifications = getattr(inventory_service, "read_notifications", {})
 
 
 class StudentWrite(serializers.Serializer):
@@ -152,7 +163,7 @@ class ImportStudentView(DemoBase):
 class RegistrarStudentsView(OwnerDemo):
     @extend_schema(responses=StudentWrite(many=True))
     def get(self, request):
-        with lock:
+        with workspace_lock():
             return Response(registrar_service.list_students())
 
     @extend_schema(request=StudentWrite, responses={201: StudentWrite})
@@ -160,7 +171,7 @@ class RegistrarStudentsView(OwnerDemo):
     def post(self, request):
         serializer = StudentWrite(data=request.data)
         serializer.is_valid(raise_exception=True)
-        with lock:
+        with workspace_lock():
             row = dict(serializer.validated_data)
             if registrar_service.student_exists(row["student_id"]):
                 raise ConflictError("Student ID already exists in Registrar.")
@@ -172,7 +183,7 @@ class RegistrarStudentDetailView(OwnerDemo):
     @extend_schema(request=StudentWrite, responses=StudentWrite)
     @guarded
     def patch(self, request, student_id):
-        with lock:
+        with workspace_lock():
             existing = student(student_id)
             if (
                 "student_id" in request.data
@@ -192,7 +203,7 @@ class RegistrarStudentDetailView(OwnerDemo):
 class InventoryMedicinesView(OwnerDemo):
     @extend_schema(responses=MedicineWrite(many=True))
     def get(self, request):
-        with lock:
+        with workspace_lock():
             return Response(inventory_service.list_medicines())
 
     @extend_schema(request=MedicineWrite, responses={201: MedicineWrite})
@@ -200,7 +211,7 @@ class InventoryMedicinesView(OwnerDemo):
     def post(self, request):
         serializer = MedicineWrite(data=request.data)
         serializer.is_valid(raise_exception=True)
-        with lock:
+        with workspace_lock():
             row = dict(serializer.validated_data)
             if any(
                 m["medicine_id"] == row["medicine_id"]
@@ -219,7 +230,7 @@ class InventoryMedicineDetailView(OwnerDemo):
     @extend_schema(request=MedicineWrite, responses=MedicineWrite)
     @guarded
     def patch(self, request, medicine_id):
-        with lock:
+        with workspace_lock():
             existing = medicine(medicine_id)
             if (
                 "medicine_id" in request.data
@@ -241,7 +252,7 @@ class InventoryMedicineDetailView(OwnerDemo):
     @extend_schema(request=None, responses={204: None})
     @guarded
     def delete(self, request, medicine_id):
-        with lock:
+        with workspace_lock():
             medicine(medicine_id)
             if any(
                 t["medicine_id"] == medicine_id
@@ -270,7 +281,7 @@ class InventoryMedicineDetailView(OwnerDemo):
 class RestocksView(DemoBase):
     @extend_schema(responses=RestockResponse(many=True))
     def get(self, request):
-        with lock:
+        with workspace_lock():
             return Response(deepcopy(list(reversed(list(restocks.values())))))
 
     @extend_schema(request=RestockWrite, responses={201: RestockResponse})
@@ -279,7 +290,7 @@ class RestocksView(DemoBase):
         serializer = RestockWrite(data=request.data)
         serializer.is_valid(raise_exception=True)
         data = serializer.validated_data
-        with lock:
+        with workspace_lock():
             items = (
                 data.get("items", [])
                 if data["mode"] == "SELECTED"
@@ -315,7 +326,7 @@ class FulfillRestockView(OwnerDemo):
     @extend_schema(request=None, responses=RestockResponse)
     @guarded
     def post(self, request, request_id):
-        with lock:
+        with workspace_lock():
             row = restocks.get(request_id)
             if row is None:
                 raise NotFound("Restock request not found.")
@@ -358,7 +369,7 @@ class FulfillRestockView(OwnerDemo):
 class InventoryNotificationsView(DemoBase):
     @extend_schema(responses=NotificationResponse(many=True))
     def get(self, request):
-        with lock:
+        with workspace_lock():
             seen = read_notifications.get(request.user.pk, set())
             return Response(
                 deepcopy(
@@ -375,7 +386,7 @@ class InventoryNotificationsView(DemoBase):
     def post(self, request):
         serializer = NotificationRead(data=request.data)
         serializer.is_valid(raise_exception=True)
-        with lock:
+        with workspace_lock():
             read_notifications.setdefault(request.user.pk, set()).update(
                 serializer.validated_data["notification_ids"]
             )

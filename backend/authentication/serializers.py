@@ -27,10 +27,11 @@ class CsrfTokenResponseSerializer(serializers.Serializer):
 
 
 class LoginRequestSerializer(serializers.Serializer):
-    username = serializers.CharField()
+    username = serializers.CharField(max_length=150)
     password = serializers.CharField(
         write_only=True,
         trim_whitespace=False,
+        max_length=1024,
     )
 
 

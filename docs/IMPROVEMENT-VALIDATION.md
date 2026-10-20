@@ -1,3 +1,5 @@
+> Historical evidence for the previous improvement pass. Latest independent reruns and verification branch evidence are in VERIFICATION-RESULTS.md.
+
 # Improvement validation —20 October2026
 
 Imported baseline:9514469fe0eddac3d185e806d94d46a093d95586, exact source submission tree/history. Baseline273 Django tests passed with normal hashing in135.900s. Baseline frontend npm ci/lint/build passed. Audit was recorded before implementation in IMPROVEMENT-AUDIT.md.

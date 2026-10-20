@@ -8,7 +8,9 @@
 6. In Mock Inventory add a medicine. Observe the Clinic catalog and notification. Submit selected/all restocks, fulfill once as Owner, verify stock and duplicate-delivery protection.
 7. Dispense, roll back and verify stock. Explain that deleting dispensing history removes history only and never returns stock. Review reports and statuses.
 8. Change own username/password in Settings, confirm continued current session and subsequent login. Toggle light/dark mode and resize to mobile; test keyboard focus/Escape in a dialog.
-9. Restart the backend and reload: Clinic database records survive, but external mock stock/transactions reset. Demonstrate this limitation honestly. Use scripts/verify_persistence.py only with a disposable validation database for the separate PostgreSQL restart proof.
+9. Select INVENTORY_BACKEND=durable_mock and CLINIC_DATA_BACKEND=database before startup. Use a seeded student. Dispense, record stock/reference, restart the backend and show the clinical record and simulated stock/reference remain. Roll back once and show stock returns once. Explain that default mocks and Registrar edits still reset; this is not the actual college Inventory System.
 10. Show Swagger/ReDoc, test evidence and Owner's read-only audit trail/reconciliation queue. Explain that no real Registrar/Inventory connectivity is claimed.
+11. Open the new branch's GitHub Actions run. Show database, contracts, browser, dependency, Newman and deployment outcomes, using exact counts from VERIFICATION-RESULTS.md.
+12. Show BACKUP-RESTORE.md and the disposable restore proof: four resource kinds, unchanged reference/stock, constraints and rollback. Explain the ownership diagram and manual reconciliation after uncertain outcomes. Never destroy the only project database for a demo.
 
 Run commands: [SETUP.md](../SETUP.md). Storage/ERD: [DATABASE.md](DATABASE.md). Exact executed checks and intermediate fixes: [IMPROVEMENT-VALIDATION.md](IMPROVEMENT-VALIDATION.md). Remaining limits: [KNOWN-LIMITATIONS.md](KNOWN-LIMITATIONS.md).

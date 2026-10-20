@@ -1,3 +1,5 @@
+> The verification branch offers INVENTORY_BACKEND=durable_mock, an explicitly simulated provider with its own durable ledger. This is not genuine external connectivity. Default mocks and the need for authentic provider contracts remain unchanged. See INVENTORY-RECOVERY.md.
+
 # Connecting real Registrar and Inventory systems
 
 ## Current state

@@ -236,7 +236,7 @@ def postprocess_openapi_metadata(
                         "name": "Idempotency-Key",
                         "in": "header",
                         "required": False,
-                        "description": "Optional actor/path scoped replay key. Reuse identical key/body after a network failure; changed body returns 409.",
+                        "description": "Actor/path scoped replay key; required for external writes in durable_mock Inventory mode, optional otherwise. Reuse identical key/body after a network failure; changed body or expired replay returns 409. Uncertain Inventory outcomes return 503; do not retry with a new key.",
                         "schema": {"type": "string", "maxLength": 128},
                     }
                 )
@@ -280,7 +280,10 @@ def postprocess_openapi_metadata(
                         "description": "Replay-key conflict or stale database record. Reload before retrying."
                     },
                 )
-            if "/medicine-dispensations/" in path and method == "post":
+            if method in ("post", "patch", "delete") and any(
+                part in path
+                for part in ("/medicine-dispensations/", "restock", "mock/inventory")
+            ):
                 operation["responses"]["503"] = {
                     "description": "Inventory reconciliation required; Owner must inspect the private incident queue before retrying."
                 }
